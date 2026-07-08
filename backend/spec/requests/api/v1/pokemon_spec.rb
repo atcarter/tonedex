@@ -80,16 +80,18 @@ RSpec.describe "Pokemon API", type: :request do
       expect(response).to have_http_status(:bad_request)
     end
 
-    it "returns the PokeAPI match when the name resolves" do
+    it "returns an exact PokeAPI match as {results:, exact: true}" do
       pokemon = create(:pokemon, name: "pikachu")
       allow(adapter).to receive(:find_or_create_pokemon).with("pikachu").and_return(pokemon)
 
       get "/api/v1/pokemon/search", params: {q: "Pikachu"}
 
-      expect(response.parsed_body["name"]).to eq("pikachu")
+      json = response.parsed_body
+      expect(json["exact"]).to be(true)
+      expect(json["results"].map { |p| p["name"] }).to eq(["pikachu"])
     end
 
-    it "falls back to a database substring search when PokeAPI misses" do
+    it "falls back to a database substring search as {results:, exact: false}" do
       # Sentinel names: the shared test database may hold leftover real Pokémon
       create(:pokemon, name: "spectest-pika")
       create(:pokemon, name: "spectest-rai")
@@ -97,8 +99,9 @@ RSpec.describe "Pokemon API", type: :request do
 
       get "/api/v1/pokemon/search", params: {q: "spectest"}
 
-      names = response.parsed_body.map { |p| p["name"] }
-      expect(names).to contain_exactly("spectest-pika", "spectest-rai")
+      json = response.parsed_body
+      expect(json["exact"]).to be(false)
+      expect(json["results"].map { |p| p["name"] }).to contain_exactly("spectest-pika", "spectest-rai")
     end
 
     it "treats SQL LIKE wildcards in the query literally" do
@@ -107,7 +110,7 @@ RSpec.describe "Pokemon API", type: :request do
 
       get "/api/v1/pokemon/search", params: {q: "%"}
 
-      expect(response.parsed_body).to eq([])
+      expect(response.parsed_body["results"]).to eq([])
     end
   end
 end

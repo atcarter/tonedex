@@ -3,7 +3,7 @@ class Api::V1::FavoritesController < ApplicationController
 
   def index
     favorites = current_user.favorites.includes(:pokemon)
-    render json: favorites.map { |f| pokemon_summary(f.pokemon, f.id) }
+    render json: favorites.map { |f| PokemonSerializer.favorite_entry(f.pokemon, f.id) }
   end
 
   def create
@@ -36,17 +36,5 @@ class Api::V1::FavoritesController < ApplicationController
     head :no_content
   rescue ActiveRecord::RecordNotFound
     render json: {error: "Favorite not found"}, status: :not_found
-  end
-
-  private
-
-  def pokemon_summary(pokemon, favorite_id)
-    {
-      id: pokemon.id,
-      name: pokemon.name,
-      types: pokemon.types,
-      sprite_url: pokemon.sprite_url,
-      favorite_id: favorite_id
-    }
   end
 end
