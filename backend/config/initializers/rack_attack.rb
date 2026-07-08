@@ -23,11 +23,19 @@ class Rack::Attack
     req.ip if req.path == "/api/v1/auth/google" && req.post?
   end
 
-  # Game seeding: 5 requests per minute per IP.
-  # Each request to an unseeded game enqueues a SeedGamePokemonJob that fans out
-  # to PokeAPI — without this, a client could enqueue unbounded background work.
-  throttle("api/games", limit: 5, period: 1.minute) do |req|
-    req.ip if req.path.start_with?("/api/v1/games/") && req.get?
+  # NOTE: there is deliberately no games-specific throttle. Dex pagination is
+  # legitimate burst traffic (infinite scroll fetches ~10 pages for a large dex,
+  # and the seeding banner polls every 5s), and the threat the old 5/min limit
+  # guarded against — stacking SeedGamePokemonJobs on an unseeded game — is now
+  # prevented structurally by SeedGamePokemonJob.enqueue_once's Redis lock.
+  # The general 300/5min throttle above still bounds raw volume.
+
+  # Search: 15 requests per minute per IP.
+  # Every query that misses the local DB triggers a synchronous PokeAPI fetch
+  # from the request thread, so this is the endpoint where per-request cost is
+  # highest and abuse fans out to an external service.
+  throttle("api/search", limit: 15, period: 1.minute) do |req|
+    req.ip if req.path == "/api/v1/pokemon/search" && req.get?
   end
 
   # ── Response ───────────────────────────────────────────────────────────────

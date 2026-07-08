@@ -41,6 +41,7 @@ module Backend
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
 
-    config.middleware.use Rack::Attack
+    # Rack::Attack inserts itself via its railtie (rack-attack >= 6.1), so no
+    # explicit middleware.use here — doing both mounted it twice.
   end
 end

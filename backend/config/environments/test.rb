@@ -10,9 +10,10 @@ Rails.application.configure do
   # as the default host, which would otherwise be blocked with a 403.
   config.middleware.delete ActionDispatch::HostAuthorization
 
-  # Disable Rack::Attack throttling in tests — we test throttles separately and
-  # don't want rapid test execution to hit rate limits.
-  config.middleware.delete Rack::Attack
+  # Rack::Attack stays in the middleware stack but is switched off for tests
+  # via `Rack::Attack.enabled = false` in its initializer. Keeping the
+  # middleware mounted lets the throttle request specs flip it back on and
+  # exercise the real stack.
 
   # While tests run files are not watched, reloading is not necessary.
   config.enable_reloading = false
