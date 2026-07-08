@@ -5,6 +5,7 @@ import type {
   MoveDetails,
   Pokemon,
   PokemonResponse,
+  SearchResponse,
   User,
 } from "../types";
 
@@ -141,10 +142,8 @@ export async function getPokemon(
   return fetchJson<PokemonResponse>(`/api/v1/pokemon/${nameOrId}${params}`);
 }
 
-export async function searchPokemon(
-  query: string,
-): Promise<Pokemon | Pokemon[]> {
-  return fetchJson<Pokemon | Pokemon[]>(
+export async function searchPokemon(query: string): Promise<SearchResponse> {
+  return fetchJson<SearchResponse>(
     `/api/v1/pokemon/search?q=${encodeURIComponent(query)}`,
   );
 }

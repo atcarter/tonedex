@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import InputBase from "@mui/material/InputBase";
@@ -98,10 +98,27 @@ const ErrorBadge = styled.div`
 
 export function PokemonSearch() {
   const navigate = useNavigate();
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Pokemon[]>([]);
+
+  const dismiss = () => {
+    setResults([]);
+    setError(null);
+  };
+
+  // Close the dropdown/error on click-outside
+  useEffect(() => {
+    if (results.length === 0 && !error) return;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!wrapperRef.current?.contains(e.target as Node)) dismiss();
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [results.length, error]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,13 +129,15 @@ export function PokemonSearch() {
     setResults([]);
 
     try {
-      const result = await searchPokemon(query.trim().toLowerCase());
-      if (Array.isArray(result)) {
-        setResults(result);
-        if (result.length === 0) setError("No Pokémon found");
-      } else {
-        navigate(`/pokemon/${result.name}`);
+      const { results: found, exact } = await searchPokemon(
+        query.trim().toLowerCase(),
+      );
+      if (exact && found[0]) {
+        navigate(`/pokemon/${found[0].name}`);
         setQuery("");
+      } else {
+        setResults(found);
+        if (found.length === 0) setError("No Pokémon found");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed");
@@ -129,12 +148,17 @@ export function PokemonSearch() {
 
   const handleSelect = (pokemon: Pokemon) => {
     navigate(`/pokemon/${pokemon.name}`);
-    setResults([]);
+    dismiss();
     setQuery("");
   };
 
   return (
-    <SearchWrapper>
+    <SearchWrapper
+      ref={wrapperRef}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") dismiss();
+      }}
+    >
       <form onSubmit={handleSearch}>
         <SearchBar>
           <SearchInput

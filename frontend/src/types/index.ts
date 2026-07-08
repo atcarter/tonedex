@@ -101,3 +101,9 @@ export interface GameResponse {
   available_types: string[];
   pagination: Pagination;
 }
+
+export interface SearchResponse {
+  results: Pokemon[];
+  // true when the query resolved to a single exact PokeAPI match
+  exact: boolean;
+}
