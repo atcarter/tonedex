@@ -195,7 +195,10 @@ export function GamePage() {
     );
   }
 
-  if (isError) {
+  // Only surface a full-page error when nothing has loaded at all. A failed
+  // fetchNextPage (e.g. a transient rate limit mid-scroll) keeps the grid and
+  // shows an inline notice at the sentinel instead.
+  if (isError && !data) {
     return (
       <ErrorText>
         {error instanceof Error ? error.message : "Failed to load Pokémon"}
@@ -308,6 +311,13 @@ export function GamePage() {
             <CircularProgress size={14} sx={{ color: "primary.main" }} />
             <span>Loading more...</span>
           </>
+        )}
+        {isError && !isFetchingNextPage && (
+          <span>
+            {error instanceof Error
+              ? error.message
+              : "Couldn't load more Pokémon"}
+          </span>
         )}
       </Sentinel>
     </PageWrapper>

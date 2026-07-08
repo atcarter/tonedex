@@ -17,6 +17,17 @@ export class UnauthorizedError extends Error {
   }
 }
 
+export class RateLimitError extends Error {
+  /** Seconds the server asked us to wait (Rack::Attack's retry_after) */
+  retryAfter: number;
+
+  constructor(retryAfter?: number) {
+    super("Too many requests — waiting a moment before retrying.");
+    this.name = "RateLimitError";
+    this.retryAfter = retryAfter && retryAfter > 0 ? retryAfter : 5;
+  }
+}
+
 async function fetchJson<T>(
   endpoint: string,
   options?: RequestInit,
@@ -24,6 +35,12 @@ async function fetchJson<T>(
   const response = await fetch(`${API_URL}${endpoint}`, options);
 
   if (response.status === 401) throw new UnauthorizedError();
+  if (response.status === 429) {
+    const body = (await response.json().catch(() => null)) as {
+      retry_after?: number;
+    } | null;
+    throw new RateLimitError(body?.retry_after);
+  }
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
