@@ -24,11 +24,19 @@ module PokemonSerializer
     summary(pokemon).merge(favorite_id: favorite_id)
   end
 
-  # The detail page header shape.
+  # The detail page header shape. Includes the game-local dex number when a
+  # game is given and the pokemon belongs to its dex.
   def details(pokemon, game: nil)
-    summary(pokemon, game: game).merge(
+    base = summary(pokemon, game: game).merge(
       base_stats: pokemon.base_stats,
       shiny_sprite_url: pokemon.shiny_sprite_url
     )
+
+    if game
+      game_pokemon = pokemon.game_pokemons.find { |gp| gp.game_id == game.id }
+      base[:pokedex_number] = game_pokemon&.pokedex_number
+    end
+
+    base
   end
 end
