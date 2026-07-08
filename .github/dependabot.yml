@@ -1,0 +1,62 @@
+version: 2
+
+updates:
+  # Ruby gems (backend)
+  - package-ecosystem: "bundler"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "backend"
+    groups:
+      dev-tools:
+        patterns:
+          - "brakeman"
+          - "bundler-audit"
+          - "standard"
+          - "rspec*"
+          - "factory_bot*"
+          - "faker"
+
+  # npm packages (frontend)
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "frontend"
+    groups:
+      mui:
+        patterns:
+          - "@mui/*"
+          - "@emotion/*"
+      react-query:
+        patterns:
+          - "@tanstack/*"
+      dev-tools:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+          - "vitest"
+          - "typescript"
+          - "eslint*"
+          - "@eslint/*"
+          - "prettier"
+          - "playwright"
+          - "@playwright/*"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "ci"

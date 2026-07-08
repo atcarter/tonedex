@@ -1,0 +1,161 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pokedex_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          working-directory: backend
+          bundler-cache: true
+
+      - name: Set up database
+        env:
+          RAILS_ENV: test
+          POSTGRES_HOST: localhost
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pokedex_test
+        run: bundle exec rails db:schema:load
+
+      - name: Lint (standardrb)
+        run: bundle exec standardrb --no-fix
+
+      - name: Run RSpec
+        env:
+          RAILS_ENV: test
+          POSTGRES_HOST: localhost
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pokedex_test
+          JWT_SECRET: ci-test-secret
+        run: bundle exec rspec --format progress
+
+      - name: Scan for security vulnerabilities (Brakeman)
+        run: bin/brakeman --no-pager
+
+      - name: Scan gems for known vulnerabilities (bundler-audit)
+        run: bin/bundler-audit
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Format check (Prettier)
+        run: npm run format:check
+
+      - name: Unit tests (Vitest)
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [frontend]
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Write .env.local for Docker Compose
+        working-directory: .
+        run: |
+          cat > .env.local <<'ENVEOF'
+          GOOGLE_CLIENT_ID=placeholder
+          GOOGLE_CLIENT_SECRET=placeholder
+          JWT_SECRET=ci-test-secret
+          SIDEKIQ_ALLOWED_EMAIL=ci@example.com
+          VITE_GOOGLE_CLIENT_ID=placeholder
+          VITE_API_URL=http://localhost:3000
+          ENVEOF
+
+      - name: Start Docker Compose stack
+        working-directory: .
+        run: docker compose up -d --wait
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: frontend/test-results/

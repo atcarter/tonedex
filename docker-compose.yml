@@ -1,0 +1,100 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pokedex_development
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    # AOF (Append-Only File) persistence: every write is fsynced to disk.
+    # Without this, a container restart drops all queued and retried Sidekiq jobs.
+    command: redis-server --appendonly yes --appendfsync everysec
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails server -b 0.0.0.0"
+    volumes:
+      - ./backend:/rails
+      - backend_gems:/usr/local/bundle
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    environment:
+      # Override with Docker service names (these win over env_file values)
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379
+      RAILS_MAX_THREADS: 3
+      DB_POOL: 3   # web only needs one connection per Puma thread
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  sidekiq:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    command: bundle exec sidekiq
+    volumes:
+      - ./backend:/rails
+      - backend_gems:/usr/local/bundle
+    env_file:
+      - .env.local
+    environment:
+      # Override with Docker service names (these win over env_file values)
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379
+      SIDEKIQ_CONCURRENCY: 5
+      DB_POOL: 5   # worker needs one connection per Sidekiq thread
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    command: npm run dev -- --host
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    env_file:
+      - .env.local
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_gems:

@@ -1,0 +1,8 @@
+build:
+  docker:
+    web: backend/Dockerfile
+    worker: backend/Dockerfile
+
+run:
+  web: bundle exec puma -C config/puma.rb
+  worker: bundle exec sidekiq
