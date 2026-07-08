@@ -37,7 +37,7 @@ const Sentinel = styled.div`
   align-items: center;
   justify-content: center;
   margin-top: 16px;
-  color: #bbb;
+  color: ${({ theme }) => theme.palette.text.disabled};
   font-size: 0.8rem;
   gap: 8px;
 `;
@@ -52,15 +52,15 @@ const LoadingContainer = styled.div`
 
 const LoadingText = styled.span`
   font-size: 0.875rem;
-  color: #888;
+  color: ${({ theme }) => theme.palette.text.secondary};
 `;
 
 const RedSpinner = styled(CircularProgress)`
-  color: #cc0000 !important;
+  color: ${({ theme }) => theme.palette.primary.main} !important;
 `;
 
 const ErrorText = styled.p`
-  color: #cc0000;
+  color: ${({ theme }) => theme.palette.error.main};
   font-size: 0.875rem;
   padding: 24px;
   margin: 0;
@@ -68,7 +68,7 @@ const ErrorText = styled.p`
 
 const CountText = styled.span`
   font-size: 0.875rem;
-  color: #888;
+  color: ${({ theme }) => theme.palette.text.secondary};
 `;
 
 const CaughtCounter = styled.span`
@@ -76,11 +76,11 @@ const CaughtCounter = styled.span`
   align-items: center;
   gap: 4px;
   font-size: 0.875rem;
-  color: #888;
+  color: ${({ theme }) => theme.palette.text.secondary};
 `;
 
 const CaughtDot = styled.span`
-  color: #cc0000;
+  color: ${({ theme }) => theme.palette.primary.main};
   font-size: 0.6rem;
   line-height: 1;
 `;
@@ -92,17 +92,18 @@ const TypeFilters = styled.div`
   margin-bottom: 16px;
 `;
 
+// Amber tones stay recognisable as a "heads up" in both color modes
 const SeedingBanner = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 16px 20px;
-  background: #fff8e1;
-  border: 1px solid #ffe082;
+  background: rgba(255, 193, 7, 0.12);
+  border: 1px solid rgba(255, 193, 7, 0.4);
   border-radius: 10px;
   margin-bottom: 20px;
   font-size: 0.875rem;
-  color: #795548;
+  color: ${({ theme }) => theme.palette.text.secondary};
 `;
 
 export function GamePage() {
@@ -208,10 +209,10 @@ export function GamePage() {
         <SeedingBanner>
           <CircularProgress
             size={16}
-            sx={{ color: "#795548", flexShrink: 0 }}
+            sx={{ color: "text.secondary", flexShrink: 0 }}
           />
-          Pokémon data is being loaded in the background for the first time.
-          Refresh in a minute to see the full Pokédex.
+          Pokémon data is being loaded in the background for the first time. The
+          Pokédex will appear here automatically in a minute.
         </SeedingBanner>
       )}
 
@@ -224,7 +225,7 @@ export function GamePage() {
           sx={{
             width: 240,
             "& .MuiOutlinedInput-root": {
-              "&.Mui-focused fieldset": { borderColor: "#cc0000" },
+              "&.Mui-focused fieldset": { borderColor: "primary.main" },
             },
           }}
         />
@@ -281,8 +282,9 @@ export function GamePage() {
                 fontSize: "0.7rem",
                 cursor: "pointer",
                 bgcolor: "transparent",
-                color: "#999",
-                border: "2px solid #ddd",
+                color: "text.secondary",
+                border: "2px solid",
+                borderColor: "divider",
                 "& .MuiChip-label": { px: "8px" },
               }}
             />
@@ -303,7 +305,7 @@ export function GamePage() {
       <Sentinel ref={sentinelRef}>
         {isFetchingNextPage && (
           <>
-            <CircularProgress size={14} sx={{ color: "#cc0000" }} />
+            <CircularProgress size={14} sx={{ color: "primary.main" }} />
             <span>Loading more...</span>
           </>
         )}

@@ -47,7 +47,7 @@ const ResultsDropdown = styled(Paper)`
   max-height: 320px !important;
   overflow-y: auto !important;
   z-index: 1300 !important;
-  border: 1px solid #e0e0e0 !important;
+  border: 1px solid ${({ theme }) => theme.palette.divider} !important;
 `;
 
 const ResultItem = styled.button`
@@ -58,16 +58,16 @@ const ResultItem = styled.button`
   padding: 8px 16px;
   background: none;
   border: none;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid ${({ theme }) => theme.palette.divider};
   cursor: pointer;
   text-align: left;
   font-family: inherit;
   font-size: 0.875rem;
-  color: #1a1a1a;
+  color: ${({ theme }) => theme.palette.text.primary};
   transition: background 0.15s;
 
   &:hover {
-    background: #fce4ec;
+    background: ${({ theme }) => theme.palette.action.hover};
   }
 
   &:last-child {
@@ -85,8 +85,9 @@ const ErrorBadge = styled.div`
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  background: #ffebee;
-  color: #c62828;
+  background: ${({ theme }) => theme.palette.background.paper};
+  border: 1px solid ${({ theme }) => theme.palette.error.main};
+  color: ${({ theme }) => theme.palette.error.main};
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 0.875rem;

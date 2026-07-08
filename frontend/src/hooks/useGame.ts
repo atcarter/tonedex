@@ -16,11 +16,14 @@ export function useGame(gameId: number) {
         ? lastPage.pagination.offset + lastPage.pagination.limit
         : undefined,
     // staleTime: Infinity because Pokemon data is seeded once and never changes.
-    // Known limitation: if a game is first visited while seeding (backend returns
-    // pagination.seeding: true with empty pokemons), that empty page is cached
-    // permanently. The user must hard-refresh after seeding completes to see data.
-    // The SeedingBanner in GamePage prompts the user to do this.
+    // While the backend is still seeding (empty page with pagination.seeding:
+    // true), poll every few seconds so the dex fills in without a manual
+    // refresh; polling stops as soon as real data arrives.
     staleTime: Infinity,
+    refetchInterval: (query) => {
+      const pages = query.state.data?.pages;
+      return pages?.[pages.length - 1]?.pagination.seeding ? 5000 : false;
+    },
     enabled: !!gameId,
   });
 }

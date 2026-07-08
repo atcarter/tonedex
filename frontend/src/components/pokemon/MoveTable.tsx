@@ -4,6 +4,7 @@ import AccordionSummary from "@mui/material/AccordionSummary";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import CircularProgress from "@mui/material/CircularProgress";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { alpha } from "@mui/material/styles";
 import type { ReactNode } from "react";
 import type { BasicMove, MoveDetails } from "../../types";
 import { TypeBadge } from "../TypeBadge";
@@ -12,7 +13,7 @@ import { formatName } from "../../utils/formatters";
 // ── Accordion styling ────────────────────────────────────────────────────────
 
 const StyledAccordion = styled(Accordion)`
-  border: 1px solid #e8e8e8 !important;
+  border: 1px solid ${({ theme }) => theme.palette.divider} !important;
   border-radius: 6px !important;
   margin-bottom: 4px !important;
   box-shadow: none !important;
@@ -22,7 +23,7 @@ const StyledAccordion = styled(Accordion)`
   }
 
   &.Mui-expanded {
-    border-color: #cc0000 !important;
+    border-color: ${({ theme }) => theme.palette.primary.main} !important;
   }
 `;
 
@@ -31,7 +32,8 @@ const StyledAccordionSummary = styled(AccordionSummary)`
 
   &.Mui-expanded {
     min-height: 44px !important;
-    background: #fff8f8 !important;
+    background: ${({ theme }) =>
+      alpha(theme.palette.primary.main, 0.06)} !important;
   }
 
   .MuiAccordionSummary-content {
@@ -43,11 +45,11 @@ const StyledAccordionSummary = styled(AccordionSummary)`
 
 const StyledAccordionDetails = styled(AccordionDetails)`
   padding: 12px 16px !important;
-  background: #fafafa !important;
+  background: ${({ theme }) => theme.palette.action.hover} !important;
 `;
 
 const StyledExpandIcon = styled(ExpandMoreIcon)`
-  color: #999 !important;
+  color: ${({ theme }) => theme.palette.text.disabled} !important;
   font-size: 18px !important;
 `;
 
@@ -57,12 +59,12 @@ const MoveName = styled.span`
   flex: 1;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #1a1a1a;
+  color: ${({ theme }) => theme.palette.text.primary};
 `;
 
 const LearnMethod = styled.span`
   font-size: 0.75rem;
-  color: #888;
+  color: ${({ theme }) => theme.palette.text.secondary};
   margin-right: 4px;
 `;
 
@@ -76,11 +78,11 @@ const LoadingRow = styled.div`
 
 const LoadingText = styled.span`
   font-size: 0.75rem;
-  color: #888;
+  color: ${({ theme }) => theme.palette.text.secondary};
 `;
 
 const RedSpinner = styled(CircularProgress)`
-  color: #cc0000 !important;
+  color: ${({ theme }) => theme.palette.primary.main} !important;
 `;
 
 const DetailsGrid = styled.div`
@@ -99,7 +101,7 @@ const DetailItemWrapper = styled.div`
 const DetailLabel = styled.span`
   font-size: 0.62rem;
   font-weight: 700;
-  color: #888;
+  color: ${({ theme }) => theme.palette.text.secondary};
   text-transform: uppercase;
   letter-spacing: 0.08em;
 `;
@@ -107,13 +109,13 @@ const DetailLabel = styled.span`
 const DetailValue = styled.span`
   font-size: 0.875rem;
   font-weight: 700;
-  color: #1a1a1a;
+  color: ${({ theme }) => theme.palette.text.primary};
   text-transform: capitalize;
 `;
 
 const ErrorText = styled.span`
   font-size: 0.75rem;
-  color: #cc0000;
+  color: ${({ theme }) => theme.palette.error.main};
 `;
 
 // ── Empty / hint ─────────────────────────────────────────────────────────────
@@ -121,13 +123,13 @@ const ErrorText = styled.span`
 const HintText = styled.span`
   display: block;
   font-size: 0.75rem;
-  color: #888;
+  color: ${({ theme }) => theme.palette.text.secondary};
   margin-bottom: 8px;
 `;
 
 const EmptyText = styled.span`
   font-size: 0.875rem;
-  color: #888;
+  color: ${({ theme }) => theme.palette.text.secondary};
 `;
 
 // ── MoveDetail sub-component ─────────────────────────────────────────────────

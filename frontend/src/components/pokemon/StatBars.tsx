@@ -26,7 +26,7 @@ const Label = styled.span`
   width: 64px;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #888;
+  color: ${({ theme }) => theme.palette.text.secondary};
   text-align: right;
   flex-shrink: 0;
   text-transform: uppercase;
@@ -36,7 +36,7 @@ const Label = styled.span`
 const Track = styled.div`
   flex: 1;
   height: 8px;
-  background: #eeeeee;
+  background: ${({ theme }) => theme.palette.action.hover};
   border-radius: 4px;
   overflow: hidden;
 `;
@@ -54,7 +54,7 @@ const Value = styled.span`
   text-align: right;
   font-weight: 700;
   font-size: 0.875rem;
-  color: #1a1a1a;
+  color: ${({ theme }) => theme.palette.text.primary};
 `;
 
 interface StatBarsProps {

@@ -4,6 +4,7 @@ import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
+import * as Sentry from "@sentry/react";
 
 interface Props {
   children: ReactNode;
@@ -27,6 +28,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("ErrorBoundary caught:", error, info);
+    // No-op in development — Sentry.init is enabled in PROD only
+    Sentry.captureException(error, {
+      extra: { componentStack: info.componentStack },
+    });
   }
 
   handleReset = () => {
@@ -39,7 +44,12 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <Box p={3}>
           <Paper
-            sx={{ p: 3, borderRadius: 2, borderLeft: "4px solid #cc0000" }}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              borderLeft: "4px solid",
+              borderLeftColor: "error.main",
+            }}
           >
             <Typography
               variant="h6"

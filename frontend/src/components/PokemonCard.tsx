@@ -25,16 +25,18 @@ const Card = styled.div<{ $caught: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: white;
+  background: ${({ theme }) => theme.palette.background.paper};
   border-radius: 12px;
   padding: 16px 12px 12px;
-  border: 2px solid ${({ $caught }) => ($caught ? "#cc0000" : "#f0f0f0")};
+  border: 2px solid
+    ${({ theme, $caught }) =>
+      $caught ? theme.palette.primary.main : theme.palette.divider};
   cursor: pointer;
   transition: all 0.15s ease;
   position: relative;
 
   &:hover {
-    border-color: #cc0000;
+    border-color: ${({ theme }) => theme.palette.primary.main};
     box-shadow: 0 4px 12px rgba(204, 0, 0, 0.12);
     transform: translateY(-2px);
   }
@@ -49,7 +51,7 @@ const Card = styled.div<{ $caught: boolean }>`
 
 const PokedexNum = styled.span`
   font-size: 0.68rem;
-  color: #bbb;
+  color: ${({ theme }) => theme.palette.text.disabled};
   font-weight: 700;
   letter-spacing: 0.04em;
 `;
@@ -57,7 +59,7 @@ const PokedexNum = styled.span`
 const PokemonName = styled.span`
   font-size: 0.875rem;
   font-weight: 700;
-  color: #1a1a1a;
+  color: ${({ theme }) => theme.palette.text.primary};
   text-align: center;
   margin: 6px 0 8px;
 `;
@@ -150,9 +152,13 @@ export function PokemonCard({
                 sx={{ p: "4px" }}
               >
                 {isCaught ? (
-                  <Brightness1Icon sx={{ fontSize: 14, color: "#cc0000" }} />
+                  <Brightness1Icon
+                    sx={{ fontSize: 14, color: "primary.main" }}
+                  />
                 ) : (
-                  <PanoramaFishEyeIcon sx={{ fontSize: 14, color: "#ddd" }} />
+                  <PanoramaFishEyeIcon
+                    sx={{ fontSize: 14, color: "action.disabled" }}
+                  />
                 )}
               </IconButton>
             </span>
@@ -175,9 +181,11 @@ export function PokemonCard({
                 sx={{ p: "4px" }}
               >
                 {isFavorite ? (
-                  <FavoriteIcon sx={{ fontSize: 16, color: "#cc0000" }} />
+                  <FavoriteIcon sx={{ fontSize: 16, color: "primary.main" }} />
                 ) : (
-                  <FavoriteBorderIcon sx={{ fontSize: 16, color: "#ccc" }} />
+                  <FavoriteBorderIcon
+                    sx={{ fontSize: 16, color: "action.disabled" }}
+                  />
                 )}
               </IconButton>
             </span>

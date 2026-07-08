@@ -1,4 +1,5 @@
 import styled from "styled-components";
+import { alpha } from "@mui/material/styles";
 import type { EvolutionStep } from "../../types";
 import { formatName, formatEvolutionDetails } from "../../utils/formatters";
 
@@ -21,17 +22,22 @@ const Pokemon = styled.div<{ $isCurrent: boolean; $clickable: boolean }>`
   gap: 4px;
   padding: 10px 16px;
   border-radius: 10px;
-  background: ${(props) => (props.$isCurrent ? "#fce4ec" : "#f5f5f5")};
-  border: 2px solid ${(props) => (props.$isCurrent ? "#cc0000" : "transparent")};
+  background: ${({ theme, $isCurrent }) =>
+    $isCurrent
+      ? alpha(theme.palette.primary.main, 0.1)
+      : theme.palette.action.hover};
+  border: 2px solid
+    ${({ theme, $isCurrent }) =>
+      $isCurrent ? theme.palette.primary.main : "transparent"};
   min-width: 80px;
   cursor: ${(props) => (props.$clickable ? "pointer" : "default")};
   transition: all 0.15s ease;
 
   &:hover {
-    background: ${(props) =>
-      props.$clickable && !props.$isCurrent ? "#e8e8e8" : undefined};
-    border-color: ${(props) =>
-      props.$clickable && !props.$isCurrent ? "#cc0000" : undefined};
+    background: ${({ theme, $clickable, $isCurrent }) =>
+      $clickable && !$isCurrent ? theme.palette.action.selected : undefined};
+    border-color: ${({ theme, $clickable, $isCurrent }) =>
+      $clickable && !$isCurrent ? theme.palette.primary.main : undefined};
   }
 `;
 
@@ -39,7 +45,7 @@ const Arrow = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: #bbb;
+  color: ${({ theme }) => theme.palette.text.disabled};
   font-size: 0.68rem;
   text-align: center;
   padding: 0 4px;
@@ -47,7 +53,7 @@ const Arrow = styled.div`
 
   .arrow {
     font-size: 1.2rem;
-    color: #ccc;
+    color: ${({ theme }) => theme.palette.text.disabled};
     line-height: 1;
   }
 `;
@@ -55,7 +61,8 @@ const Arrow = styled.div`
 const Name = styled.span<{ $isCurrent: boolean }>`
   font-size: 0.75rem;
   font-weight: ${(props) => (props.$isCurrent ? 700 : 500)};
-  color: ${(props) => (props.$isCurrent ? "#cc0000" : "#1a1a1a")};
+  color: ${({ theme, $isCurrent }) =>
+    $isCurrent ? theme.palette.primary.main : theme.palette.text.primary};
 `;
 
 interface EvolutionChainProps {

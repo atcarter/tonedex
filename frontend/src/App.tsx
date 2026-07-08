@@ -46,7 +46,7 @@ function AppBarContent() {
   const { selectedGame, colorMode, toggleColorMode } = useAppContext();
 
   return (
-    <AppBar position="fixed" sx={{ bgcolor: "#cc0000", zIndex: 1201 }}>
+    <AppBar position="fixed" sx={{ bgcolor: "primary.main", zIndex: 1201 }}>
       <Toolbar sx={{ gap: 2, flexWrap: "wrap", minHeight: "64px" }}>
         <Typography
           variant="h6"

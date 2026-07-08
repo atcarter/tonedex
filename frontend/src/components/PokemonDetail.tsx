@@ -5,6 +5,7 @@ import Paper from "@mui/material/Paper";
 import CircularProgress from "@mui/material/CircularProgress";
 import Tooltip from "@mui/material/Tooltip";
 import IconButton from "@mui/material/IconButton";
+import { alpha } from "@mui/material/styles";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import Brightness1Icon from "@mui/icons-material/Brightness1";
 import PanoramaFishEyeIcon from "@mui/icons-material/PanoramaFishEye";
@@ -42,11 +43,11 @@ const LoadingContainer = styled.div`
 
 const LoadingText = styled.span`
   font-size: 0.875rem;
-  color: #888;
+  color: ${({ theme }) => theme.palette.text.secondary};
 `;
 
 const RedSpinner = styled(CircularProgress)`
-  color: #cc0000 !important;
+  color: ${({ theme }) => theme.palette.primary.main} !important;
 `;
 
 const ErrorCard = styled(Paper)`
@@ -55,7 +56,7 @@ const ErrorCard = styled(Paper)`
 `;
 
 const ErrorMessage = styled.span`
-  color: #cc0000;
+  color: ${({ theme }) => theme.palette.error.main};
   font-size: 0.875rem;
 `;
 
@@ -68,7 +69,7 @@ const SectionPaper = styled(Paper)`
 const SectionTitle = styled.div`
   font-size: 0.78rem;
   font-weight: 700;
-  color: #cc0000;
+  color: ${({ theme }) => theme.palette.primary.main};
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 16px;
@@ -80,7 +81,7 @@ const SectionTitle = styled.div`
     content: "";
     flex: 1;
     height: 2px;
-    background: #f0f0f0;
+    background: ${({ theme }) => theme.palette.divider};
     border-radius: 1px;
   }
 `;
@@ -92,10 +93,10 @@ const PokemonHeader = styled.div`
   align-items: center;
   gap: 24px;
   padding: 20px 24px;
-  background: white;
+  background: ${({ theme }) => theme.palette.background.paper};
   border-radius: 12px;
   margin-bottom: 16px;
-  border-left: 5px solid #cc0000;
+  border-left: 5px solid ${({ theme }) => theme.palette.primary.main};
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 `;
 
@@ -105,14 +106,14 @@ const SpriteWrapper = styled.div`
 `;
 
 const SpriteCircle = styled.div`
-  background: #f5f5f5;
+  background: ${({ theme }) => theme.palette.action.hover};
   border-radius: 50%;
   width: 120px;
   height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 3px solid #e8e8e8;
+  border: 3px solid ${({ theme }) => theme.palette.divider};
 
   img {
     width: 100px;
@@ -128,17 +129,25 @@ const ShinyButton = styled(IconButton)<IconButtonProps & { $active: boolean }>`
   right: 0 !important;
   width: 28px !important;
   height: 28px !important;
-  background: ${(props) => (props.$active ? "#cc0000" : "white")} !important;
-  border: 2px solid #e8e8e8 !important;
+  background: ${({ theme, $active }) =>
+    $active
+      ? theme.palette.primary.main
+      : theme.palette.background.paper} !important;
+  border: 2px solid ${({ theme }) => theme.palette.divider} !important;
 
   &:hover {
-    background: ${(props) =>
-      props.$active ? "#aa0000" : "#f5f5f5"} !important;
+    background: ${({ theme, $active }) =>
+      $active
+        ? theme.palette.primary.dark
+        : theme.palette.action.hover} !important;
   }
 
   svg {
     font-size: 14px;
-    color: ${(props) => (props.$active ? "white" : "#aaa")};
+    color: ${({ theme, $active }) =>
+      $active
+        ? theme.palette.primary.contrastText
+        : theme.palette.text.disabled};
   }
 `;
 
@@ -150,7 +159,7 @@ const HeaderInfo = styled.div`
 const DexNumber = styled.span`
   font-size: 0.75rem;
   font-weight: 700;
-  color: #888;
+  color: ${({ theme }) => theme.palette.text.secondary};
   letter-spacing: 0.08em;
   margin-bottom: 2px;
 `;
@@ -158,7 +167,7 @@ const DexNumber = styled.span`
 const PokemonName = styled.h2`
   font-size: 2rem;
   font-weight: 800;
-  color: #1a1a1a;
+  color: ${({ theme }) => theme.palette.text.primary};
   line-height: 1.1;
   margin: 0 0 12px;
 `;
@@ -176,9 +185,13 @@ const CaughtBadge = styled.button<{ $caught: boolean }>`
   margin-top: 12px;
   padding: 6px 14px;
   border-radius: 20px;
-  border: 2px solid ${({ $caught }) => ($caught ? "#cc0000" : "#ddd")};
-  background: ${({ $caught }) => ($caught ? "#fff0f0" : "transparent")};
-  color: ${({ $caught }) => ($caught ? "#cc0000" : "#aaa")};
+  border: 2px solid
+    ${({ theme, $caught }) =>
+      $caught ? theme.palette.primary.main : theme.palette.divider};
+  background: ${({ theme, $caught }) =>
+    $caught ? alpha(theme.palette.primary.main, 0.08) : "transparent"};
+  color: ${({ theme, $caught }) =>
+    $caught ? theme.palette.primary.main : theme.palette.text.disabled};
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
@@ -186,16 +199,16 @@ const CaughtBadge = styled.button<{ $caught: boolean }>`
   align-self: flex-start;
 
   &:hover {
-    border-color: #cc0000;
-    color: #cc0000;
+    border-color: ${({ theme }) => theme.palette.primary.main};
+    color: ${({ theme }) => theme.palette.primary.main};
   }
 
   &:disabled {
     opacity: 0.45;
     cursor: default;
     &:hover {
-      border-color: #ddd;
-      color: #aaa;
+      border-color: ${({ theme }) => theme.palette.divider};
+      color: ${({ theme }) => theme.palette.text.disabled};
     }
   }
 

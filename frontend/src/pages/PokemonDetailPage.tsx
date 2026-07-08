@@ -19,7 +19,7 @@ const PageWrapper = styled.div`
 
 const BackButton = styled(Button)`
   margin-bottom: 16px !important;
-  color: #cc0000 !important;
+  color: ${({ theme }) => theme.palette.primary.main} !important;
   font-weight: 600 !important;
 ` as typeof Button;
 

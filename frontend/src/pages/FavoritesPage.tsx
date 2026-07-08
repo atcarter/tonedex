@@ -23,20 +23,20 @@ const PageHeader = styled.div`
 `;
 
 const HeaderIcon = styled(FavoriteIcon)`
-  color: #cc0000 !important;
+  color: ${({ theme }) => theme.palette.primary.main} !important;
   font-size: 28px !important;
 `;
 
 const Title = styled.h1`
   font-size: 1.5rem;
   font-weight: 800;
-  color: #1a1a1a;
+  color: ${({ theme }) => theme.palette.text.primary};
   margin: 0;
 `;
 
 const Count = styled.span`
   font-size: 0.875rem;
-  color: #888;
+  color: ${({ theme }) => theme.palette.text.secondary};
 `;
 
 const Grid = styled.div`
@@ -61,30 +61,30 @@ const EmptyState = styled.div`
   align-items: center;
   justify-content: center;
   padding: 80px 24px;
-  color: #bbb;
+  color: ${({ theme }) => theme.palette.text.disabled};
   gap: 16px;
 `;
 
 const EmptyIcon = styled(FavoriteIcon)`
   font-size: 48px !important;
-  color: #e0e0e0 !important;
+  color: ${({ theme }) => theme.palette.action.disabled} !important;
 `;
 
 const EmptyText = styled.p`
   font-size: 1rem;
-  color: #888;
+  color: ${({ theme }) => theme.palette.text.secondary};
   margin: 0;
 `;
 
 const EmptyHint = styled.p`
   font-size: 0.875rem;
-  color: #bbb;
+  color: ${({ theme }) => theme.palette.text.disabled};
   margin: 0;
 `;
 
 const DragHint = styled.p`
   font-size: 0.75rem;
-  color: #bbb;
+  color: ${({ theme }) => theme.palette.text.disabled};
   margin-top: 20px;
   text-align: center;
 `;
