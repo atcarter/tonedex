@@ -172,10 +172,67 @@ const PokemonName = styled.h2`
   margin: 0 0 12px;
 `;
 
+const Genus = styled.span`
+  font-size: 0.85rem;
+  color: ${({ theme }) => theme.palette.text.secondary};
+  margin: -8px 0 10px;
+`;
+
 const TypeList = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+`;
+
+// ── About section ────────────────────────────────────────────────────────────
+
+const FlavorText = styled.p`
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: ${({ theme }) => theme.palette.text.primary};
+  margin: 0 0 16px;
+`;
+
+const AboutGrid = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+`;
+
+const AboutItem = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const AboutLabel = styled.span`
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.palette.text.secondary};
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+`;
+
+const AboutValue = styled.span`
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.palette.text.primary};
+`;
+
+const AbilityRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+`;
+
+const AbilityChip = styled.span<{ $hidden: boolean }>`
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 2px ${({ $hidden }) => ($hidden ? "dashed" : "solid")}
+    ${({ theme }) => theme.palette.divider};
+  color: ${({ theme }) => theme.palette.text.primary};
 `;
 
 const CaughtBadge = styled.button<{ $caught: boolean }>`
@@ -263,8 +320,10 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
 
   if (!data) return null;
 
-  const { pokemon: details, moves, evolution_chain } = data;
+  const { pokemon: details, species, moves, evolution_chain } = data;
   const dexNumber = details.pokedex_number;
+  const hasAboutSection =
+    species && (species.flavor_text || species.abilities.length > 0);
   const isCaught = numericGameId
     ? caught.some(
         (c) => c.pokemon_id === details.id && c.game_id === numericGameId,
@@ -303,6 +362,7 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
             <DexNumber>#{String(dexNumber).padStart(3, "0")}</DexNumber>
           )}
           <PokemonName>{formatName(details.name)}</PokemonName>
+          {species?.genus && <Genus>{species.genus}</Genus>}
           <TypeList>
             {details.types.map((type) => (
               <TypeBadge key={type} type={type} />
@@ -341,6 +401,45 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
           )}
         </HeaderInfo>
       </PokemonHeader>
+
+      {hasAboutSection && (
+        <SectionPaper elevation={1}>
+          <SectionTitle>About</SectionTitle>
+          {species.flavor_text && (
+            <FlavorText>{species.flavor_text}</FlavorText>
+          )}
+          <AboutGrid>
+            {species.height != null && (
+              <AboutItem>
+                <AboutLabel>Height</AboutLabel>
+                <AboutValue>{(species.height / 10).toFixed(1)} m</AboutValue>
+              </AboutItem>
+            )}
+            {species.weight != null && (
+              <AboutItem>
+                <AboutLabel>Weight</AboutLabel>
+                <AboutValue>{(species.weight / 10).toFixed(1)} kg</AboutValue>
+              </AboutItem>
+            )}
+            {species.abilities.length > 0 && (
+              <AboutItem>
+                <AboutLabel>Abilities</AboutLabel>
+                <AbilityRow>
+                  {species.abilities.map((ability) => (
+                    <AbilityChip
+                      key={ability.name}
+                      $hidden={ability.hidden}
+                      title={ability.hidden ? "Hidden ability" : undefined}
+                    >
+                      {formatName(ability.name)}
+                    </AbilityChip>
+                  ))}
+                </AbilityRow>
+              </AboutItem>
+            )}
+          </AboutGrid>
+        </SectionPaper>
+      )}
 
       <SectionPaper elevation={1}>
         <SectionTitle>Evolution Chain</SectionTitle>

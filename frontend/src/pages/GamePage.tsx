@@ -163,6 +163,15 @@ export function GamePage() {
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  // An active filter means the user is searching the whole dex — pull the
+  // remaining pages so matches aren't limited to what's been scrolled past.
+  const filterActive = filter.trim() !== "" || selectedTypes.length > 0;
+  useEffect(() => {
+    if (filterActive && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [filterActive, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   const availableTypes: string[] = data?.pages[0]?.available_types ?? [];
   const pagination = data?.pages[data.pages.length - 1]?.pagination ?? null;
 
@@ -235,6 +244,7 @@ export function GamePage() {
         {pagination && pagination.total > 0 && (
           <CountText>
             {filtered.length} / {pagination.total}
+            {filterActive && hasNextPage && " — searching entire dex…"}
           </CountText>
         )}
         {currentUser && pagination && pagination.total > 0 && (

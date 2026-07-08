@@ -89,8 +89,23 @@ export interface EvolutionDetail {
   trade_species?: string;
 }
 
+export interface AbilityInfo {
+  name: string;
+  hidden: boolean;
+}
+
+// Flavor/lore data from the PokeAPI species + pokemon payloads
+export interface SpeciesInfo {
+  genus: string | null;
+  flavor_text: string | null;
+  height: number | null; // decimetres
+  weight: number | null; // hectograms
+  abilities: AbilityInfo[];
+}
+
 export interface PokemonResponse {
   pokemon: PokemonDetail;
+  species?: SpeciesInfo | null;
   moves: BasicMove[];
   evolution_chain: EvolutionStep[];
 }
