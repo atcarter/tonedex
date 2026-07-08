@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import styled from "styled-components";
 import { useNavigate, useParams } from "react-router-dom";
 import Paper from "@mui/material/Paper";
@@ -10,8 +10,7 @@ import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import Brightness1Icon from "@mui/icons-material/Brightness1";
 import PanoramaFishEyeIcon from "@mui/icons-material/PanoramaFishEye";
 import type { IconButtonProps } from "@mui/material/IconButton";
-import type { Game, Pokemon } from "../types";
-import { getMove } from "../services/api";
+import type { Game } from "../types";
 import { useAppContext } from "../hooks/useAppContext";
 import { usePokemon } from "../hooks/usePokemon";
 import { useCaughtMutations } from "../hooks/useCaughtMutations";
@@ -23,8 +22,9 @@ import { TypeBadge } from "./TypeBadge";
 import { formatName } from "../utils/formatters";
 
 interface PokemonDetailProps {
-  pokemon: Pokemon;
-  game: Game;
+  pokemonName: string;
+  // null renders the game-agnostic view (no moves section, national types)
+  game: Game | null;
 }
 
 // ── Layout ───────────────────────────────────────────────────────────────────
@@ -219,48 +219,28 @@ const CaughtBadge = styled.button<{ $caught: boolean }>`
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function PokemonDetail({ pokemon, game }: PokemonDetailProps) {
+export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
   const navigate = useNavigate();
   const { gameId } = useParams<{ gameId?: string }>();
-  const { moveCache, cacheMoveDetails, currentUser } = useAppContext();
+  const { currentUser } = useAppContext();
 
   const numericGameId = gameId ? Number(gameId) : undefined;
 
-  const { data, isLoading, isError, error } = usePokemon(
-    pokemon.name,
-    game.id || undefined,
-  );
+  const { data, isLoading, isError, error } = usePokemon(pokemonName, game?.id);
   const { data: caught = [] } = useCaughtPokemons(numericGameId ?? 0);
   const { catch_, uncatch } = useCaughtMutations(numericGameId ?? 0);
 
   const [expandedMove, setExpandedMove] = useState<string | null>(null);
-  const [loadingMove, setLoadingMove] = useState<string | null>(null);
   const [showShiny, setShowShiny] = useState(false);
 
-  const handleMoveClick = useCallback(
-    async (moveName: string) => {
-      if (expandedMove === moveName) {
-        setExpandedMove(null);
-        return;
-      }
-      setExpandedMove(moveName);
-      if (!moveCache[moveName]) {
-        setLoadingMove(moveName);
-        try {
-          const details = await getMove(moveName);
-          cacheMoveDetails(moveName, details);
-        } catch (err) {
-          console.error(`Failed to load move details for ${moveName}:`, err);
-        } finally {
-          setLoadingMove(null);
-        }
-      }
-    },
-    [expandedMove, moveCache, cacheMoveDetails],
-  );
+  // Details are fetched by the expanded MoveRow itself (useMove) — this only
+  // tracks which row is open.
+  const handleMoveClick = (moveName: string) => {
+    setExpandedMove((prev) => (prev === moveName ? null : moveName));
+  };
 
   const handleEvoClick = (name: string) => {
-    if (name === pokemon.name) return;
+    if (name === pokemonName) return;
     navigate(gameId ? `/game/${gameId}/pokemon/${name}` : `/pokemon/${name}`);
   };
 
@@ -284,7 +264,7 @@ export function PokemonDetail({ pokemon, game }: PokemonDetailProps) {
   if (!data) return null;
 
   const { pokemon: details, moves, evolution_chain } = data;
-  const dexNumber = pokemon.pokedex_number ?? details.pokedex_number;
+  const dexNumber = details.pokedex_number;
   const isCaught = numericGameId
     ? caught.some(
         (c) => c.pokemon_id === details.id && c.game_id === numericGameId,
@@ -366,7 +346,7 @@ export function PokemonDetail({ pokemon, game }: PokemonDetailProps) {
         <SectionTitle>Evolution Chain</SectionTitle>
         <EvolutionChain
           chain={evolution_chain}
-          currentName={pokemon.name}
+          currentName={pokemonName}
           onSelect={handleEvoClick}
         />
       </SectionPaper>
@@ -376,18 +356,18 @@ export function PokemonDetail({ pokemon, game }: PokemonDetailProps) {
         <StatBars baseStats={details.base_stats} />
       </SectionPaper>
 
-      <SectionPaper elevation={1}>
-        <SectionTitle>
-          Moves in {formatName(game.name)} ({moves.length})
-        </SectionTitle>
-        <MoveTable
-          moves={moves}
-          expandedMove={expandedMove}
-          loadingMove={loadingMove}
-          moveCache={moveCache}
-          onMoveClick={handleMoveClick}
-        />
-      </SectionPaper>
+      {game && (
+        <SectionPaper elevation={1}>
+          <SectionTitle>
+            Moves in {formatName(game.name)} ({moves.length})
+          </SectionTitle>
+          <MoveTable
+            moves={moves}
+            expandedMove={expandedMove}
+            onMoveClick={handleMoveClick}
+          />
+        </SectionPaper>
+      )}
     </DetailWrapper>
   );
 }

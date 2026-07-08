@@ -1,15 +1,15 @@
 import { createContext, useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
-import type { Game, MoveDetails, Toast, User } from "../types";
+import type { Game, Toast, User } from "../types";
 import type { ColorMode } from "../theme";
 import { queryClient, registerUnauthorizedHandler } from "../lib/queryClient";
 import { signInWithGoogle } from "../services/api";
 
+// Client-only state. All server state (games, dex pages, pokemon, favorites,
+// caught, moves) lives in React Query hooks — see ADR-007.
 interface AppContextValue {
   selectedGame: Game | null;
   setSelectedGame: (game: Game | null) => void;
-  moveCache: Record<string, MoveDetails>;
-  cacheMoveDetails: (name: string, details: MoveDetails) => void;
   currentUser: User | null;
   token: string | null;
   signIn: (idToken: string) => Promise<void>;
@@ -25,7 +25,6 @@ export const AppContext = createContext<AppContextValue | null>(null);
 
 const TOKEN_KEY = "pokedex_token";
 const USER_KEY = "pokedex_user";
-const MOVE_CACHE_KEY = "pokedex_move_cache";
 const COLOR_MODE_KEY = "pokedex_color_mode";
 
 function loadColorMode(): ColorMode {
@@ -37,15 +36,6 @@ function loadColorMode(): ColorMode {
     : "light";
 }
 const SESSION_EXPIRED_MSG = "Your session has expired. Please sign in again.";
-
-function loadMoveCache(): Record<string, MoveDetails> {
-  try {
-    const stored = sessionStorage.getItem(MOVE_CACHE_KEY);
-    return stored ? (JSON.parse(stored) as Record<string, MoveDetails>) : {};
-  } catch {
-    return {};
-  }
-}
 
 function loadToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -62,8 +52,6 @@ function loadUser(): User | null {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
-  const [moveCache, setMoveCache] =
-    useState<Record<string, MoveDetails>>(loadMoveCache);
   const [currentUser, setCurrentUser] = useState<User | null>(loadUser);
   const [token, setToken] = useState<string | null>(loadToken);
   const [toast, setToast] = useState<Toast | null>(null);
@@ -110,25 +98,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     clearAuthState();
   }, [clearAuthState]);
 
-  const cacheMoveDetails = useCallback((name: string, details: MoveDetails) => {
-    setMoveCache((prev) => {
-      const next = { ...prev, [name]: details };
-      try {
-        sessionStorage.setItem(MOVE_CACHE_KEY, JSON.stringify(next));
-      } catch {
-        // sessionStorage may be unavailable (private browsing quota) — degrade gracefully
-      }
-      return next;
-    });
-  }, []);
-
   return (
     <AppContext.Provider
       value={{
         selectedGame,
         setSelectedGame,
-        moveCache,
-        cacheMoveDetails,
         currentUser,
         token,
         signIn,

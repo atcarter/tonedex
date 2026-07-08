@@ -6,7 +6,8 @@ import CircularProgress from "@mui/material/CircularProgress";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { alpha } from "@mui/material/styles";
 import type { ReactNode } from "react";
-import type { BasicMove, MoveDetails } from "../../types";
+import type { BasicMove } from "../../types";
+import { useMove } from "../../hooks/useMove";
 import { TypeBadge } from "../TypeBadge";
 import { formatName } from "../../utils/formatters";
 
@@ -154,18 +155,13 @@ function MoveDetail({ label, value, children }: MoveDetailProps) {
 interface MoveRowProps {
   move: BasicMove;
   isExpanded: boolean;
-  isLoading: boolean;
-  details?: MoveDetails;
   onClick: () => void;
 }
 
-function MoveRow({
-  move,
-  isExpanded,
-  isLoading,
-  details,
-  onClick,
-}: MoveRowProps) {
+function MoveRow({ move, isExpanded, onClick }: MoveRowProps) {
+  // Lazy: only fetches (once, then cached) while this row is expanded
+  const { data: details, isLoading, isError } = useMove(move.name, isExpanded);
+
   return (
     <StyledAccordion
       expanded={isExpanded}
@@ -187,6 +183,8 @@ function MoveRow({
             <RedSpinner size={14} />
             <LoadingText>Loading...</LoadingText>
           </LoadingRow>
+        ) : isError ? (
+          <ErrorText>Failed to load move details</ErrorText>
         ) : details ? (
           <DetailsGrid>
             <MoveDetail label="Type">
@@ -200,9 +198,7 @@ function MoveRow({
             />
             <MoveDetail label="PP" value={details.pp} />
           </DetailsGrid>
-        ) : (
-          <ErrorText>Failed to load move details</ErrorText>
-        )}
+        ) : null}
       </StyledAccordionDetails>
     </StyledAccordion>
   );
@@ -213,16 +209,12 @@ function MoveRow({
 interface MoveTableProps {
   moves: BasicMove[];
   expandedMove: string | null;
-  loadingMove: string | null;
-  moveCache: Record<string, MoveDetails>;
   onMoveClick: (name: string) => void;
 }
 
 export function MoveTable({
   moves,
   expandedMove,
-  loadingMove,
-  moveCache,
   onMoveClick,
 }: MoveTableProps) {
   if (moves.length === 0) {
@@ -237,8 +229,6 @@ export function MoveTable({
           key={`${move.name}-${index}`}
           move={move}
           isExpanded={expandedMove === move.name}
-          isLoading={loadingMove === move.name}
-          details={moveCache[move.name]}
           onClick={() => onMoveClick(move.name)}
         />
       ))}
