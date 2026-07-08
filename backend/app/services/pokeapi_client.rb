@@ -16,6 +16,11 @@ class PokeapiClient
     Errno::ECONNRESET, Errno::ECONNREFUSED, SocketError
   ].freeze
 
+  # Negative-cache marker stored for endpoints PokeAPI 404s on, so repeated
+  # lookups of the same bad name (e.g. garbage search queries) never re-hit
+  # the network. Consistent with the cache's fetch-once-forever philosophy.
+  NOT_FOUND_SENTINEL = {"__pokeapi_not_found__" => true}.freeze
+
   class ApiError < StandardError; end
   class NotFoundError < ApiError; end
 
@@ -67,13 +72,19 @@ class PokeapiClient
 
   def fetch(endpoint)
     cached = @cache.fetch(endpoint)
-    return cached if cached
+    if cached
+      raise NotFoundError, "PokeAPI returned 404 for #{endpoint} (cached)" if cached == NOT_FOUND_SENTINEL
+      return cached
+    end
 
     response = request_with_retries(endpoint)
 
     unless response.success?
-      error_class = (response.code == 404) ? NotFoundError : ApiError
-      raise error_class, "PokeAPI returned #{response.code} for #{endpoint}"
+      if response.code == 404
+        @cache.store(endpoint, NOT_FOUND_SENTINEL)
+        raise NotFoundError, "PokeAPI returned 404 for #{endpoint}"
+      end
+      raise ApiError, "PokeAPI returned #{response.code} for #{endpoint}"
     end
 
     data = response.parsed_response

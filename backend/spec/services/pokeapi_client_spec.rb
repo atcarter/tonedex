@@ -31,11 +31,20 @@ RSpec.describe PokeapiClient do
       expect(cache).to have_received(:store).with("/pokemon/25", {"name" => "pikachu"})
     end
 
-    it "raises NotFoundError on 404 and does not cache it" do
+    it "raises NotFoundError on 404 and negative-caches the miss" do
       allow(HTTParty).to receive(:get).and_return(response_double(code: 404))
 
       expect { client.pokemon("garbage") }.to raise_error(described_class::NotFoundError)
-      expect(cache).not_to have_received(:store)
+      expect(cache).to have_received(:store)
+        .with("/pokemon/garbage", described_class::NOT_FOUND_SENTINEL)
+    end
+
+    it "raises NotFoundError from a cached negative entry without hitting the network" do
+      allow(cache).to receive(:fetch).with("/pokemon/garbage")
+        .and_return(described_class::NOT_FOUND_SENTINEL.dup)
+
+      expect(HTTParty).not_to receive(:get)
+      expect { client.pokemon("garbage") }.to raise_error(described_class::NotFoundError, /cached/)
     end
 
     it "raises ApiError on other client errors" do
