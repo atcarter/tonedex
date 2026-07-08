@@ -340,6 +340,12 @@ RSpec.describe PokeapiAdapter do
       allow(client).to receive(:pokemon).with(100_907).and_return(floragato_data)
     end
 
+    it "prefers the games.pokedex_name column over any fallback" do
+      game = create(:game, name: "some-unknown-game", region: "hoenn", pokedex_name: "paldea")
+      adapter.load_pokedex_for_game(game)
+      expect(client).to have_received(:pokedex).with("paldea")
+    end
+
     it "uses GAME_TO_POKEDEX to resolve the pokedex name for known games" do
       game = create(:game, name: "scarlet", region: "paldea")
       adapter.load_pokedex_for_game(game)

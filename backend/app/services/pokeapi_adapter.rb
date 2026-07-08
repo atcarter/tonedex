@@ -1,4 +1,8 @@
 class PokeapiAdapter
+  # Seed-time defaults only: games.pokedex_name (set at creation and editable
+  # in the DB) is the authoritative mapping — see resolve_pokedex_name. Adding
+  # a game no longer requires touching this hash; it exists so seeds can
+  # populate the column for the curated game list.
   GAME_TO_POKEDEX = {
     "red" => "kanto", "blue" => "kanto", "yellow" => "kanto",
     "gold" => "original-johto", "silver" => "original-johto", "crystal" => "original-johto",
@@ -24,7 +28,7 @@ class PokeapiAdapter
   end
 
   def load_pokedex_for_game(game, limit: nil, offset: 0)
-    pokedex_name = GAME_TO_POKEDEX[game.name] || game.region
+    pokedex_name = resolve_pokedex_name(game)
     return [] unless pokedex_name
 
     pokedex_data = @client.pokedex(pokedex_name)
@@ -50,7 +54,7 @@ class PokeapiAdapter
   end
 
   def pokedex_count_for_game(game)
-    pokedex_name = GAME_TO_POKEDEX[game.name] || game.region
+    pokedex_name = resolve_pokedex_name(game)
     return 0 unless pokedex_name
 
     pokedex_data = @client.pokedex(pokedex_name)
@@ -103,19 +107,12 @@ class PokeapiAdapter
       game.name = data["name"]
       game.generation = extract_generation_number(version_group)
       game.region = extract_region(version_group)
+      game.pokedex_name = GAME_TO_POKEDEX[data["name"]]
     end
   end
 
   def pokemon_moves_for_game(pokemon, game)
-    data = @client.pokemon(pokemon.pokeapi_id)
-
-    data["moves"].filter_map do |move_data|
-      version_details = move_data["version_group_details"].find do |vd|
-        game_matches_version_group?(game, vd.dig("version_group", "name"))
-      end
-
-      next unless version_details
-
+    each_move_for_game(pokemon, game) do |move_data, version_details|
       move = find_or_create_move(move_data.dig("move", "name"))
 
       PokemonMove.find_or_create_by!(
@@ -132,15 +129,7 @@ class PokeapiAdapter
   # Returns basic move info without fetching move details from API
   # This is much faster as it only uses data from the Pokemon endpoint
   def basic_moves_for_game(pokemon, game)
-    data = @client.pokemon(pokemon.pokeapi_id)
-
-    data["moves"].filter_map do |move_data|
-      version_details = move_data["version_group_details"].find do |vd|
-        game_matches_version_group?(game, vd.dig("version_group", "name"))
-      end
-
-      next unless version_details
-
+    each_move_for_game(pokemon, game) do |move_data, version_details|
       {
         name: move_data.dig("move", "name"),
         level_learned: version_details["level_learned_at"],
@@ -159,6 +148,28 @@ class PokeapiAdapter
   end
 
   private
+
+  # The DB column is authoritative (editable without a deploy); the hash and
+  # region are fallbacks for rows created before the column existed.
+  def resolve_pokedex_name(game)
+    game.pokedex_name.presence || GAME_TO_POKEDEX[game.name] || game.region
+  end
+
+  # Shared iteration for the two public move readers: yields each move entry
+  # that applies to the given game, with its matching version_group details.
+  def each_move_for_game(pokemon, game)
+    data = @client.pokemon(pokemon.pokeapi_id)
+
+    data["moves"].filter_map do |move_data|
+      version_details = move_data["version_group_details"].find do |vd|
+        game_matches_version_group?(game, vd.dig("version_group", "name"))
+      end
+
+      next unless version_details
+
+      yield(move_data, version_details)
+    end
+  end
 
   def associate_pokemon_with_game(pokemon, game, pokedex_number)
     GamePokemon.find_or_create_by!(pokemon: pokemon, game: game) do |gp|
