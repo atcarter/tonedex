@@ -1,10 +1,6 @@
 // src/hooks/useFavoriteMutations.ts
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  addFavorite,
-  removeFavorite,
-  reorderFavorites,
-} from "../services/api";
+import { addFavorite, removeFavorite, reorderFavorites } from "../services/api";
 import { useAppContext } from "./useAppContext";
 import type { Pokemon } from "../types";
 

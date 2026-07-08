@@ -126,7 +126,15 @@ export function GamePage() {
 
   const [filter, setFilter] = useState("");
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [prevGameId, setPrevGameId] = useState(numericGameId);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Reset client-side filters when game changes (during render, not in an effect)
+  if (prevGameId !== numericGameId) {
+    setPrevGameId(numericGameId);
+    setFilter("");
+    setSelectedTypes([]);
+  }
 
   // Sync selectedGame context with URL on game change
   useEffect(() => {
@@ -135,12 +143,6 @@ export function GamePage() {
       setSelectedGame(game);
     }
   }, [numericGameId, games, setSelectedGame]);
-
-  // Reset client-side filters when game changes
-  useEffect(() => {
-    setFilter("");
-    setSelectedTypes([]);
-  }, [numericGameId]);
 
   // Infinite scroll sentinel
   useEffect(() => {
@@ -160,8 +162,6 @@ export function GamePage() {
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Flatten pages into a single pokemon list
-  const pokemons: Pokemon[] = data?.pages.flatMap((p) => p.pokemons) ?? [];
   const availableTypes: string[] = data?.pages[0]?.available_types ?? [];
   const pagination = data?.pages[data.pages.length - 1]?.pagination ?? null;
 
@@ -173,18 +173,17 @@ export function GamePage() {
     });
   }, []);
 
-  const filtered = useMemo(
-    () =>
-      pokemons.filter((p) => {
-        const nameMatch =
-          !filter || p.name.toLowerCase().includes(filter.toLowerCase());
-        const typeMatch =
-          selectedTypes.length === 0 ||
-          selectedTypes.every((t) => p.types.includes(t));
-        return nameMatch && typeMatch;
-      }),
-    [pokemons, filter, selectedTypes],
-  );
+  const filtered = useMemo(() => {
+    const pokemons: Pokemon[] = data?.pages.flatMap((p) => p.pokemons) ?? [];
+    return pokemons.filter((p) => {
+      const nameMatch =
+        !filter || p.name.toLowerCase().includes(filter.toLowerCase());
+      const typeMatch =
+        selectedTypes.length === 0 ||
+        selectedTypes.every((t) => p.types.includes(t));
+      return nameMatch && typeMatch;
+    });
+  }, [data, filter, selectedTypes]);
 
   if (isLoading) {
     return (

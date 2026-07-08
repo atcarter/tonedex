@@ -13,12 +13,18 @@ export function useCaughtMutations(gameId: number) {
     // Optimistic update: add entry to cache immediately
     onMutate: async (pokemonId) => {
       await queryClient.cancelQueries({ queryKey: ["caught", gameId] });
-      const previous = queryClient.getQueryData<CaughtEntry[]>(["caught", gameId]);
-      // Temporary entry with id=-1; server response replaces it on settle
-      queryClient.setQueryData<CaughtEntry[]>(["caught", gameId], (old = []) => [
-        ...old,
-        { id: -1, pokemon_id: pokemonId, game_id: gameId },
+      const previous = queryClient.getQueryData<CaughtEntry[]>([
+        "caught",
+        gameId,
       ]);
+      // Temporary entry with id=-1; server response replaces it on settle
+      queryClient.setQueryData<CaughtEntry[]>(
+        ["caught", gameId],
+        (old = []) => [
+          ...old,
+          { id: -1, pokemon_id: pokemonId, game_id: gameId },
+        ],
+      );
       return { previous };
     },
     onError: (_err, _pokemonId, context) => {
@@ -36,7 +42,10 @@ export function useCaughtMutations(gameId: number) {
     // Optimistic update: remove entry from cache immediately
     onMutate: async (caughtId) => {
       await queryClient.cancelQueries({ queryKey: ["caught", gameId] });
-      const previous = queryClient.getQueryData<CaughtEntry[]>(["caught", gameId]);
+      const previous = queryClient.getQueryData<CaughtEntry[]>([
+        "caught",
+        gameId,
+      ]);
       queryClient.setQueryData<CaughtEntry[]>(["caught", gameId], (old = []) =>
         old.filter((c) => c.id !== caughtId),
       );

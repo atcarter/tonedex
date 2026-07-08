@@ -68,12 +68,15 @@ export function GameSelector() {
       </span>
     );
 
-  const gamesByGeneration = games.reduce<Record<number, Game[]>>((acc, game) => {
-    const gen = game.generation;
-    if (!acc[gen]) acc[gen] = [];
-    acc[gen].push(game);
-    return acc;
-  }, {});
+  const gamesByGeneration = games.reduce<Record<number, Game[]>>(
+    (acc, game) => {
+      const gen = game.generation;
+      if (!acc[gen]) acc[gen] = [];
+      acc[gen].push(game);
+      return acc;
+    },
+    {},
+  );
 
   const menuItems = Object.entries(gamesByGeneration)
     .sort(([a], [b]) => Number(a) - Number(b))

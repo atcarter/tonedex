@@ -1,3 +1,8 @@
+export interface Toast {
+  message: string;
+  severity: "error" | "info" | "success";
+}
+
 export interface CaughtEntry {
   id: number;
   pokemon_id: number;

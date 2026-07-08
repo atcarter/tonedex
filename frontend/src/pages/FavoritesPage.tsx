@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import styled from "styled-components";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { GoogleLogin } from "@react-oauth/google";
@@ -96,36 +96,37 @@ export function FavoritesPage() {
 
   // Local ordered state for optimistic drag reordering
   const [ordered, setOrdered] = useState<Pokemon[]>(favorites);
-  const dragIndex = useRef<number | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
 
-  // Sync when favorites change externally (add/remove)
-  useEffect(() => setOrdered(favorites), [favorites]);
+  // Sync ordered when the server-side favorites list changes (add/remove/load)
+  useEffect(() => {
+    setOrdered(favorites);
+  }, [favorites]);
 
   const handleDragStart = (index: number) => {
-    dragIndex.current = index;
+    setDragIndex(index);
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    const from = dragIndex.current;
-    if (from === null || from === index) return;
+    if (dragIndex === null || dragIndex === index) return;
 
     // Reorder in place for live visual feedback
     const next = [...ordered];
-    const [moved] = next.splice(from, 1);
+    const [moved] = next.splice(dragIndex, 1);
     next.splice(index, 0, moved);
     setOrdered(next);
-    dragIndex.current = index;
+    setDragIndex(index);
   };
 
   const handleDrop = () => {
-    dragIndex.current = null;
+    setDragIndex(null);
     reorder.mutate(ordered);
   };
 
   const handleDragEnd = () => {
     // Safety reset if drop fires outside a valid target
-    dragIndex.current = null;
+    setDragIndex(null);
   };
 
   if (!currentUser) {
@@ -177,7 +178,7 @@ export function FavoritesPage() {
         {ordered.map((pokemon, index) => (
           <DragItem
             key={pokemon.id}
-            $dragging={dragIndex.current === index}
+            $dragging={dragIndex === index}
             draggable
             onDragStart={() => handleDragStart(index)}
             onDragOver={(e) => handleDragOver(e, index)}

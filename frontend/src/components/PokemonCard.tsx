@@ -99,7 +99,11 @@ export function PokemonCard({
     : false;
 
   const handleClick = () => {
-    navigate(gameId ? `/game/${gameId}/pokemon/${pokemon.name}` : `/pokemon/${pokemon.name}`);
+    navigate(
+      gameId
+        ? `/game/${gameId}/pokemon/${pokemon.name}`
+        : `/pokemon/${pokemon.name}`,
+    );
   };
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
@@ -182,7 +186,9 @@ export function PokemonCard({
       )}
 
       {pokemon.pokedex_number && (
-        <PokedexNum>#{String(pokemon.pokedex_number).padStart(3, "0")}</PokedexNum>
+        <PokedexNum>
+          #{String(pokemon.pokedex_number).padStart(3, "0")}
+        </PokedexNum>
       )}
       <img src={pokemon.sprite_url} alt={pokemon.name} />
       <PokemonName>{formatName(pokemon.name)}</PokemonName>

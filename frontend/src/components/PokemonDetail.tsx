@@ -213,7 +213,10 @@ export function PokemonDetail({ pokemon, game }: PokemonDetailProps) {
 
   const numericGameId = gameId ? Number(gameId) : undefined;
 
-  const { data, isLoading, isError, error } = usePokemon(pokemon.name, game.id || undefined);
+  const { data, isLoading, isError, error } = usePokemon(
+    pokemon.name,
+    game.id || undefined,
+  );
   const { data: caught = [] } = useCaughtPokemons(numericGameId ?? 0);
   const { catch_, uncatch } = useCaughtMutations(numericGameId ?? 0);
 
@@ -259,7 +262,9 @@ export function PokemonDetail({ pokemon, game }: PokemonDetailProps) {
   if (isError)
     return (
       <ErrorCard elevation={1}>
-        <ErrorMessage>Error: {error instanceof Error ? error.message : "Failed to load"}</ErrorMessage>
+        <ErrorMessage>
+          Error: {error instanceof Error ? error.message : "Failed to load"}
+        </ErrorMessage>
       </ErrorCard>
     );
 
@@ -268,7 +273,9 @@ export function PokemonDetail({ pokemon, game }: PokemonDetailProps) {
   const { pokemon: details, moves, evolution_chain } = data;
   const dexNumber = pokemon.pokedex_number ?? details.pokedex_number;
   const isCaught = numericGameId
-    ? caught.some((c) => c.pokemon_id === details.id && c.game_id === numericGameId)
+    ? caught.some(
+        (c) => c.pokemon_id === details.id && c.game_id === numericGameId,
+      )
     : false;
 
   return (
@@ -321,7 +328,9 @@ export function PokemonDetail({ pokemon, game }: PokemonDetailProps) {
                   onClick={() => {
                     if (!currentUser || !numericGameId) return;
                     const existing = caught.find(
-                      (c) => c.pokemon_id === details.id && c.game_id === numericGameId,
+                      (c) =>
+                        c.pokemon_id === details.id &&
+                        c.game_id === numericGameId,
                     );
                     if (existing) {
                       if (existing.id === -1) return; // optimistic in-flight
@@ -331,11 +340,7 @@ export function PokemonDetail({ pokemon, game }: PokemonDetailProps) {
                     }
                   }}
                 >
-                  {isCaught ? (
-                    <Brightness1Icon />
-                  ) : (
-                    <PanoramaFishEyeIcon />
-                  )}
+                  {isCaught ? <Brightness1Icon /> : <PanoramaFishEyeIcon />}
                   {isCaught ? "Caught" : "Not caught"}
                 </CaughtBadge>
               </span>
