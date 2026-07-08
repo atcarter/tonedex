@@ -1,6 +1,8 @@
 services:
   db:
-    image: postgres:15
+    # Pinned to a digest: mutable tags make dev environments non-reproducible.
+    # To bump: docker buildx imagetools inspect postgres:15
+    image: postgres:15@sha256:b0a199c49fa974cf5b18c0bafb128b8023142705b23235892821fa9ac2d2cbb8
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -14,9 +16,12 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    mem_limit: 512m
+    cpus: 1
 
   redis:
-    image: redis:7-alpine
+    # To bump: docker buildx imagetools inspect redis:7-alpine
+    image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
     # AOF (Append-Only File) persistence: every write is fsynced to disk.
     # Without this, a container restart drops all queued and retried Sidekiq jobs.
     command: redis-server --appendonly yes --appendfsync everysec
@@ -29,6 +34,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    mem_limit: 256m
+    cpus: 0.5
 
   backend:
     build:
@@ -54,6 +61,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    mem_limit: 1g
+    cpus: 2
 
   sidekiq:
     build:
@@ -77,6 +86,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    mem_limit: 1g
+    cpus: 2
 
   frontend:
     build:
@@ -93,6 +104,8 @@ services:
       - .env.local
     depends_on:
       - backend
+    mem_limit: 1g
+    cpus: 2
 
 volumes:
   postgres_data:

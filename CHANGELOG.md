@@ -4,6 +4,40 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ---
 
+## 2026-07-08
+
+### Repository
+- **Chore:** Brought the whole project under version control — backend, docs, and infra config were previously untracked (only 19 frontend files were committed). Committed in logical chunks together with the finished React Query migration. Added `.gitignore` coverage for Playwright artifacts and a root `.env.example` documenting every env key.
+
+### Frontend
+- **Fix:** `GameSelector`'s auto-navigate hijacked deep links — `useMatch("/game/:gameId")` doesn't match deeper routes, so any detail-page URL bounced back to the grid, making detail pages unreachable. Auto-select is now scoped strictly to `/`, and the selector matches `/game/:gameId/*` so it shows the current game on detail pages. Caught by three failing Playwright specs; all 12 now pass. *(URL as source of truth — see ADR-005)*
+- **Feature:** Dark mode now extends to styled-components — the MUI theme is shared via styled-components' `ThemeProvider` (typed via `styled.d.ts`), and all hardcoded light-mode colors were replaced with palette tokens (cards, game page, detail sections, favorites, search, selector, stat bars, evolution chain, move table). Verified in-browser in both modes. *(A theme toggle that themes half the UI is worse than none)*
+- **Feature:** The dex auto-fills while seeding — `useGame` polls every 5s while `pagination.seeding` is true instead of asking the user to refresh.
+- **Observability:** `ErrorBoundary` reports render crashes to Sentry with the component stack (prod only).
+
+### Backend
+- **Security:** `force_ssl` + `assume_ssl` enabled in production (HSTS, secure cookies, http→https redirect; `/up` excluded). *(OWASP A02)*
+- **Security:** SQL LIKE wildcards escaped in the pokemon search fallback via `sanitize_sql_like`.
+- **Resilience:** `PokeapiClient` gained 2s/5s open/read timeouts and bounded retries with backoff for transient errors and 5xx — PokeAPI calls run on Puma request threads and previously could pin one for 60s. *(Never trust an external service with your thread pool)*
+- **Fix:** `SeedGamePokemonJob.enqueue_once` takes a Redis `SET NX EX` lock so concurrent visitors to an unseeded game no longer stack duplicate full-dex crawls.
+- **Change:** User profile fields (email/name/avatar) sync from Google on every login instead of only at first sign-in.
+- **Change:** `/up` health check now pings Redis alongside Postgres and reports per-check status.
+- **Change:** `available_types` is computed only for the first page — the client ignores it on later pages.
+- **Remove:** Unused, unpaginated `GET /api/v1/pokemon` index route.
+
+### Testing
+- **Fix:** The RSpec suite was silently running against the **development** environment and database — `.env.local` exports `RAILS_ENV=development` into the containers, defeating `ENV["RAILS_ENV"] ||= "test"`. rails_helper now hard-sets the test env; ActiveJob uses the `:test` adapter; Rack::Attack is disabled in specs (its Redis-backed counters were also 429-ing spec requests). A user-model spec that only passed by accident against dev data was corrected.
+- **Add:** Request specs for Games, Pokemon, Moves, and `/up`; unit specs for `PokeapiClient` (cache/timeout/retry semantics) and `SeedGamePokemonJob.enqueue_once`. Suite: 79 → 110 examples, all green; Brakeman: 0 warnings.
+
+### Infrastructure
+- **CI:** Linters now run in CI — `standardrb` (backend), `eslint` + `prettier --check` (frontend). Fixed all existing offenses to land this green.
+- **Docker:** `postgres:15` and `redis:7-alpine` pinned to manifest-list digests; per-service `mem_limit`/`cpus` set. Removed the dead `backend/.github/` directory (GitHub only reads the repo root).
+
+### Docs
+- **Fix:** CLAUDE.md no longer documents the nonexistent `CACHE_BACKEND`/`REDIS_CACHE_URL` Redis cache option; caching section, architecture diagram, env table, and frontend-state section now match the code (React Query + Postgres `api_caches`).
+
+---
+
 ## 2026-03-23
 
 ### Backend
