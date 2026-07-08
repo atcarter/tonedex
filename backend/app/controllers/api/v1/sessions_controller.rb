@@ -11,6 +11,9 @@ class Api::V1::SessionsController < ApplicationController
       u.avatar_url = payload["picture"]
     end
 
+    # Keep profile fields in sync with Google on every login (no-op when unchanged)
+    user.update!(email: payload["email"], name: payload["name"], avatar_url: payload["picture"])
+
     token = JWT.encode(
       {user_id: user.id, email: user.email, exp: 30.days.from_now.to_i},
       ENV.fetch("JWT_SECRET"),

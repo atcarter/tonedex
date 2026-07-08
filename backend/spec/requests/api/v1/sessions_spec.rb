@@ -39,6 +39,19 @@ RSpec.describe "POST /api/v1/auth/google", type: :request do
       }.not_to change(User, :count)
     end
 
+    it "syncs profile fields that changed at Google" do
+      user = create(:user, google_uid: "google-uid-abc", email: "old@example.com",
+        name: "Old Name", avatar_url: "https://example.com/old.jpg")
+
+      post "/api/v1/auth/google", params: {id_token: "valid-token"}
+
+      expect(user.reload).to have_attributes(
+        email: "trainer@example.com",
+        name: "Ash Ketchum",
+        avatar_url: "https://example.com/ash.jpg"
+      )
+    end
+
     it "returns a JWT that decodes to the correct user_id" do
       post "/api/v1/auth/google", params: {id_token: "valid-token"}
 

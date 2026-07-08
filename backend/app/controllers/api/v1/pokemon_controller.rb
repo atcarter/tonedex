@@ -1,9 +1,4 @@
 class Api::V1::PokemonController < ApplicationController
-  def index
-    pokemons = Pokemon.all.order(:pokeapi_id)
-    render json: pokemons.map { |p| pokemon_summary(p) }
-  end
-
   def search
     query = params[:q].to_s.downcase.strip
     return render json: {error: "Query required"}, status: :bad_request if query.empty?
@@ -12,8 +7,10 @@ class Api::V1::PokemonController < ApplicationController
     pokemon = adapter.find_or_create_pokemon(query)
     render json: pokemon_summary(pokemon)
   rescue PokeapiClient::ApiError
-    # If not found in PokeAPI, search local database
-    local_results = Pokemon.where("LOWER(name) LIKE ?", "%#{query}%").limit(10)
+    # If not found in PokeAPI, search local database.
+    # sanitize_sql_like escapes user-supplied % and _ so they match literally.
+    escaped = ActiveRecord::Base.sanitize_sql_like(query)
+    local_results = Pokemon.where("LOWER(name) LIKE ?", "%#{escaped}%").limit(10)
     render json: local_results.map { |p| pokemon_summary(p) }
   end
 

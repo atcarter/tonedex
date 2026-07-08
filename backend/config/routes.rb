@@ -25,7 +25,7 @@ Rails.application.routes.draw do
       resources :caught_pokemons, only: [:index, :create, :destroy]
 
       resources :games, only: [:index, :show]
-      resources :pokemon, only: [:index, :show] do
+      resources :pokemon, only: [:show] do
         collection do
           get :search
         end
