@@ -1,73 +1,39 @@
-# React + TypeScript + Vite
+# PokéManiac frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 + TypeScript SPA built with Vite. Talks to the Rails API at
+`VITE_API_URL` (see the root `.env.example`). Part of the monorepo — the root
+[README](../README.md) and [CLAUDE.md](../CLAUDE.md) cover architecture,
+Docker Compose, and env setup.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **UI:** MUI v7 + styled-components (both consume one theme — see
+  `src/ThemedApp.tsx` and `src/styled.d.ts`); light/dark mode
+- **Server state:** TanStack React Query v5 — focused hooks in `src/hooks/`
+  (see ADR-007); `src/contexts/AppContext.tsx` holds client state only
+- **Routing:** React Router v7; the URL is the source of truth for the
+  selected game
+- **Auth:** `@react-oauth/google` → JWT from the API, kept in `localStorage`
+- **Errors:** Sentry (production only), plus a route-level `ErrorBoundary`
 
-## React Compiler
+## Scripts
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```bash
+npm run dev            # Vite dev server on :5173
+npm run build          # tsc -b && vite build (CI check)
+npm run lint           # ESLint (CI check)
+npm run format         # Prettier write
+npm run format:check   # Prettier check (CI check)
+npm test               # Vitest unit tests
+npm run test:e2e       # Playwright (needs the app running on :5173)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Per the root CLAUDE.md, day-to-day commands run inside Docker
+(`docker compose exec frontend …`), but the toolchain also works directly on
+the host after `npm install`.
 
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
+## Testing
 
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
-```
+- **Unit:** Vitest + Testing Library (`src/**/*.test.{ts,tsx}`)
+- **E2E:** Playwright specs in `e2e/`; all API calls are intercepted with
+  route mocks (`e2e/fixtures.ts`), so no backend is needed by the test runner

@@ -15,6 +15,11 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 - **Feature:** The dex auto-fills while seeding — `useGame` polls every 5s while `pagination.seeding` is true instead of asking the user to refresh.
 - **Observability:** `ErrorBoundary` reports render crashes to Sentry with the component stack (prod only).
 - **Resilience:** 429 responses are now a typed `RateLimitError` carrying the server's `retry_after`; React Query retries rate-limited requests on that schedule (and no longer retries terminal 401s). A failed `fetchNextPage` keeps the loaded grid and shows an inline notice at the scroll sentinel instead of replacing the page with an error.
+- **Feature:** About section on the detail page — genus subtitle, flavor text, height/weight, and ability chips (hidden abilities dashed) — plus the game-local dex number in the header, which the client previously never had on detail views.
+- **Feature:** Filters search the whole dex — an active name/type filter auto-fetches the remaining pages ("searching entire dex…" hint), so matches are no longer limited to what infinite scroll has loaded.
+- **Feature:** 404 catch-all route (`NotFoundPage`); unknown URLs previously rendered a blank page.
+- **Feature:** Search dropdown dismisses on Escape/click-outside and consumes the normalized `{results, exact}` response (the `Pokemon | Pokemon[]` union is gone).
+- **Refactor:** Move details fetch through a lazy `useMove` React Query hook (expanded rows only); the `moveCache` + `sessionStorage` plumbing was deleted from `AppContext`, which now holds client state exclusively. `PokemonDetail` takes `{pokemonName, game}` instead of full stub objects. *(One data-fetching idiom — ADR-007)*
 
 ### Backend
 - **Fix:** Removed the 5/min games throttle that 429'd normal dex scrolling — infinite scroll fetches ~10 pages for a large dex and the seeding banner polls every 5s. Its purpose (blocking seed-job spam) is handled structurally by `SeedGamePokemonJob.enqueue_once`; the general 300/5min limit still bounds volume. Search — the endpoint that fans out to PokeAPI per unknown query — now has its own 15/min throttle instead. Also fixed Rack::Attack being mounted twice (railtie + explicit `middleware.use`) and deleted-from-stack in tests; it's now mounted once and toggled via `Rack::Attack.enabled`, with request specs pinning the policy. *(Rate-limit by cost, not by path popularity)*
@@ -26,10 +31,17 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 - **Change:** `/up` health check now pings Redis alongside Postgres and reports per-check status.
 - **Change:** `available_types` is computed only for the first page — the client ignores it on later pages.
 - **Remove:** Unused, unpaginated `GET /api/v1/pokemon` index route.
+- **Feature:** `GET /api/v1/pokemon/:id` includes a `species` block (English genus, normalised flavor text, height/weight, slot-ordered abilities with hidden flags) from the already-cached PokeAPI payloads; degrades to `null` when unavailable.
+- **Refactor:** The game→pokedex mapping is data-driven — `games.pokedex_name` (backfilled by migration, set at creation) is authoritative; `GAME_TO_POKEDEX` remains only as a seed-time default. Adding a game is now a DB insert. *(Open/Closed)*
+- **Refactor:** `PokemonSerializer` replaces the three hand-rolled `pokemon_summary` copies; search returns one shape, `{results, exact}`, for both branches; details include the game-local `pokedex_number`.
+- **Feature:** PokeAPI 404s are negative-cached (sentinel rows in `api_caches`), so repeated bad lookups never re-hit the network. The immutable-forever cache policy and its recovery path are documented on `ApiCache`; the dead `stale?` method is gone.
+- **Security:** Env-driven host authorization — set `ALLOWED_HOSTS` to enable `config.hosts` filtering once the domain is settled. *(Host-header / DNS-rebinding defense)*
+- **Refactor:** `pokemon_moves_for_game` / `basic_moves_for_game` share one private iterator. *(DRY)*
 
 ### Testing
 - **Fix:** The RSpec suite was silently running against the **development** environment and database — `.env.local` exports `RAILS_ENV=development` into the containers, defeating `ENV["RAILS_ENV"] ||= "test"`. rails_helper now hard-sets the test env; ActiveJob uses the `:test` adapter; Rack::Attack is disabled in specs (its Redis-backed counters were also 429-ing spec requests). A user-model spec that only passed by accident against dev data was corrected.
 - **Add:** Request specs for Games, Pokemon, Moves, and `/up`; unit specs for `PokeapiClient` (cache/timeout/retry semantics) and `SeedGamePokemonJob.enqueue_once`. Suite: 79 → 110 examples, all green; Brakeman: 0 warnings.
+- **Add:** Model specs for `Pokemon#types_for_generation` boundaries, adapter specs for `species_info_for` and the `pokedex_name` precedence, negative-cache client specs, and search-shape coverage. Suite now at 125 examples.
 
 ### Infrastructure
 - **CI:** Linters now run in CI — `standardrb` (backend), `eslint` + `prettier --check` (frontend). Fixed all existing offenses to land this green.
