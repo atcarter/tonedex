@@ -19,6 +19,7 @@ import { AuthButton } from "./components/AuthButton";
 import { GamePage } from "./pages/GamePage";
 import { PokemonDetailPage } from "./pages/PokemonDetailPage";
 import { FavoritesPage } from "./pages/FavoritesPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const Layout = styled.div`
@@ -126,6 +127,7 @@ function App() {
               element={<PokemonDetailPage />}
             />
             <Route path="/favorites" element={<FavoritesPage />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </ErrorBoundary>
       </MainContent>
