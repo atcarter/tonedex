@@ -1,0 +1,46 @@
+# Environment files — never commit secrets
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backend (Rails)
+backend/log/*
+backend/tmp/*
+backend/storage/*
+backend/.bundle
+backend/vendor/bundle
+!backend/log/.keep
+!backend/tmp/.keep
+!backend/storage/.keep
+
+# Rails secrets — must never be committed; use Heroku config vars in production
+backend/config/master.key
+backend/config/credentials.yml.enc
+backend/config/credentials/
+
+# Frontend (Node)
+frontend/node_modules/
+frontend/dist/
+frontend/.cache/
+
+# Docker
+.docker/
+
+# Coverage
+coverage/
+
+# Playwright output
+frontend/test-results/
+frontend/playwright-report/
