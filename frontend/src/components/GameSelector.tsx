@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import styled from "styled-components";
-import { useNavigate, useMatch } from "react-router-dom";
+import { useNavigate, useMatch, useLocation } from "react-router-dom";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
@@ -34,18 +34,25 @@ const StyledFormControl = styled(FormControl)`
 
 export function GameSelector() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { setSelectedGame } = useAppContext();
   const { data: games = [], isLoading, isError, error } = useGames();
 
   // Derive the active game ID from the URL — this is the source of truth.
+  // Match both /game/:gameId and deeper routes like /game/:gameId/pokemon/:name
+  // so the selector stays on the right game while viewing a Pokémon detail.
   const gameMatch = useMatch("/game/:gameId");
-  const urlGameId = gameMatch ? Number(gameMatch.params.gameId) : null;
+  const gameSubMatch = useMatch("/game/:gameId/*");
+  const matchedGameId = (gameMatch ?? gameSubMatch)?.params.gameId;
+  const urlGameId = matchedGameId ? Number(matchedGameId) : null;
 
-  // Auto-navigate to scarlet (or first game) when no game is in the URL and
-  // games have loaded. Must be inside useEffect — calling navigate/setSelectedGame
-  // during render causes the React "state update during render" error.
+  // Auto-navigate to scarlet (or first game) when landing on the bare root.
+  // Scoped strictly to "/" — navigating from any other game-less route (e.g.
+  // /pokemon/:name or /favorites) must not hijack the user's location.
+  // Must be inside useEffect — calling navigate/setSelectedGame during render
+  // causes the React "state update during render" error.
   useEffect(() => {
-    if (games.length > 0 && !urlGameId) {
+    if (games.length > 0 && pathname === "/") {
       const scarlet = games.find((g: Game) => g.name === "scarlet");
       const defaultGame = scarlet ?? games[0];
       if (defaultGame) {
@@ -53,7 +60,7 @@ export function GameSelector() {
         navigate(`/game/${defaultGame.id}`, { replace: true });
       }
     }
-  }, [games, urlGameId, setSelectedGame, navigate]);
+  }, [games, pathname, setSelectedGame, navigate]);
 
   if (isLoading)
     return (
@@ -84,12 +91,12 @@ export function GameSelector() {
       <ListSubheader
         key={`gen-${gen}`}
         sx={{
-          bgcolor: "#f5f5f5",
+          bgcolor: "background.default",
           lineHeight: "30px",
           fontSize: "0.7rem",
           fontWeight: 700,
           letterSpacing: "0.08em",
-          color: "#999",
+          color: "text.secondary",
         }}
       >
         GENERATION {gen}
