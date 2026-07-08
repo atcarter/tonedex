@@ -147,7 +147,32 @@ class PokeapiAdapter
     parse_evolution_chain(chain_data["chain"])
   end
 
+  # Flavor/lore data for the detail page. Both payloads are already in the
+  # cache for any seeded pokemon (fetched by find_or_create_pokemon and
+  # evolution_chain_for), so this normally costs zero network calls.
+  def species_info_for(pokemon)
+    pokemon_data = @client.pokemon(pokemon.pokeapi_id)
+    species_data = @client.pokemon_species(pokemon.pokeapi_id)
+
+    {
+      genus: english_entry(species_data["genera"])&.fetch("genus", nil),
+      flavor_text: english_entry(species_data["flavor_text_entries"])
+        &.fetch("flavor_text", nil)
+        &.gsub(/\s+/, " ")
+        &.strip,
+      height: pokemon_data["height"], # decimetres
+      weight: pokemon_data["weight"], # hectograms
+      abilities: (pokemon_data["abilities"] || [])
+        .sort_by { |a| a["slot"] }
+        .map { |a| {name: a.dig("ability", "name"), hidden: a["is_hidden"]} }
+    }
+  end
+
   private
+
+  def english_entry(entries)
+    (entries || []).find { |e| e.dig("language", "name") == "en" }
+  end
 
   # The DB column is authoritative (editable without a deploy); the hash and
   # region are fallbacks for rows created before the column existed.

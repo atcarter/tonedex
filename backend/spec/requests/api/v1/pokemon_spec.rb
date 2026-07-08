@@ -10,6 +10,11 @@ RSpec.describe "Pokemon API", type: :request do
     allow(adapter).to receive(:evolution_chain_for).and_return(
       [{name: "charmander", evolution_details: []}]
     )
+    allow(adapter).to receive(:species_info_for).and_return(
+      {genus: "Lizard Pokémon", flavor_text: "Prefers hot places.",
+       height: 6, weight: 85,
+       abilities: [{name: "blaze", hidden: false}]}
+    )
   end
 
   describe "GET /api/v1/pokemon/:id" do
@@ -34,6 +39,18 @@ RSpec.describe "Pokemon API", type: :request do
       get "/api/v1/pokemon/#{pokemon.id}"
 
       expect(response.parsed_body["evolution_chain"]).to eq([])
+    end
+
+    it "includes species info and degrades to null when unavailable" do
+      get "/api/v1/pokemon/#{pokemon.id}"
+      expect(response.parsed_body["species"]).to include(
+        "genus" => "Lizard Pokémon",
+        "abilities" => [{"name" => "blaze", "hidden" => false}]
+      )
+
+      allow(adapter).to receive(:species_info_for).and_raise(PokeapiClient::ApiError)
+      get "/api/v1/pokemon/#{pokemon.id}"
+      expect(response.parsed_body["species"]).to be_nil
     end
 
     it "returns 404 for an unknown numeric id" do

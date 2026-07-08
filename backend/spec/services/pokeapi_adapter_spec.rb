@@ -400,6 +400,53 @@ RSpec.describe PokeapiAdapter do
   # evolution_chain_for
   # ---------------------------------------------------------------------------
 
+  describe "#species_info_for" do
+    let(:pokemon) { create(:pokemon) }
+
+    before do
+      allow(client).to receive(:pokemon).with(pokemon.pokeapi_id).and_return(
+        pikachu_data.merge(
+          "height" => 4,
+          "weight" => 60,
+          "abilities" => [
+            {"slot" => 2, "is_hidden" => true, "ability" => {"name" => "lightning-rod"}},
+            {"slot" => 1, "is_hidden" => false, "ability" => {"name" => "static"}}
+          ]
+        )
+      )
+      allow(client).to receive(:pokemon_species).with(pokemon.pokeapi_id).and_return(
+        {
+          "genera" => [
+            {"genus" => "ねずみポケモン", "language" => {"name" => "ja"}},
+            {"genus" => "Mouse Pokémon", "language" => {"name" => "en"}}
+          ],
+          "flavor_text_entries" => [
+            {"flavor_text" => "When several of\nthese POKéMON\fgather", "language" => {"name" => "en"}}
+          ]
+        }
+      )
+    end
+
+    it "extracts English genus and whitespace-normalised flavor text" do
+      info = adapter.species_info_for(pokemon)
+      expect(info[:genus]).to eq("Mouse Pokémon")
+      expect(info[:flavor_text]).to eq("When several of these POKéMON gather")
+    end
+
+    it "returns abilities sorted by slot with the hidden flag" do
+      info = adapter.species_info_for(pokemon)
+      expect(info[:abilities]).to eq([
+        {name: "static", hidden: false},
+        {name: "lightning-rod", hidden: true}
+      ])
+    end
+
+    it "passes height and weight through unconverted" do
+      info = adapter.species_info_for(pokemon)
+      expect(info).to include(height: 4, weight: 60)
+    end
+  end
+
   describe "#evolution_chain_for" do
     # Use the factory sequence — no hardcoded pokeapi_id that could collide with
     # real Bulbasaur (1) or Eevee (133) if those are in the test DB.
