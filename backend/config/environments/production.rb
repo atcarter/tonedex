@@ -72,12 +72,13 @@ Rails.application.configure do
   # Only use :id for inspections in production.
   config.active_record.attributes_for_inspect = [:id]
 
-  # Enable DNS rebinding protection and other `Host` header attacks.
-  # config.hosts = [
-  #   "example.com",     # Allow requests from example.com
-  #   /.*\.example\.com/ # Allow requests from subdomains like `www.example.com`
-  # ]
-  #
-  # Skip DNS rebinding protection for the default health check endpoint.
-  # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+  # Host-header authorization (blocks DNS-rebinding / Host-header attacks).
+  # Set ALLOWED_HOSTS as a comma-separated list once the domain is settled,
+  # e.g. "pokemaniac.com,www.pokemaniac.com". Left unset, no host filtering is
+  # applied (the Heroku default hostname keeps working out of the box).
+  if ENV["ALLOWED_HOSTS"].present?
+    config.hosts = ENV["ALLOWED_HOSTS"].split(",").map(&:strip)
+    # Skip host checks for the health check endpoint (probes use IPs/internal names)
+    config.host_authorization = {exclude: ->(request) { request.path == "/up" }}
+  end
 end
