@@ -13,10 +13,9 @@ RSpec.describe User, type: :model do
     it { is_expected.to validate_presence_of(:google_uid) }
     it { is_expected.to validate_presence_of(:email) }
 
-    # google_uid comes from Google as a numeric string; shoulda-matchers v7 requires
-    # an alpha character to test case sensitivity, so we use case_insensitive here
-    # (the validation is still unique — it just doesn't need case-swap testing).
-    it { is_expected.to validate_uniqueness_of(:google_uid).case_insensitive }
+    # Google's `sub` claim is an opaque case-sensitive identifier, so the model
+    # validation is intentionally case-sensitive (the Rails default).
+    it { is_expected.to validate_uniqueness_of(:google_uid) }
     it { is_expected.to validate_uniqueness_of(:email) }
   end
 

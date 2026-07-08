@@ -1,4 +1,8 @@
 class Rack::Attack
+  # Request specs fire far more requests per minute than the throttles allow,
+  # and the Redis-backed counters would even persist across runs.
+  self.enabled = !Rails.env.test?
+
   # Use Redis for the throttle store so limits are shared across Puma workers.
   # Falls back to the default memory store in test/development if Redis isn't configured.
   if ENV["REDIS_URL"].present?
