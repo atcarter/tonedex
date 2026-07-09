@@ -28,17 +28,20 @@ const Layout = styled.div`
   min-height: 100vh;
 `;
 
+// The AppBar is position: sticky (in normal flow), so content below is always
+// pushed down by the header's real height — including when the toolbar wraps
+// to multiple rows on narrow screens. No hardcoded 64px offsets.
 const MainContent = styled.main`
   flex: 1;
-  margin-top: 64px;
-  min-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
 `;
 
 const EmptyState = styled.div`
   display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
-  height: calc(100vh - 64px);
   font-size: 1.1rem;
 `;
 
@@ -47,7 +50,7 @@ function AppBarContent() {
   const { selectedGame, colorMode, toggleColorMode } = useAppContext();
 
   return (
-    <AppBar position="fixed" sx={{ bgcolor: "primary.main", zIndex: 1201 }}>
+    <AppBar position="sticky" sx={{ bgcolor: "primary.main", zIndex: 1201 }}>
       <Toolbar sx={{ gap: 2, flexWrap: "wrap", minHeight: "64px" }}>
         <Typography
           variant="h6"
