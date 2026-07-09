@@ -81,4 +81,7 @@ end
 group :test do
   # One-liner validation/association matchers
   gem "shoulda-matchers"
+
+  # Coverage measurement — activated when COVERAGE=1 (see spec/spec_helper.rb)
+  gem "simplecov", require: false
 end

@@ -59,7 +59,7 @@ jobs:
       - name: Lint (standardrb)
         run: bundle exec standardrb --no-fix
 
-      - name: Run RSpec
+      - name: Run RSpec (with coverage)
         env:
           RAILS_ENV: test
           POSTGRES_HOST: localhost
@@ -67,6 +67,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: pokedex_test
           JWT_SECRET: ci-test-secret
+          COVERAGE: "1"
         run: bundle exec rspec --format progress
 
       - name: Scan for security vulnerabilities (Brakeman)
@@ -104,8 +105,8 @@ jobs:
       - name: Format check (Prettier)
         run: npm run format:check
 
-      - name: Unit tests (Vitest)
-        run: npm test
+      - name: Unit tests (Vitest, with coverage)
+        run: npm run test:coverage
 
       - name: Build
         run: npm run build
