@@ -4,6 +4,14 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ---
 
+## 2026-07-09
+
+### Frontend
+- **Feature:** Team builder at `/game/:gameId/team` (entry point on the dex filter bar) — assemble up to six Pokémon from the current game's dex with a filterable picker, see a per-attacking-type defensive overview (weak vs. resist counts, net weaknesses highlighted) and STAB offensive-coverage gaps. Backed by a Gen-6+ type chart and pure analysis functions with 17 unit tests; the team persists per game in `localStorage`. *(Modern-chart simplification for older gens noted in code.)*
+- **Fix (test infra):** Vitest 4 launches Node with `--localstorage-file` and no valid path, so Node's broken experimental webstorage shadowed jsdom's Storage in tests ("localStorage.removeItem is not a function"). The test setup now installs a real in-memory Storage.
+
+---
+
 ## 2026-07-08
 
 ### Repository
