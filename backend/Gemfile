@@ -15,9 +15,8 @@ gem "puma", ">= 5.0"
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[windows jruby]
 
-# Use the database-backed adapters for Rails.cache and Action Cable
+# Database-backed Rails.cache (production cache_store)
 gem "solid_cache"
-gem "solid_cable"
 
 # Background jobs via Sidekiq (Redis-backed)
 # Web UI is built into sidekiq gem — mount via require "sidekiq/web" in routes.rb
@@ -37,13 +36,14 @@ gem "jwt"
 gem "sentry-ruby"
 gem "sentry-rails"
 
+# Structured (JSON) one-line request logs in production
+gem "lograge"
+
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
 
-# Deploy this application anywhere as a Docker container [https://kamal-deploy.org]
-gem "kamal", require: false
-
-# Add HTTP asset caching/compression and X-Sendfile acceleration to Puma [https://github.com/basecamp/thruster/]
+# Add HTTP asset caching/compression and X-Sendfile acceleration to Puma.
+# Used by the production Dockerfile CMD (bin/thrust) — do not remove.
 gem "thruster", require: false
 
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible

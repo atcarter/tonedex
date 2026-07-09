@@ -34,6 +34,14 @@ Rails.application.configure do
   # Change to "debug" to log everything (including potentially personally-identifiable information!).
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
 
+  # Structured request logs: one JSON line per request instead of Rails'
+  # multi-line format — parseable by Heroku log drains / Datadog / Papertrail.
+  config.lograge.enabled = true
+  config.lograge.formatter = Lograge::Formatters::Json.new
+  config.lograge.custom_options = lambda do |event|
+    {request_id: event.payload[:request]&.request_id}.compact
+  end
+
   # Prevent health checks from clogging up the logs.
   config.silence_healthcheck_path = "/up"
 
