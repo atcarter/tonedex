@@ -20,6 +20,7 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 - **Feature:** 404 catch-all route (`NotFoundPage`); unknown URLs previously rendered a blank page.
 - **Feature:** Search dropdown dismisses on Escape/click-outside and consumes the normalized `{results, exact}` response (the `Pokemon | Pokemon[]` union is gone).
 - **Refactor:** Move details fetch through a lazy `useMove` React Query hook (expanded rows only); the `moveCache` + `sessionStorage` plumbing was deleted from `AppContext`, which now holds client state exclusively. `PokemonDetail` takes `{pokemonName, game}` instead of full stub objects. *(One data-fetching idiom — ADR-007)*
+- **Fix:** Sticky AppBar — the fixed header with a hardcoded 64px content offset hid ~250px of page content under the wrapped toolbar at mobile widths. `position: sticky` keeps the header in flow, so content always starts below its real height. Verified at 375px.
 
 ### Backend
 - **Fix:** Removed the 5/min games throttle that 429'd normal dex scrolling — infinite scroll fetches ~10 pages for a large dex and the seeding banner polls every 5s. Its purpose (blocking seed-job spam) is handled structurally by `SeedGamePokemonJob.enqueue_once`; the general 300/5min limit still bounds volume. Search — the endpoint that fans out to PokeAPI per unknown query — now has its own 15/min throttle instead. Also fixed Rack::Attack being mounted twice (railtie + explicit `middleware.use`) and deleted-from-stack in tests; it's now mounted once and toggled via `Rack::Attack.enabled`, with request specs pinning the policy. *(Rate-limit by cost, not by path popularity)*
@@ -42,10 +43,15 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 - **Fix:** The RSpec suite was silently running against the **development** environment and database — `.env.local` exports `RAILS_ENV=development` into the containers, defeating `ENV["RAILS_ENV"] ||= "test"`. rails_helper now hard-sets the test env; ActiveJob uses the `:test` adapter; Rack::Attack is disabled in specs (its Redis-backed counters were also 429-ing spec requests). A user-model spec that only passed by accident against dev data was corrected.
 - **Add:** Request specs for Games, Pokemon, Moves, and `/up`; unit specs for `PokeapiClient` (cache/timeout/retry semantics) and `SeedGamePokemonJob.enqueue_once`. Suite: 79 → 110 examples, all green; Brakeman: 0 warnings.
 - **Add:** Model specs for `Pokemon#types_for_generation` boundaries, adapter specs for `species_info_for` and the `pokedex_name` precedence, negative-cache client specs, and search-shape coverage. Suite now at 125 examples.
+- **Add:** Frontend component tests — `GamePage` filter interplay (AND logic, max-2 cap, whole-dex auto-fetch) and `PokemonCard` toggles including the optimistic `id: -1` guard (Vitest 22 → 33). New Playwright spec covers search flows, the lazy move drawer, and the caught toggle (12 → 17). jsdom gained an `IntersectionObserver` stub.
+- **Add:** Coverage reporting in CI — SimpleCov with branch coverage on the RSpec step (`COVERAGE=1`, ~72% line at introduction) and `vitest --coverage` (v8) on the frontend step.
 
 ### Infrastructure
 - **CI:** Linters now run in CI — `standardrb` (backend), `eslint` + `prettier --check` (frontend). Fixed all existing offenses to land this green.
 - **Docker:** `postgres:15` and `redis:7-alpine` pinned to manifest-list digests; per-service `mem_limit`/`cpus` set. Removed the dead `backend/.github/` directory (GitHub only reads the repo root).
+- **Chore:** Pruned dead Rails scaffolding — kamal (gem, deploy.yml, binstub, .kamal/), solid_cable + the ActionCable engine (no channels or cable mount), and the solid_queue remnants (queue.yml, recurring.yml, queue_schema, dead puma plugin line). `solid_cache` (production cache_store) and `thruster` (production Dockerfile CMD) deliberately kept.
+- **Logging:** `lograge` JSON one-line request logs in production, tagged with request_id. *(12-Factor XI)*
+- **Ops:** Explicit Sidekiq dead-set bounds (5k jobs / 1 month) in the initializer.
 
 ### Docs
 - **Fix:** CLAUDE.md no longer documents the nonexistent `CACHE_BACKEND`/`REDIS_CACHE_URL` Redis cache option; caching section, architecture diagram, env table, and frontend-state section now match the code (React Query + Postgres `api_caches`).
@@ -120,7 +126,7 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 - **Add:** Sentry (`@sentry/react`) initialised in `main.tsx`, enabled in `PROD` only.
 
 ### Infrastructure
-- **Add:** Sidekiq service in `docker-compose.yml`. Redis split into db/0 (Sidekiq) and db/1 (app cache) via `REDIS_URL` / `REDIS_CACHE_URL`. *(See ADR-004)*
+- **Add:** Sidekiq service in `docker-compose.yml`. Redis split into db/0 (Sidekiq) and db/1 (app cache) via `REDIS_URL` / `REDIS_CACHE_URL`. *(See ADR-003. Superseded: the db/1 cache was later replaced by the Postgres `api_caches` table — see the ADR-003 status note and the 2026-07-08 entry.)*
 - **Add:** Single root-level `.env.local` / `.env.production`. Vite configured with `envDir: '..'`. *(12-Factor III — config in the environment)*
 - **Add:** GitHub Actions CI: backend runs `brakeman` + `bundler-audit`; frontend runs `tsc --noEmit` + `vite build`. *(Shift left on security and type safety)*
 - **Add:** Heroku scaffolding — `heroku.yml`, `app.json`, root `Procfile`, `backend/Procfile.dev`. *(12-Factor — dev/prod parity)*

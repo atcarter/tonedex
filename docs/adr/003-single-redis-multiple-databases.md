@@ -1,7 +1,14 @@
 # ADR-003 — Single Redis instance, multiple logical databases
 
 **Date:** 2026-02-28
-**Status:** Accepted
+**Status:** Superseded in part (2026-07-09)
+
+> **Status note (2026-07-09):** the Redis db/1 PokeAPI cache described below
+> was later replaced by the Postgres `api_caches` table (`CacheService` →
+> `ApiCache`), and no `REDIS_CACHE_URL`/`CACHE_BACKEND` switch exists anymore.
+> Redis now serves db/0 only: Sidekiq queues and the Rack::Attack throttle
+> store. The single-instance/multiple-databases reasoning is kept for
+> historical context.
 
 ## Context
 
