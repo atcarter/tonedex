@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import styled from "styled-components";
 import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
 import type { Pokemon } from "../types";
@@ -254,6 +255,14 @@ export function GamePage() {
             {pagination.total} caught
           </CaughtCounter>
         )}
+        <Button
+          size="small"
+          component={Link}
+          to={`/game/${numericGameId}/team`}
+          sx={{ ml: "auto", fontWeight: 700, flexShrink: 0 }}
+        >
+          Team builder
+        </Button>
       </FilterBar>
 
       {availableTypes.length > 0 && (
