@@ -6,7 +6,11 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ## 2026-07-09
 
+### Backend
+- **Feature:** Self-hosted sprites — `SpriteStore` mirrors PokeAPI sprite PNGs into `public/sprites/` (committed to git; Heroku dynos are ephemeral so the mirror ships in the slug). `PokemonSerializer` serves mirrored URLs rooted at the request origin and falls back to the original PokeAPI URL for unmirrored files. `rails pokedex:mirror_sprites` backfills idempotently; `MirrorSpriteJob` (enqueued by the adapter) covers newly created pokemon. Fixes broken card images under fast scrolling — `raw.githubusercontent.com` throttles request bursts. *(Don't put a third party's rate limits in your render path)*
+
 ### Frontend
+- **Fix:** Card sprites load lazily (`loading="lazy"` — only near-viewport images fetch, verified 14/40 on first paint) and show a pokéball placeholder on load failure instead of the browser's broken-image icon.
 - **Feature:** Team builder at `/game/:gameId/team` (entry point on the dex filter bar) — assemble up to six Pokémon from the current game's dex with a filterable picker, see a per-attacking-type defensive overview (weak vs. resist counts, net weaknesses highlighted) and STAB offensive-coverage gaps. Backed by a Gen-6+ type chart and pure analysis functions with 17 unit tests; the team persists per game in `localStorage`. *(Modern-chart simplification for older gens noted in code.)*
 - **Fix (test infra):** Vitest 4 launches Node with `--localstorage-file` and no valid path, so Node's broken experimental webstorage shadowed jsdom's Storage in tests ("localStorage.removeItem is not a function"). The test setup now installs a real in-memory Storage.
 
