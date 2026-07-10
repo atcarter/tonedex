@@ -263,6 +263,14 @@ export function GamePage() {
         >
           Team builder
         </Button>
+        <Button
+          size="small"
+          component={Link}
+          to="/compare"
+          sx={{ fontWeight: 700, flexShrink: 0 }}
+        >
+          Compare
+        </Button>
       </FilterBar>
 
       {availableTypes.length > 0 && (

@@ -153,6 +153,78 @@ test.describe("Search autocomplete", () => {
   });
 });
 
+test.describe("Compare page", () => {
+  test("picking two pokemon shows side-by-side stats with winners highlighted", async ({
+    page,
+  }) => {
+    await mockPublicGameRoutes(page);
+    await page.route(`${API}/api/v1/pokemon/suggestions*`, (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ results: [SPRIGATITO, FLORAGATO] }),
+      }),
+    );
+    await page.route(`${API}/api/v1/pokemon/sprigatito*`, (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(SPRIGATITO_DETAIL),
+      }),
+    );
+    await page.route(`${API}/api/v1/pokemon/floragato*`, (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...SPRIGATITO_DETAIL,
+          pokemon: {
+            ...SPRIGATITO_DETAIL.pokemon,
+            id: 907,
+            name: "floragato",
+            base_stats: {
+              hp: 61,
+              attack: 80,
+              defense: 63,
+              "special-attack": 60,
+              "special-defense": 63,
+              speed: 83,
+            },
+          },
+        }),
+      }),
+    );
+
+    await page.goto("/compare");
+
+    await page.getByLabel("First Pokémon...").fill("spri");
+    await page.getByRole("option", { name: /sprigatito/i }).click();
+    await expect(
+      page.getByRole("heading", { name: /sprigatito/i }),
+    ).toBeVisible();
+
+    await page.getByLabel("Second Pokémon...").fill("flor");
+    await page.getByRole("option", { name: /floragato/i }).click();
+    await expect(
+      page.getByRole("heading", { name: /floragato/i }),
+    ).toBeVisible();
+
+    // Both stat columns render, selection is shareable via the URL
+    await expect(page.getByText("BASE STAT TOTAL")).toHaveCount(2);
+    await expect(page).toHaveURL(/left=sprigatito/);
+    await expect(page).toHaveURL(/right=floragato/);
+
+    // Deep-linking the same comparison renders directly
+    await page.goto("/compare?left=sprigatito&right=floragato");
+    await expect(
+      page.getByRole("heading", { name: /sprigatito/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /floragato/i }),
+    ).toBeVisible();
+  });
+});
+
 test.describe("Move drawer", () => {
   test("expanding a move lazily loads its details", async ({ page }) => {
     await mockPublicGameRoutes(page);

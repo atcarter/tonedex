@@ -49,19 +49,22 @@ const Fill = styled.div<{ $pct: number; $color: string }>`
   transition: width 0.5s ease;
 `;
 
-const Value = styled.span`
+const Value = styled.span<{ $highlight?: boolean }>`
   width: 36px;
   text-align: right;
   font-weight: 700;
   font-size: 0.875rem;
-  color: ${({ theme }) => theme.palette.text.primary};
+  color: ${({ theme, $highlight }) =>
+    $highlight ? theme.palette.success.main : theme.palette.text.primary};
 `;
 
 interface StatBarsProps {
   baseStats: PokemonDetail["base_stats"];
+  // Stats to emphasize (e.g. the winning side per stat on the compare page)
+  highlight?: ReadonlySet<string>;
 }
 
-export function StatBars({ baseStats }: StatBarsProps) {
+export function StatBars({ baseStats, highlight }: StatBarsProps) {
   return (
     <>
       {Object.entries(baseStats).map(([stat, value]) => (
@@ -73,7 +76,7 @@ export function StatBars({ baseStats }: StatBarsProps) {
               $color={STAT_COLORS[stat] ?? "#aaa"}
             />
           </Track>
-          <Value>{value}</Value>
+          <Value $highlight={highlight?.has(stat)}>{value}</Value>
         </Row>
       ))}
     </>

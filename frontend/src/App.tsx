@@ -19,6 +19,7 @@ import { AuthButton } from "./components/AuthButton";
 import { GamePage } from "./pages/GamePage";
 import { PokemonDetailPage } from "./pages/PokemonDetailPage";
 import { TeamBuilderPage } from "./pages/TeamBuilderPage";
+import { ComparePage } from "./pages/ComparePage";
 import { FavoritesPage } from "./pages/FavoritesPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -123,6 +124,7 @@ function App() {
             />
             <Route path="/game/:gameId" element={<GamePage />} />
             <Route path="/game/:gameId/team" element={<TeamBuilderPage />} />
+            <Route path="/compare" element={<ComparePage />} />
             <Route
               path="/game/:gameId/pokemon/:pokemonName"
               element={<PokemonDetailPage />}
