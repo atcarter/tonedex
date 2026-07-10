@@ -11,6 +11,7 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ### Frontend
 - **Fix:** Card sprites load lazily (`loading="lazy"` — only near-viewport images fetch, verified 14/40 on first paint) and show a pokéball placeholder on load failure instead of the browser's broken-image icon.
+- **Feature:** Search-bar autocomplete — typing (2+ chars, 200ms debounce) shows up to eight matches with their self-hosted sprites, prefix matches first. Arrow keys highlight, Enter selects, Escape/click-outside dismiss; Enter with no highlight still runs the full search for unseeded names. Backed by a new DB-only `GET /api/v1/pokemon/suggestions` endpoint that never touches PokeAPI, so it's safe per keystroke.
 - **Feature:** Team builder at `/game/:gameId/team` (entry point on the dex filter bar) — assemble up to six Pokémon from the current game's dex with a filterable picker, see a per-attacking-type defensive overview (weak vs. resist counts, net weaknesses highlighted) and STAB offensive-coverage gaps. Backed by a Gen-6+ type chart and pure analysis functions with 17 unit tests; the team persists per game in `localStorage`. *(Modern-chart simplification for older gens noted in code.)*
 - **Fix (test infra):** Vitest 4 launches Node with `--localstorage-file` and no valid path, so Node's broken experimental webstorage shadowed jsdom's Storage in tests ("localStorage.removeItem is not a function"). The test setup now installs a real in-memory Storage.
 
