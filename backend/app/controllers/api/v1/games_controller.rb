@@ -49,6 +49,6 @@ class Api::V1::GamesController < ApplicationController
   def pokemon_summary(pokemon, game)
     # In-memory find over the preloaded association — no N+1
     game_pokemon = pokemon.game_pokemons.find { |gp| gp.game_id == game.id }
-    PokemonSerializer.game_entry(pokemon, game, game_pokemon)
+    PokemonSerializer.game_entry(pokemon, game, game_pokemon, sprite_base: request.base_url)
   end
 end

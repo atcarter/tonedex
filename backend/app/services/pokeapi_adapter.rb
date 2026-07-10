@@ -79,6 +79,9 @@ class PokeapiAdapter
     updates[:past_types] = extract_past_types(data) if pokemon.past_types.blank?
     pokemon.update_columns(updates) if updates.any?
 
+    # Self-host the sprites for newly created pokemon (see SpriteStore)
+    MirrorSpriteJob.perform_later(pokemon.id) if pokemon.previously_new_record?
+
     pokemon
   rescue ActiveRecord::RecordNotUnique
     Pokemon.find_by!(pokeapi_id: data["id"])

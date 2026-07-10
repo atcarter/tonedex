@@ -1,3 +1,4 @@
+import { useState } from "react";
 import styled from "styled-components";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -5,6 +6,7 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import Brightness1Icon from "@mui/icons-material/Brightness1";
 import PanoramaFishEyeIcon from "@mui/icons-material/PanoramaFishEye";
+import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 import { useNavigate } from "react-router-dom";
 import type { Pokemon } from "../types";
 import { useAppContext } from "../hooks/useAppContext";
@@ -56,6 +58,21 @@ const PokedexNum = styled.span`
   letter-spacing: 0.04em;
 `;
 
+// Shown when the sprite fails to load (e.g. upstream throttling) — same
+// footprint as the img so the card layout doesn't shift
+const SpriteFallback = styled.div`
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    font-size: 40px;
+    color: ${({ theme }) => theme.palette.action.disabled};
+  }
+`;
+
 const PokemonName = styled.span`
   font-size: 0.875rem;
   font-weight: 700;
@@ -94,6 +111,7 @@ export function PokemonCard({
   const { add: addFav, remove: removeFav } = useFavoriteMutations();
   const { data: caught = [] } = useCaughtPokemons(gameId ?? 0);
   const { catch_, uncatch } = useCaughtMutations(gameId ?? 0);
+  const [spriteFailed, setSpriteFailed] = useState(false);
 
   const isFavorite = favorites.some((f) => f.id === pokemon.id);
   const isCaught = gameId
@@ -198,7 +216,18 @@ export function PokemonCard({
           #{String(pokemon.pokedex_number).padStart(3, "0")}
         </PokedexNum>
       )}
-      <img src={pokemon.sprite_url} alt={pokemon.name} />
+      {spriteFailed ? (
+        <SpriteFallback title={pokemon.name}>
+          <CatchingPokemonIcon />
+        </SpriteFallback>
+      ) : (
+        <img
+          src={pokemon.sprite_url}
+          alt={pokemon.name}
+          loading="lazy"
+          onError={() => setSpriteFailed(true)}
+        />
+      )}
       <PokemonName>{formatName(pokemon.name)}</PokemonName>
       <TypesRow>
         {pokemon.types.map((type) => (

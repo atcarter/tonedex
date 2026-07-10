@@ -51,6 +51,22 @@ RSpec.describe "Games API", type: :request do
         expect(json["pagination"]["has_more"]).to be(false)
       end
 
+      it "serves mirrored sprite URLs rooted at the request origin" do
+        allow(SpriteStore).to receive(:mirrored?).and_return(true)
+
+        get "/api/v1/games/#{game.id}"
+
+        expect(response.parsed_body["pokemons"].first["sprite_url"])
+          .to match(%r{\Ahttp://localhost/sprites/\d+\.png\z})
+      end
+
+      it "falls back to the original sprite URL when not mirrored" do
+        get "/api/v1/games/#{game.id}"
+
+        expect(response.parsed_body["pokemons"].first["sprite_url"])
+          .to eq("https://example.com/sprite.png")
+      end
+
       it "includes available_types on the first page only" do
         get "/api/v1/games/#{game.id}"
         expect(response.parsed_body["available_types"]).to eq(["fire"])

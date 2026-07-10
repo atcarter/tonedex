@@ -7,13 +7,19 @@ class Api::V1::PokemonController < ApplicationController
 
     # First try exact match from PokeAPI
     pokemon = adapter.find_or_create_pokemon(query)
-    render json: {results: [PokemonSerializer.summary(pokemon)], exact: true}
+    render json: {
+      results: [PokemonSerializer.summary(pokemon, sprite_base: request.base_url)],
+      exact: true
+    }
   rescue PokeapiClient::ApiError
     # If not found in PokeAPI, search local database.
     # sanitize_sql_like escapes user-supplied % and _ so they match literally.
     escaped = ActiveRecord::Base.sanitize_sql_like(query)
     local_results = Pokemon.where("LOWER(name) LIKE ?", "%#{escaped}%").limit(10)
-    render json: {results: local_results.map { |p| PokemonSerializer.summary(p) }, exact: false}
+    render json: {
+      results: local_results.map { |p| PokemonSerializer.summary(p, sprite_base: request.base_url) },
+      exact: false
+    }
   end
 
   def show
@@ -21,7 +27,7 @@ class Api::V1::PokemonController < ApplicationController
     game = params[:game_id] ? Game.find(params[:game_id]) : nil
 
     render json: {
-      pokemon: PokemonSerializer.details(pokemon, game: game),
+      pokemon: PokemonSerializer.details(pokemon, game: game, sprite_base: request.base_url),
       species: species_info(pokemon),
       moves: moves_for_game(pokemon, game),
       evolution_chain: evolution_chain(pokemon)

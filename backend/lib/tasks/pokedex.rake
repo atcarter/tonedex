@@ -18,4 +18,25 @@ namespace :pokedex do
 
   desc "Seed everything: game metadata + Pokemon (run this on first deploy)"
   task seed: [:seed_games, :seed_pokemon]
+
+  desc "Mirror PokeAPI sprites into public/sprites (idempotent; LIMIT=n to cap). " \
+    "Commit the results — Heroku dynos can't keep runtime downloads."
+  task mirror_sprites: :environment do
+    scope = Pokemon.order(:pokeapi_id)
+    scope = scope.limit(ENV["LIMIT"].to_i) if ENV["LIMIT"].present?
+
+    total = scope.count
+    processed = 0
+    downloaded = 0
+
+    scope.find_each do |pokemon|
+      downloaded += SpriteStore.mirror!(pokemon)
+      processed += 1
+      puts "  #{processed}/#{total} (#{downloaded} files downloaded)" if processed % 100 == 0
+      # Be polite to the upstream CDN — we're the burst we're defending against
+      sleep 0.05
+    end
+
+    puts "Done — #{processed} pokemon scanned, #{downloaded} new files in public/sprites"
+  end
 end

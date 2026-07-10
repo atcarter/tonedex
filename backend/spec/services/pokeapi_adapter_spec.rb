@@ -172,6 +172,16 @@ RSpec.describe PokeapiAdapter do
       expect { adapter.find_or_create_pokemon(FAKE_PIKACHU_ID) }.not_to change(Pokemon, :count)
     end
 
+    it "enqueues a sprite mirror only for newly created pokemon" do
+      expect {
+        adapter.find_or_create_pokemon(FAKE_PIKACHU_ID)
+      }.to have_enqueued_job(MirrorSpriteJob)
+
+      expect {
+        adapter.find_or_create_pokemon(FAKE_PIKACHU_ID)
+      }.not_to have_enqueued_job(MirrorSpriteJob)
+    end
+
     it "maps multi-slot types ordered by slot number" do
       allow(client).to receive(:pokemon).with(FAKE_CLEFAIRY_ID).and_return(clefairy_data)
       pokemon = adapter.find_or_create_pokemon(FAKE_CLEFAIRY_ID)

@@ -3,7 +3,9 @@ class Api::V1::FavoritesController < ApplicationController
 
   def index
     favorites = current_user.favorites.includes(:pokemon)
-    render json: favorites.map { |f| PokemonSerializer.favorite_entry(f.pokemon, f.id) }
+    render json: favorites.map { |f|
+      PokemonSerializer.favorite_entry(f.pokemon, f.id, sprite_base: request.base_url)
+    }
   end
 
   def create
