@@ -98,6 +98,47 @@ RSpec.describe "Pokemon API", type: :request do
     end
   end
 
+  describe "GET /api/v1/pokemon/suggestions" do
+    before do
+      create(:pokemon, name: "spectest-chansey")
+      create(:pokemon, name: "spectest-charmander")
+      create(:pokemon, name: "archest-spectest") # substring, not prefix
+    end
+
+    it "returns substring matches with prefix matches first" do
+      get "/api/v1/pokemon/suggestions", params: {q: "spectest-ch"}
+
+      names = response.parsed_body["results"].map { |p| p["name"] }
+      expect(names).to eq(%w[spectest-chansey spectest-charmander])
+    end
+
+    it "sorts prefix matches ahead of substring matches" do
+      get "/api/v1/pokemon/suggestions", params: {q: "spectest"}
+
+      names = response.parsed_body["results"].map { |p| p["name"] }
+      expect(names.first(2)).to eq(%w[spectest-chansey spectest-charmander])
+      expect(names).to include("archest-spectest")
+    end
+
+    it "returns nothing for queries under two characters" do
+      get "/api/v1/pokemon/suggestions", params: {q: "s"}
+
+      expect(response.parsed_body["results"]).to eq([])
+    end
+
+    it "treats SQL LIKE wildcards literally" do
+      get "/api/v1/pokemon/suggestions", params: {q: "%%"}
+
+      expect(response.parsed_body["results"]).to eq([])
+    end
+
+    it "never calls PokeAPI" do
+      expect(adapter).not_to receive(:find_or_create_pokemon)
+
+      get "/api/v1/pokemon/suggestions", params: {q: "spectest"}
+    end
+  end
+
   describe "GET /api/v1/pokemon/search" do
     it "returns 400 when the query is blank" do
       get "/api/v1/pokemon/search", params: {q: "  "}

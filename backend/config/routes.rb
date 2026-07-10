@@ -28,6 +28,7 @@ Rails.application.routes.draw do
       resources :pokemon, only: [:show] do
         collection do
           get :search
+          get :suggestions
         end
       end
       resources :moves, only: [:show]

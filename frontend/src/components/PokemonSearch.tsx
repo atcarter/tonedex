@@ -8,6 +8,9 @@ import Box from "@mui/material/Box";
 import SearchIcon from "@mui/icons-material/Search";
 import type { Pokemon } from "../types";
 import { searchPokemon } from "../services/api";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { useSuggestions } from "../hooks/useSuggestions";
+import { formatName } from "../utils/formatters";
 
 const SearchWrapper = styled.div`
   position: relative;
@@ -50,13 +53,14 @@ const ResultsDropdown = styled(Paper)`
   border: 1px solid ${({ theme }) => theme.palette.divider} !important;
 `;
 
-const ResultItem = styled.button`
+const ResultItem = styled.button<{ $active: boolean }>`
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
   padding: 8px 16px;
-  background: none;
+  background: ${({ theme, $active }) =>
+    $active ? theme.palette.action.selected : "none"};
   border: none;
   border-bottom: 1px solid ${({ theme }) => theme.palette.divider};
   cursor: pointer;
@@ -78,6 +82,7 @@ const ResultItem = styled.button`
     width: 40px;
     height: 40px;
     object-fit: contain;
+    image-rendering: pixelated;
   }
 `;
 
@@ -103,25 +108,46 @@ export function PokemonSearch() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Pokemon[]>([]);
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  // As-you-type suggestions from our own DB (debounced; sprites included).
+  // Explicit full-search results (from Enter) take precedence while present.
+  const debouncedQuery = useDebouncedValue(query, 200);
+  const { data: suggestionData } = useSuggestions(debouncedQuery);
+  const suggestions =
+    query.trim().length >= 2 ? (suggestionData?.results ?? []) : [];
+  const shown = results.length > 0 ? results : suggestions;
 
   const dismiss = () => {
     setResults([]);
     setError(null);
+    setActiveIndex(-1);
   };
 
   // Close the dropdown/error on click-outside
   useEffect(() => {
-    if (results.length === 0 && !error) return;
+    if (shown.length === 0 && !error) return;
 
     const handleMouseDown = (e: MouseEvent) => {
       if (!wrapperRef.current?.contains(e.target as Node)) dismiss();
     };
     document.addEventListener("mousedown", handleMouseDown);
     return () => document.removeEventListener("mousedown", handleMouseDown);
-  }, [results.length, error]);
+  }, [shown.length, error]);
+
+  const handleSelect = (pokemon: Pokemon) => {
+    navigate(`/pokemon/${pokemon.name}`);
+    dismiss();
+    setQuery("");
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Enter on a highlighted suggestion selects it
+    if (activeIndex >= 0 && shown[activeIndex]) {
+      handleSelect(shown[activeIndex]);
+      return;
+    }
     if (!query.trim()) return;
 
     setLoading(true);
@@ -146,26 +172,41 @@ export function PokemonSearch() {
     }
   };
 
-  const handleSelect = (pokemon: Pokemon) => {
-    navigate(`/pokemon/${pokemon.name}`);
-    dismiss();
-    setQuery("");
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      dismiss();
+      return;
+    }
+    if (shown.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev + 1) % shown.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev <= 0 ? shown.length - 1 : prev - 1));
+    }
   };
 
   return (
-    <SearchWrapper
-      ref={wrapperRef}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") dismiss();
-      }}
-    >
+    <SearchWrapper ref={wrapperRef} onKeyDown={handleKeyDown}>
       <form onSubmit={handleSearch}>
         <SearchBar>
           <SearchInput
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              // Stale explicit results and highlights die with the keystroke
+              setResults([]);
+              setError(null);
+              setActiveIndex(-1);
+            }}
             placeholder="Search Pokémon..."
-            inputProps={{ "aria-label": "search pokemon" }}
+            inputProps={{
+              "aria-label": "search pokemon",
+              "aria-autocomplete": "list",
+              "aria-expanded": shown.length > 0,
+            }}
           />
           <IconButton
             type="submit"
@@ -179,11 +220,21 @@ export function PokemonSearch() {
 
       {error && <ErrorBadge>{error}</ErrorBadge>}
 
-      {results.length > 0 && (
-        <ResultsDropdown elevation={3}>
-          {results.map((pokemon) => (
-            <ResultItem key={pokemon.id} onClick={() => handleSelect(pokemon)}>
-              <img src={pokemon.sprite_url} alt={pokemon.name} />
+      {shown.length > 0 && (
+        <ResultsDropdown elevation={3} role="listbox">
+          {shown.map((pokemon, index) => (
+            <ResultItem
+              key={pokemon.id}
+              type="button"
+              role="option"
+              aria-selected={index === activeIndex}
+              $active={index === activeIndex}
+              onClick={() => handleSelect(pokemon)}
+              onMouseEnter={() => setActiveIndex(index)}
+            >
+              {/* Eager: at most 8 tiny images, and lazy-loading defers
+                  offscreen-then-shown dropdown content unpredictably */}
+              <img src={pokemon.sprite_url} alt="" />
               <Box>
                 <span>{formatName(pokemon.name)}</span>
               </Box>
@@ -193,11 +244,4 @@ export function PokemonSearch() {
       )}
     </SearchWrapper>
   );
-}
-
-function formatName(name: string): string {
-  return name
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
 }

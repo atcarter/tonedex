@@ -91,6 +91,68 @@ test.describe("Search", () => {
   });
 });
 
+test.describe("Search autocomplete", () => {
+  test.beforeEach(async ({ page }) => {
+    await mockPublicGameRoutes(page);
+    await page.route(`${API}/api/v1/pokemon/suggestions*`, (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          results: [
+            {
+              ...SPRIGATITO,
+              sprite_url: "http://localhost:3000/sprites/906.png",
+            },
+            { id: 907, name: "floragato", types: ["grass"], sprite_url: "" },
+          ],
+        }),
+      }),
+    );
+    await page.route(`${API}/api/v1/pokemon/sprigatito*`, (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(SPRIGATITO_DETAIL),
+      }),
+    );
+  });
+
+  test("typing shows sprite suggestions and clicking one navigates", async ({
+    page,
+  }) => {
+    await page.goto("/game/1");
+
+    await page.getByLabel("search pokemon").fill("gato");
+
+    const listbox = page.getByRole("listbox");
+    await expect(listbox.getByText("Floragato")).toBeVisible();
+    await expect(listbox.locator("img").first()).toBeVisible();
+
+    // No Enter pressed — this is pure autocomplete
+    await listbox.getByText("Sprigatito").click();
+    await expect(page).toHaveURL(/\/pokemon\/sprigatito/);
+  });
+
+  test("arrow keys highlight and Enter selects a suggestion", async ({
+    page,
+  }) => {
+    await page.goto("/game/1");
+
+    const input = page.getByLabel("search pokemon");
+    await input.fill("gato");
+    await expect(page.getByRole("listbox")).toBeVisible();
+
+    await input.press("ArrowDown");
+    await expect(
+      page.getByRole("option", { selected: true }).getByText("Sprigatito"),
+    ).toBeVisible();
+
+    await input.press("Enter");
+    await expect(page).toHaveURL(/\/pokemon\/sprigatito/);
+  });
+});
+
 test.describe("Move drawer", () => {
   test("expanding a move lazily loads its details", async ({ page }) => {
     await mockPublicGameRoutes(page);

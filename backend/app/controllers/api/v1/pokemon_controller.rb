@@ -1,4 +1,22 @@
 class Api::V1::PokemonController < ApplicationController
+  # As-you-type autocomplete for the search bar. DB-only — never touches
+  # PokeAPI (the full search behind Enter handles unseeded names), so it's
+  # cheap enough to hit per keystroke. Prefix matches sort first.
+  def suggestions
+    query = params[:q].to_s.downcase.strip
+    return render json: {results: []} if query.length < 2
+
+    escaped = ActiveRecord::Base.sanitize_sql_like(query)
+    prefix = ActiveRecord::Base.connection.quote("#{escaped}%")
+    results = Pokemon.where("LOWER(name) LIKE ?", "%#{escaped}%")
+      .order(Arel.sql("CASE WHEN name LIKE #{prefix} THEN 0 ELSE 1 END"), :name)
+      .limit(8)
+
+    render json: {
+      results: results.map { |p| PokemonSerializer.summary(p, sprite_base: request.base_url) }
+    }
+  end
+
   # Always renders {results: [...], exact: bool} — one response shape for both
   # the exact PokeAPI hit and the local substring fallback.
   def search

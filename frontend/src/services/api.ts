@@ -148,6 +148,15 @@ export async function searchPokemon(query: string): Promise<SearchResponse> {
   );
 }
 
+// DB-only autocomplete for the search bar (never triggers a PokeAPI fetch)
+export async function getSuggestions(
+  query: string,
+): Promise<{ results: Pokemon[] }> {
+  return fetchJson<{ results: Pokemon[] }>(
+    `/api/v1/pokemon/suggestions?q=${encodeURIComponent(query)}`,
+  );
+}
+
 export async function getMove(name: string): Promise<MoveDetails> {
   return fetchJson<MoveDetails>(`/api/v1/moves/${encodeURIComponent(name)}`);
 }
