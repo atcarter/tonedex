@@ -41,9 +41,9 @@ frontend/.cache/
 # Coverage
 coverage/
 
-# Playwright output
-frontend/test-results/
-frontend/playwright-report/
+# Playwright output (any directory — a wrong-cwd run once left one at the root)
+test-results/
+playwright-report/
 
 # In-flight sprite downloads (SpriteStore writes .tmp then renames)
 backend/public/sprites/**/*.tmp

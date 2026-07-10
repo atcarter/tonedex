@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
 import styled from "styled-components";
+import IconButton from "@mui/material/IconButton";
 import FavoriteIcon from "@mui/icons-material/Favorite";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { GoogleLogin } from "@react-oauth/google";
 import type { CredentialResponse } from "@react-oauth/google";
 import { useAppContext } from "../hooks/useAppContext";
 import { useFavorites } from "../hooks/useFavorites";
 import { useFavoriteMutations } from "../hooks/useFavoriteMutations";
 import { PokemonCard } from "../components/PokemonCard";
+import { formatName } from "../utils/formatters";
 import type { Pokemon } from "../types";
 
 const PageWrapper = styled.div`
@@ -53,6 +57,37 @@ const DragItem = styled.div<{ $dragging: boolean }>`
   &:active {
     cursor: grabbing;
   }
+`;
+
+// Keyboard alternative to drag-and-drop: revealed on hover or when a button
+// inside receives focus (so Tab users can find it), space always reserved
+const MoveControls = styled.div`
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  height: 30px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+
+  ${DragItem}:hover &,
+  &:focus-within {
+    opacity: 1;
+  }
+
+  svg {
+    font-size: 18px;
+    color: ${({ theme }) => theme.palette.text.secondary};
+  }
+`;
+
+// Visually hidden, announced to screen readers on reorder
+const LiveRegion = styled.div`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 `;
 
 const EmptyState = styled.div`
@@ -129,6 +164,21 @@ export function FavoritesPage() {
     setDragIndex(null);
   };
 
+  // Keyboard-accessible alternative to drag and drop: moves one position and
+  // persists immediately (announced via the live region below)
+  const [announcement, setAnnouncement] = useState("");
+  const moveByOne = (from: number, to: number) => {
+    if (to < 0 || to >= ordered.length) return;
+    const next = [...ordered];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setOrdered(next);
+    reorder.mutate(next);
+    setAnnouncement(
+      `${formatName(moved.name)} moved to position ${to + 1} of ${next.length}`,
+    );
+  };
+
   if (!currentUser) {
     return (
       <PageWrapper>
@@ -186,10 +236,31 @@ export function FavoritesPage() {
             onDragEnd={handleDragEnd}
           >
             <PokemonCard pokemon={pokemon} showFavoriteButton />
+            <MoveControls>
+              <IconButton
+                size="small"
+                aria-label={`move ${pokemon.name} earlier`}
+                disabled={index === 0}
+                onClick={() => moveByOne(index, index - 1)}
+              >
+                <ChevronLeftIcon />
+              </IconButton>
+              <IconButton
+                size="small"
+                aria-label={`move ${pokemon.name} later`}
+                disabled={index === ordered.length - 1}
+                onClick={() => moveByOne(index, index + 1)}
+              >
+                <ChevronRightIcon />
+              </IconButton>
+            </MoveControls>
           </DragItem>
         ))}
       </Grid>
-      <DragHint>Drag cards to reorder your favorites</DragHint>
+      <DragHint>
+        Drag cards — or use a card's arrow buttons — to reorder your favorites
+      </DragHint>
+      <LiveRegion aria-live="polite">{announcement}</LiveRegion>
     </PageWrapper>
   );
 }
