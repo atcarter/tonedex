@@ -46,6 +46,9 @@ test.describe("Search", () => {
     await expect(
       page.getByRole("heading", { name: /sprigatito/i }),
     ).toBeVisible();
+    // The game-less route defaults its moves context to the app-default game
+    await expect(page.getByText(/moves in scarlet/i)).toBeVisible();
+    await expect(page.getByText("Scratch")).toBeVisible();
   });
 
   test("fallback results render a dropdown; picking one navigates", async ({

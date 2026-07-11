@@ -5,6 +5,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { PokemonDetail } from "../components/PokemonDetail";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { useAppContext } from "../hooks/useAppContext";
 import { useGames } from "../hooks/useGames";
 
 const PageWrapper = styled.div`
@@ -36,15 +37,16 @@ export function PokemonDetailPage() {
     gameId: string;
   }>();
   const navigate = useNavigate();
+  const { selectedGame } = useAppContext();
   const { data: games, isLoading: gamesLoading } = useGames();
 
   if (!pokemonName) return null;
 
   const numericGameId = gameId ? Number(gameId) : undefined;
 
-  // When the URL scopes to a game, wait for the games list so the first
-  // pokemon fetch already carries game_id (types/moves for that game).
-  if (numericGameId && gamesLoading) {
+  // Wait for the games list so the first pokemon fetch already carries the
+  // right game_id (types/moves for that game).
+  if (gamesLoading) {
     return (
       <LoadingContainer>
         <CircularProgress size={28} sx={{ color: "primary.main" }} />
@@ -52,9 +54,16 @@ export function PokemonDetailPage() {
     );
   }
 
+  const gameList = games ?? [];
+  // Game-scoped URLs use their game. The game-less route (search, compare,
+  // evolution links) still deserves a moves section — default to the game
+  // being browsed, else the app default (mirroring GameSelector's choice).
   const game = numericGameId
-    ? ((games ?? []).find((g) => g.id === numericGameId) ?? null)
-    : null;
+    ? (gameList.find((g) => g.id === numericGameId) ?? null)
+    : (selectedGame ??
+      gameList.find((g) => g.name === "scarlet") ??
+      gameList[0] ??
+      null);
 
   return (
     <PageWrapper>
