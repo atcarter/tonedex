@@ -113,14 +113,6 @@ describe("GamePage filtering", () => {
     expect(cardNames()).toEqual(["sprigatito", "fuecoco", "quaquaval"]);
   });
 
-  it("narrows by name filter (case-insensitive substring)", () => {
-    setup();
-    fireEvent.change(screen.getByPlaceholderText("Filter Pokémon..."), {
-      target: { value: "QuA" },
-    });
-    expect(cardNames()).toEqual(["quaquaval"]);
-  });
-
   it("applies type filters with AND logic", () => {
     setup();
     fireEvent.click(screen.getByText("water"));
@@ -144,25 +136,11 @@ describe("GamePage filtering", () => {
     expect(cardNames()).toEqual(["quaquaval"]);
   });
 
-  it("combines name and type filters", () => {
-    setup();
-    // "qua" matches quaquaval by name; "fire" excludes it by type
-    fireEvent.change(screen.getByPlaceholderText("Filter Pokémon..."), {
-      target: { value: "qua" },
-    });
-    expect(cardNames()).toEqual(["quaquaval"]);
-
-    fireEvent.click(screen.getByText("fire"));
-    expect(screen.queryAllByTestId("card")).toHaveLength(0);
-  });
-
-  it("auto-fetches remaining pages while a filter is active", async () => {
+  it("auto-fetches remaining pages while a type filter is active", async () => {
     const { fetchNextPage } = setup({ hasNextPage: true });
     expect(fetchNextPage).not.toHaveBeenCalled();
 
-    fireEvent.change(screen.getByPlaceholderText("Filter Pokémon..."), {
-      target: { value: "gard" },
-    });
+    fireEvent.click(screen.getByText("water"));
 
     await waitFor(() => expect(fetchNextPage).toHaveBeenCalled());
     expect(screen.getByText(/searching entire dex/i)).toBeInTheDocument();

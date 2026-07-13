@@ -8,6 +8,7 @@ import Box from "@mui/material/Box";
 import SearchIcon from "@mui/icons-material/Search";
 import type { Pokemon } from "../types";
 import { searchPokemon } from "../services/api";
+import { useAppContext } from "../hooks/useAppContext";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useSuggestions } from "../hooks/useSuggestions";
 import { formatName } from "../utils/formatters";
@@ -103,6 +104,7 @@ const ErrorBadge = styled.div`
 
 export function PokemonSearch() {
   const navigate = useNavigate();
+  const { selectedGame } = useAppContext();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -135,8 +137,15 @@ export function PokemonSearch() {
     return () => document.removeEventListener("mousedown", handleMouseDown);
   }, [shown.length, error]);
 
+  // Stay in the current game's context so the detail page has its moves,
+  // caught toggle, and dex number; game-less only when no game is selected.
+  const detailPath = (name: string) =>
+    selectedGame
+      ? `/game/${selectedGame.id}/pokemon/${name}`
+      : `/pokemon/${name}`;
+
   const handleSelect = (pokemon: Pokemon) => {
-    navigate(`/pokemon/${pokemon.name}`);
+    navigate(detailPath(pokemon.name));
     dismiss();
     setQuery("");
   };
@@ -159,7 +168,7 @@ export function PokemonSearch() {
         query.trim().toLowerCase(),
       );
       if (exact && found[0]) {
-        navigate(`/pokemon/${found[0].name}`);
+        navigate(detailPath(found[0].name));
         setQuery("");
       } else {
         setResults(found);

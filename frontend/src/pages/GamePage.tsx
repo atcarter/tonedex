@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import styled from "styled-components";
-import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
@@ -126,15 +125,13 @@ export function GamePage() {
 
   const { data: caught = [] } = useCaughtPokemons(numericGameId);
 
-  const [filter, setFilter] = useState("");
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [prevGameId, setPrevGameId] = useState(numericGameId);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // Reset client-side filters when game changes (during render, not in an effect)
+  // Reset the type filter when game changes (during render, not in an effect)
   if (prevGameId !== numericGameId) {
     setPrevGameId(numericGameId);
-    setFilter("");
     setSelectedTypes([]);
   }
 
@@ -164,9 +161,10 @@ export function GamePage() {
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // An active filter means the user is searching the whole dex — pull the
-  // remaining pages so matches aren't limited to what's been scrolled past.
-  const filterActive = filter.trim() !== "" || selectedTypes.length > 0;
+  // An active type filter means the user is searching the whole dex — pull
+  // the remaining pages so matches aren't limited to what's been scrolled
+  // past. (Name lookups live in the AppBar search, which navigates directly.)
+  const filterActive = selectedTypes.length > 0;
   useEffect(() => {
     if (filterActive && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
@@ -186,15 +184,12 @@ export function GamePage() {
 
   const filtered = useMemo(() => {
     const pokemons: Pokemon[] = data?.pages.flatMap((p) => p.pokemons) ?? [];
-    return pokemons.filter((p) => {
-      const nameMatch =
-        !filter || p.name.toLowerCase().includes(filter.toLowerCase());
-      const typeMatch =
+    return pokemons.filter(
+      (p) =>
         selectedTypes.length === 0 ||
-        selectedTypes.every((t) => p.types.includes(t));
-      return nameMatch && typeMatch;
-    });
-  }, [data, filter, selectedTypes]);
+        selectedTypes.every((t) => p.types.includes(t)),
+    );
+  }, [data, selectedTypes]);
 
   if (isLoading) {
     return (
@@ -230,18 +225,6 @@ export function GamePage() {
       )}
 
       <FilterBar>
-        <TextField
-          size="small"
-          placeholder="Filter Pokémon..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          sx={{
-            width: 240,
-            "& .MuiOutlinedInput-root": {
-              "&.Mui-focused fieldset": { borderColor: "primary.main" },
-            },
-          }}
-        />
         {pagination && pagination.total > 0 && (
           <CountText>
             {filtered.length} / {pagination.total}

@@ -42,11 +42,11 @@ test.describe("Search", () => {
     await page.getByLabel("search pokemon").fill("sprigatito");
     await page.getByLabel("search pokemon").press("Enter");
 
-    await expect(page).toHaveURL(/\/pokemon\/sprigatito/);
+    // Search stays inside the selected game's context
+    await expect(page).toHaveURL(/\/game\/1\/pokemon\/sprigatito/);
     await expect(
       page.getByRole("heading", { name: /sprigatito/i }),
     ).toBeVisible();
-    // The game-less route defaults its moves context to the app-default game
     await expect(page.getByText(/moves in scarlet/i)).toBeVisible();
     await expect(page.getByText("Scratch")).toBeVisible();
   });
@@ -72,7 +72,7 @@ test.describe("Search", () => {
     await expect(page.getByText("Floragato")).toBeVisible();
     await page.getByText("Sprigatito").last().click();
 
-    await expect(page).toHaveURL(/\/pokemon\/sprigatito/);
+    await expect(page).toHaveURL(/\/game\/1\/pokemon\/sprigatito/);
   });
 
   test("no matches shows an error that Escape dismisses", async ({ page }) => {
@@ -134,7 +134,7 @@ test.describe("Search autocomplete", () => {
 
     // No Enter pressed — this is pure autocomplete
     await listbox.getByText("Sprigatito").click();
-    await expect(page).toHaveURL(/\/pokemon\/sprigatito/);
+    await expect(page).toHaveURL(/\/game\/1\/pokemon\/sprigatito/);
   });
 
   test("arrow keys highlight and Enter selects a suggestion", async ({
@@ -152,7 +152,7 @@ test.describe("Search autocomplete", () => {
     ).toBeVisible();
 
     await input.press("Enter");
-    await expect(page).toHaveURL(/\/pokemon\/sprigatito/);
+    await expect(page).toHaveURL(/\/game\/1\/pokemon\/sprigatito/);
   });
 });
 
