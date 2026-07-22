@@ -23,8 +23,11 @@ class PokeapiAdapter
     "legends-za" => "paldea"
   }.freeze
 
-  def initialize(client: PokeapiClient.new)
+  # Transforms PokeAPI payloads; persistence is delegated to PokemonImporter
+  # so this class never touches ActiveRecord directly (SRP).
+  def initialize(client: PokeapiClient.new, importer: PokemonImporter.new)
     @client = client
+    @importer = importer
   end
 
   def load_pokedex_for_game(game, limit: nil, offset: 0)
@@ -45,7 +48,7 @@ class PokeapiAdapter
       next unless species_id
 
       pokemon = find_or_create_pokemon(species_id)
-      associate_pokemon_with_game(pokemon, game, pokedex_number)
+      @importer.link_pokemon_to_game(pokemon, game, pokedex_number)
       pokemon
     rescue PokeapiClient::ApiError => e
       Rails.logger.warn("[PokeapiAdapter] Skipping entry ##{pokedex_number}: #{e.message}")
@@ -64,68 +67,65 @@ class PokeapiAdapter
   def find_or_create_pokemon(name_or_id)
     data = @client.pokemon(name_or_id)
 
-    pokemon = Pokemon.find_or_create_by!(pokeapi_id: data["id"]) do |p|
-      p.name = data["name"]
-      p.types = extract_types(data)
-      p.past_types = extract_past_types(data)
-      p.base_stats = extract_stats(data)
-      p.sprite_url = data.dig("sprites", "front_default")
-      p.shiny_sprite_url = data.dig("sprites", "front_shiny")
-    end
-
-    # Backfill columns added after initial seeding
-    updates = {}
-    updates[:shiny_sprite_url] = data.dig("sprites", "front_shiny") if pokemon.shiny_sprite_url.nil?
-    updates[:past_types] = extract_past_types(data) if pokemon.past_types.blank?
-    pokemon.update_columns(updates) if updates.any?
-
-    # Self-host the sprites for newly created pokemon (see SpriteStore)
-    MirrorSpriteJob.perform_later(pokemon.id) if pokemon.previously_new_record?
-
-    pokemon
-  rescue ActiveRecord::RecordNotUnique
-    Pokemon.find_by!(pokeapi_id: data["id"])
+    @importer.upsert_pokemon(
+      pokeapi_id: data["id"],
+      attributes: {
+        name: data["name"],
+        types: extract_types(data),
+        past_types: extract_past_types(data),
+        base_stats: extract_stats(data),
+        sprite_url: data.dig("sprites", "front_default"),
+        shiny_sprite_url: data.dig("sprites", "front_shiny")
+      },
+      backfill: {
+        shiny_sprite_url: data.dig("sprites", "front_shiny"),
+        past_types: extract_past_types(data)
+      }
+    )
   end
 
   def find_or_create_move(name_or_id)
     data = @client.move(name_or_id)
 
-    Move.find_or_create_by!(pokeapi_id: data["id"]) do |move|
-      move.name = data["name"]
-      move.move_type = data.dig("type", "name")
-      move.power = data["power"]
-      move.accuracy = data["accuracy"]
-      move.pp = data["pp"]
-      move.damage_class = data.dig("damage_class", "name")
-    end
-  rescue ActiveRecord::RecordNotUnique
-    Move.find_by!(pokeapi_id: data["id"])
+    @importer.upsert_move(
+      pokeapi_id: data["id"],
+      attributes: {
+        name: data["name"],
+        move_type: data.dig("type", "name"),
+        power: data["power"],
+        accuracy: data["accuracy"],
+        pp: data["pp"],
+        damage_class: data.dig("damage_class", "name")
+      }
+    )
   end
 
   def find_or_create_game(name_or_id)
     data = @client.version(name_or_id)
     version_group = @client.version_group(data.dig("version_group", "name"))
 
-    Game.find_or_create_by!(pokeapi_id: data["id"]) do |game|
-      game.name = data["name"]
-      game.generation = extract_generation_number(version_group)
-      game.region = extract_region(version_group)
-      game.pokedex_name = GAME_TO_POKEDEX[data["name"]]
-    end
+    @importer.upsert_game(
+      pokeapi_id: data["id"],
+      attributes: {
+        name: data["name"],
+        generation: extract_generation_number(version_group),
+        region: extract_region(version_group),
+        pokedex_name: GAME_TO_POKEDEX[data["name"]]
+      }
+    )
   end
 
   def pokemon_moves_for_game(pokemon, game)
     each_move_for_game(pokemon, game) do |move_data, version_details|
       move = find_or_create_move(move_data.dig("move", "name"))
 
-      PokemonMove.find_or_create_by!(
+      @importer.link_move(
         pokemon: pokemon,
         move: move,
-        game: game
-      ) do |pm|
-        pm.level_learned = version_details["level_learned_at"]
-        pm.learn_method = version_details.dig("move_learn_method", "name")
-      end
+        game: game,
+        level_learned: version_details["level_learned_at"],
+        learn_method: version_details.dig("move_learn_method", "name")
+      )
     end
   end
 
@@ -197,15 +197,6 @@ class PokeapiAdapter
 
       yield(move_data, version_details)
     end
-  end
-
-  def associate_pokemon_with_game(pokemon, game, pokedex_number)
-    GamePokemon.find_or_create_by!(pokemon: pokemon, game: game) do |gp|
-      gp.pokedex_number = pokedex_number
-    end
-  rescue ActiveRecord::RecordNotUnique
-    # Another concurrent seed job beat us to it — that's fine, find the existing row
-    GamePokemon.find_by!(pokemon: pokemon, game: game)
   end
 
   def extract_types(data)
