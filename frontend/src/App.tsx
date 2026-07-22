@@ -1,5 +1,6 @@
+import { useEffect, useRef } from "react";
 import styled from "styled-components";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
@@ -33,10 +34,16 @@ const Layout = styled.div`
 // The AppBar is position: sticky (in normal flow), so content below is always
 // pushed down by the header's real height — including when the toolbar wraps
 // to multiple rows on narrow screens. No hardcoded 64px offsets.
+// tabIndex={-1} target for programmatic focus on route changes — no visible
+// ring on the whole region.
 const MainContent = styled.main`
   flex: 1;
   display: flex;
   flex-direction: column;
+
+  &:focus {
+    outline: none;
+  }
 `;
 
 const EmptyState = styled.div`
@@ -107,11 +114,25 @@ function AppBarContent() {
 
 function App() {
   const { toast, clearToast } = useAppContext();
+  const { pathname } = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+  const isFirstRender = useRef(true);
+
+  // Move focus to the main region on navigation so keyboard and screen-reader
+  // users land on the new content instead of a now-removed element. Skipped on
+  // initial load (the browser's default focus is correct there).
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    mainRef.current?.focus({ preventScroll: true });
+  }, [pathname]);
 
   return (
     <Layout>
       <AppBarContent />
-      <MainContent>
+      <MainContent ref={mainRef} tabIndex={-1}>
         <ErrorBoundary>
           <Routes>
             <Route
