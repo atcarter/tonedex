@@ -36,6 +36,9 @@ Object.defineProperty(globalThis, "sessionStorage", {
   configurable: true,
 });
 
+// jsdom doesn't implement scrollIntoView (used by the dex section quick-jump)
+Element.prototype.scrollIntoView = () => {};
+
 // jsdom has no IntersectionObserver; GamePage's infinite-scroll sentinel
 // constructs one on mount. A no-op stub is enough — scroll behaviour itself
 // is covered by the Playwright suite.

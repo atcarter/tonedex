@@ -3,7 +3,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { getGame } from "../services/api";
 import type { GameResponse } from "../types";
 
-const PAGE_SIZE = 40;
+export const PAGE_SIZE = 40;
 
 export function useGame(gameId: number) {
   return useInfiniteQuery<GameResponse>({

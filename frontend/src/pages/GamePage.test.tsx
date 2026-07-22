@@ -8,7 +8,7 @@ import type { GameResponse, Pokemon } from "../types";
 
 vi.mock("../hooks/useAppContext", () => ({ useAppContext: vi.fn() }));
 vi.mock("../hooks/useGames", () => ({ useGames: vi.fn() }));
-vi.mock("../hooks/useGame", () => ({ useGame: vi.fn() }));
+vi.mock("../hooks/useGame", () => ({ useGame: vi.fn(), PAGE_SIZE: 40 }));
 vi.mock("../hooks/useCaughtPokemons", () => ({ useCaughtPokemons: vi.fn() }));
 // Stub the card — its own behaviour is covered in PokemonCard.test.tsx
 vi.mock("../components/PokemonCard", () => ({
@@ -148,6 +148,25 @@ describe("GamePage filtering", () => {
 
     await waitFor(() => expect(fetchNextPage).toHaveBeenCalled());
     expect(screen.getByText(/searching entire dex/i)).toBeInTheDocument();
+  });
+
+  it("section quick-jump loads pages toward the target", async () => {
+    const { fetchNextPage } = setup({ hasNextPage: true });
+
+    fireEvent.click(screen.getByRole("button", { name: "51–100" }));
+
+    await waitFor(() => expect(fetchNextPage).toHaveBeenCalled());
+  });
+
+  it("hides quick-jump sections while type-filtering", () => {
+    setup();
+    expect(screen.getByRole("button", { name: "1–50" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("water"));
+
+    expect(
+      screen.queryByRole("button", { name: "1–50" }),
+    ).not.toBeInTheDocument();
   });
 
   it("restores loaded depth from the ?loaded= URL param", async () => {

@@ -2,13 +2,15 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
 import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import type { Pokemon } from "../types";
 import { TYPE_COLORS } from "../constants/typeColors";
 import { useAppContext } from "../hooks/useAppContext";
 import { useGames } from "../hooks/useGames";
-import { useGame } from "../hooks/useGame";
+import { useGame, PAGE_SIZE } from "../hooks/useGame";
 import { useCaughtPokemons } from "../hooks/useCaughtPokemons";
 import { PokemonCard } from "../components/PokemonCard";
 
@@ -90,6 +92,56 @@ const TypeFilters = styled.div`
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 16px;
+`;
+
+// Dex-section quick-jump (generation tabs don't fit regional dexes — their
+// ordering interleaves generations, so numeric sections are the honest cut)
+const JumpRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+`;
+
+const JumpLabel = styled.span`
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.palette.text.secondary};
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+`;
+
+const JumpChip = styled.button`
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid ${({ theme }) => theme.palette.divider};
+  background: none;
+  color: ${({ theme }) => theme.palette.text.secondary};
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.palette.primary.main};
+    color: ${({ theme }) => theme.palette.primary.main};
+  }
+`;
+
+const BackToTop = styled(IconButton)<{ $visible: boolean }>`
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  z-index: 1200 !important;
+  background: ${({ theme }) => theme.palette.primary.main} !important;
+  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
+  pointer-events: ${({ $visible }) => ($visible ? "auto" : "none")};
+  transition: opacity 0.2s ease !important;
+
+  svg {
+    color: #fff;
+  }
 `;
 
 // Amber tones stay recognisable as a "heads up" in both color modes
@@ -180,19 +232,50 @@ export function GamePage() {
     ? (data.pages[data.pages.length - 1]?.pagination.offset ?? 0)
     : 0;
 
-  // Refetch pages up to ?loaded= so back-navigation / refresh restores the
-  // grid to its previous depth (native scroll restoration then has the
-  // content height it needs).
+  // Dex-section quick-jump: load through the target's page, then scroll to it
+  const [jumpTarget, setJumpTarget] = useState<number | null>(null);
+  const jumpOffsetNeeded = jumpTarget
+    ? Math.floor((jumpTarget - 1) / PAGE_SIZE) * PAGE_SIZE
+    : 0;
+
+  // Refetch pages up to whichever depth is demanded — the ?loaded= restore
+  // target (back-navigation / refresh keeps the grid's height for native
+  // scroll restoration) or a pending section jump.
+  const demandedOffset = Math.max(restoreTarget.current, jumpOffsetNeeded);
   useEffect(() => {
     if (
-      restoreTarget.current > 0 &&
-      loadedOffset < restoreTarget.current &&
+      demandedOffset > 0 &&
+      loadedOffset < demandedOffset &&
       hasNextPage &&
       !isFetchingNextPage
     ) {
       fetchNextPage();
     }
-  }, [loadedOffset, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [
+    demandedOffset,
+    loadedOffset,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  ]);
+
+  // Once the jump target's card exists, scroll to it
+  useEffect(() => {
+    if (jumpTarget == null) return;
+    const el = document.querySelector(`[data-dex="${jumpTarget}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      setJumpTarget(null);
+    }
+  }, [jumpTarget, loadedOffset]);
+
+  // Floating back-to-top once the user is a couple of screens down
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 600);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   // Record the loaded depth in the URL (replace — no history spam)
   useEffect(() => {
@@ -227,6 +310,18 @@ export function GamePage() {
         selectedTypes.every((t) => p.types.includes(t)),
     );
   }, [data, selectedTypes]);
+
+  // Only large dexes get quick-jump sections; hidden while type-filtering
+  // (filtered results don't align with dex-number sections)
+  const total = pagination?.total ?? 0;
+  const sections = useMemo(() => {
+    if (total < 100) return [];
+    const out: { start: number; end: number }[] = [];
+    for (let start = 1; start <= total; start += 50) {
+      out.push({ start, end: Math.min(start + 49, total) });
+    }
+    return out;
+  }, [total]);
 
   if (isLoading) {
     return (
@@ -342,15 +437,36 @@ export function GamePage() {
         </TypeFilters>
       )}
 
+      {sections.length > 0 && !filterActive && (
+        <JumpRow>
+          <JumpLabel>Jump to</JumpLabel>
+          {sections.map(({ start, end }) => (
+            <JumpChip
+              key={start}
+              type="button"
+              onClick={() => setJumpTarget(start)}
+            >
+              {start}–{end}
+            </JumpChip>
+          ))}
+        </JumpRow>
+      )}
+
       <Grid>
         {filtered.map((pokemon) => (
-          <PokemonCard
-            key={pokemon.id}
-            pokemon={pokemon}
-            gameId={numericGameId}
-          />
+          <div key={pokemon.id} data-dex={pokemon.pokedex_number}>
+            <PokemonCard pokemon={pokemon} gameId={numericGameId} />
+          </div>
         ))}
       </Grid>
+
+      <BackToTop
+        aria-label="back to top"
+        $visible={showBackToTop}
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      >
+        <KeyboardArrowUpIcon />
+      </BackToTop>
 
       <Sentinel ref={sentinelRef}>
         {isFetchingNextPage && (
