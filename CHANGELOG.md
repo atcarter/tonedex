@@ -4,6 +4,19 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ---
 
+## 2026-07-10
+
+### Frontend
+- **Accessibility:** Type-badge contrast audited — 9 of 18 pairings failed WCAG AA with white text; per-badge text color now puts every pairing at ≥5.59:1. Route changes move focus to the main region so keyboard/screen-reader users land on the new content.
+- **Feature:** Infinite-scroll depth persists as `?loaded=` (history-replacing); back-navigation and refresh refetch to that depth so native scroll restoration has the content height it needs.
+- **Feature:** Dex-section quick-jump — "Jump to" chips per 50 dex numbers on large dexes load through the target section and smooth-scroll to it; floating back-to-top for the return. (Shipped in place of generation tabs: regional dex ordering interleaves generations non-contiguously.)
+- **Refactor:** Toast + color mode moved to a dedicated `UiContext`, so toast churn no longer re-renders every auth/game consumer; `AppContext` keeps auth + selected game.
+
+### Backend
+- **Refactor:** `PokemonImporter` extracted from `PokeapiAdapter` — the importer owns all ActiveRecord writes (concurrency-safe upserts, backfills, association linking, sprite-mirror enqueue); the adapter is a pure payload transformer with no AR references. Public API unchanged; 141 specs passed as-is.
+
+---
+
 ## 2026-07-09
 
 ### Backend
