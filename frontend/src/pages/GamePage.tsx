@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -108,6 +108,7 @@ const SeedingBanner = styled.div`
 
 export function GamePage() {
   const { gameId } = useParams<{ gameId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { setSelectedGame, currentUser } = useAppContext();
   const { data: games = [] } = useGames();
 
@@ -128,11 +129,15 @@ export function GamePage() {
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [prevGameId, setPrevGameId] = useState(numericGameId);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  // Depth to restore on back/refresh, captured from ?loaded= before we start
+  // rewriting it below
+  const restoreTarget = useRef(Number(searchParams.get("loaded")) || 0);
 
   // Reset the type filter when game changes (during render, not in an effect)
   if (prevGameId !== numericGameId) {
     setPrevGameId(numericGameId);
     setSelectedTypes([]);
+    restoreTarget.current = Number(searchParams.get("loaded")) || 0;
   }
 
   // Sync selectedGame context with URL on game change
@@ -170,6 +175,38 @@ export function GamePage() {
       fetchNextPage();
     }
   }, [filterActive, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const loadedOffset = data
+    ? (data.pages[data.pages.length - 1]?.pagination.offset ?? 0)
+    : 0;
+
+  // Refetch pages up to ?loaded= so back-navigation / refresh restores the
+  // grid to its previous depth (native scroll restoration then has the
+  // content height it needs).
+  useEffect(() => {
+    if (
+      restoreTarget.current > 0 &&
+      loadedOffset < restoreTarget.current &&
+      hasNextPage &&
+      !isFetchingNextPage
+    ) {
+      fetchNextPage();
+    }
+  }, [loadedOffset, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Record the loaded depth in the URL (replace — no history spam)
+  useEffect(() => {
+    if (loadedOffset > 0) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("loaded", String(loadedOffset));
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [loadedOffset, setSearchParams]);
 
   const availableTypes: string[] = data?.pages[0]?.available_types ?? [];
   const pagination = data?.pages[data.pages.length - 1]?.pagination ?? null;

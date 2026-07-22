@@ -69,7 +69,11 @@ function gamePage(pokemons: Pokemon[], overrides = {}): GameResponse {
   };
 }
 
-function setup({ pages = [gamePage(POKEMONS)], hasNextPage = false } = {}) {
+function setup({
+  pages = [gamePage(POKEMONS)],
+  hasNextPage = false,
+  route = "/game/1",
+} = {}) {
   const fetchNextPage = vi.fn();
   mockUseAppContext.mockReturnValue({
     setSelectedGame: vi.fn(),
@@ -92,7 +96,7 @@ function setup({ pages = [gamePage(POKEMONS)], hasNextPage = false } = {}) {
   } as unknown as ReturnType<typeof useGame>);
 
   render(
-    <MemoryRouter initialEntries={["/game/1"]}>
+    <MemoryRouter initialEntries={[route]}>
       <ThemeProvider theme={theme}>
         <SCThemeProvider theme={theme}>
           <Routes>
@@ -144,5 +148,15 @@ describe("GamePage filtering", () => {
 
     await waitFor(() => expect(fetchNextPage).toHaveBeenCalled());
     expect(screen.getByText(/searching entire dex/i)).toBeInTheDocument();
+  });
+
+  it("restores loaded depth from the ?loaded= URL param", async () => {
+    // Page one is loaded (offset 0); ?loaded=80 asks for two more pages
+    const { fetchNextPage } = setup({
+      hasNextPage: true,
+      route: "/game/1?loaded=80",
+    });
+
+    await waitFor(() => expect(fetchNextPage).toHaveBeenCalled());
   });
 });
