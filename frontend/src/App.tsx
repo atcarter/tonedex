@@ -14,6 +14,7 @@ import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
 import { useNavigate } from "react-router-dom";
 import { useAppContext } from "./hooks/useAppContext";
+import { useUi } from "./hooks/useUi";
 import { GameSelector } from "./components/GameSelector";
 import { PokemonSearch } from "./components/PokemonSearch";
 import { AuthButton } from "./components/AuthButton";
@@ -56,7 +57,8 @@ const EmptyState = styled.div`
 
 function AppBarContent() {
   const navigate = useNavigate();
-  const { selectedGame, colorMode, toggleColorMode } = useAppContext();
+  const { selectedGame } = useAppContext();
+  const { colorMode, toggleColorMode } = useUi();
 
   return (
     <AppBar position="sticky" sx={{ bgcolor: "primary.main", zIndex: 1201 }}>
@@ -113,7 +115,7 @@ function AppBarContent() {
 }
 
 function App() {
-  const { toast, clearToast } = useAppContext();
+  const { toast, clearToast } = useUi();
   const { pathname } = useLocation();
   const mainRef = useRef<HTMLElement>(null);
   const isFirstRender = useRef(true);

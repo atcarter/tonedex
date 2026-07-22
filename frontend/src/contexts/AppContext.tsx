@@ -1,12 +1,12 @@
 import { createContext, useState, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
-import type { Game, Toast, User } from "../types";
-import type { ColorMode } from "../theme";
+import type { Game, User } from "../types";
 import { queryClient, registerUnauthorizedHandler } from "../lib/queryClient";
 import { signInWithGoogle } from "../services/api";
+import { useUi } from "../hooks/useUi";
 
-// Client-only state. All server state (games, dex pages, pokemon, favorites,
-// caught, moves) lives in React Query hooks — see ADR-007.
+// Auth + game-selection client state. All server state lives in React Query
+// hooks (ADR-007); ephemeral UI chrome (toast, color mode) lives in UiContext.
 interface AppContextValue {
   selectedGame: Game | null;
   setSelectedGame: (game: Game | null) => void;
@@ -14,10 +14,6 @@ interface AppContextValue {
   token: string | null;
   signIn: (idToken: string) => Promise<void>;
   signOut: () => void;
-  toast: Toast | null;
-  clearToast: () => void;
-  colorMode: ColorMode;
-  toggleColorMode: () => void;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components -- context object is intentionally co-located with its provider
@@ -25,16 +21,6 @@ export const AppContext = createContext<AppContextValue | null>(null);
 
 const TOKEN_KEY = "pokedex_token";
 const USER_KEY = "pokedex_user";
-const COLOR_MODE_KEY = "pokedex_color_mode";
-
-function loadColorMode(): ColorMode {
-  const stored = localStorage.getItem(COLOR_MODE_KEY);
-  if (stored === "dark" || stored === "light") return stored;
-  // Fall back to OS preference
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-}
 const SESSION_EXPIRED_MSG = "Your session has expired. Please sign in again.";
 
 function loadToken(): string | null {
@@ -50,22 +36,12 @@ function loadUser(): User | null {
   }
 }
 
+// Must be nested inside UiProvider (the 401 handler raises a toast)
 export function AppProvider({ children }: { children: ReactNode }) {
+  const { showToast } = useUi();
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(loadUser);
   const [token, setToken] = useState<string | null>(loadToken);
-  const [toast, setToast] = useState<Toast | null>(null);
-  const [colorMode, setColorMode] = useState<ColorMode>(loadColorMode);
-
-  const clearToast = useCallback(() => setToast(null), []);
-
-  const toggleColorMode = useCallback(() => {
-    setColorMode((prev) => {
-      const next: ColorMode = prev === "light" ? "dark" : "light";
-      localStorage.setItem(COLOR_MODE_KEY, next);
-      return next;
-    });
-  }, []);
 
   const clearAuthState = useCallback(() => {
     setToken(null);
@@ -80,9 +56,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     registerUnauthorizedHandler(() => {
       clearAuthState();
-      setToast({ message: SESSION_EXPIRED_MSG, severity: "info" });
+      showToast({ message: SESSION_EXPIRED_MSG, severity: "info" });
     });
-  }, [clearAuthState]);
+  }, [clearAuthState, showToast]);
 
   const signIn = useCallback(async (idToken: string) => {
     const { token: jwt, user } = await signInWithGoogle(idToken);
@@ -107,10 +83,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         token,
         signIn,
         signOut,
-        toast,
-        clearToast,
-        colorMode,
-        toggleColorMode,
       }}
     >
       {children}
