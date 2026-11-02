@@ -8,6 +8,8 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ### Frontend
 - **Renamed** the app from PokéManiac to ToneDex: the header logo (styled as TONEDEX, with plain text "ToneDex" for screen readers), the page title, the Sidekiq login page and the docs. Domain examples in comments and `.env.example` now use `example.com`.
+- **Copy:** generic "Pokédex" wording in the UI and README now says "dex" (the 404 page links "Back to ToneDex").
+- **Fix:** `GamePage` passes lint again. The `?loaded=` restore depth is state instead of a ref, since render reads it; clearing the section-jump target stays in its effect, with the reason noted, because it depends on whether the card is in the DOM yet.
 
 ### Backend
 - **Removed:** `config/initializers/content_security_policy.rb`. It never took effect: API-only Rails leaves the CSP middleware out of the stack, so no response carried the policy. The Sidekiq UI, the only HTML Rails serves, sets its own CSP. `API_ORIGIN`, which only that file read, is gone too.

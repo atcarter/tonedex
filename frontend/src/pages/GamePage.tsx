@@ -182,14 +182,16 @@ export function GamePage() {
   const [prevGameId, setPrevGameId] = useState(numericGameId);
   const sentinelRef = useRef<HTMLDivElement>(null);
   // Depth to restore on back/refresh, captured from ?loaded= before we start
-  // rewriting it below
-  const restoreTarget = useRef(Number(searchParams.get("loaded")) || 0);
+  // rewriting it below. State rather than a ref because render reads it.
+  const [restoreTarget, setRestoreTarget] = useState(
+    () => Number(searchParams.get("loaded")) || 0,
+  );
 
-  // Reset the type filter when game changes (during render, not in an effect)
+  // Reset per-game state when the game changes (during render, not in an effect)
   if (prevGameId !== numericGameId) {
     setPrevGameId(numericGameId);
     setSelectedTypes([]);
-    restoreTarget.current = Number(searchParams.get("loaded")) || 0;
+    setRestoreTarget(Number(searchParams.get("loaded")) || 0);
   }
 
   // Sync selectedGame context with URL on game change
@@ -241,7 +243,7 @@ export function GamePage() {
   // Refetch pages up to whichever depth is demanded — the ?loaded= restore
   // target (back-navigation / refresh keeps the grid's height for native
   // scroll restoration) or a pending section jump.
-  const demandedOffset = Math.max(restoreTarget.current, jumpOffsetNeeded);
+  const demandedOffset = Math.max(restoreTarget, jumpOffsetNeeded);
   useEffect(() => {
     if (
       demandedOffset > 0 &&
@@ -265,6 +267,9 @@ export function GamePage() {
     const el = document.querySelector(`[data-dex="${jumpTarget}"]`);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Clearing the target depends on the DOM (has the card rendered yet?),
+      // which render can't see, so it has to happen here.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setJumpTarget(null);
     }
   }, [jumpTarget, loadedOffset]);
@@ -352,7 +357,7 @@ export function GamePage() {
             sx={{ color: "text.secondary", flexShrink: 0 }}
           />
           Pokémon data is being loaded in the background for the first time. The
-          Pokédex will appear here automatically in a minute.
+          dex will appear here automatically in a minute.
         </SeedingBanner>
       )}
 

@@ -43,8 +43,8 @@ export function NotFoundPage() {
     <Wrapper>
       <BigIcon />
       <Title>Page not found</Title>
-      <Hint>This route isn't in any Pokédex we know of.</Hint>
-      <HomeLink to="/">Back to the Pokédex</HomeLink>
+      <Hint>This route isn't in any dex we know of.</Hint>
+      <HomeLink to="/">Back to ToneDex</HomeLink>
     </Wrapper>
   );
 }
