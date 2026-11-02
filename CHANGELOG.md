@@ -8,6 +8,10 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ### Infrastructure
 - **Removed:** the Heroku config (`heroku.yml`, `app.json`, `Procfile`). It was never deployed, and the account is cancelled. Heroku and dyno wording in ARCHITECTURE, CLAUDE.md, code comments and the JWT-rotation runbook is now platform-neutral; Render specifics land once production is live (ADR-008).
+- **CI:** Brakeman runs through `bundle exec` (the binstub's `--ensure-latest` fails whenever a newer release exists), and bundler-audit runs `check --update`, so a fresh GitHub runner gets the current advisory database.
+
+### Backend
+- **Security:** against a fresh advisory database, bundler-audit flagged 23 gems. A conservative, minor-level update of just those gems clears it: Rails 8.1.2 → 8.1.4, rack 3.2.5 → 3.2.8, puma 7.2.0 → 7.2.1, jwt 3.1.2 → 3.3.0, oauth2 2.0.18 → 2.1.0 and nokogiri 1.19.1 → 1.19.4, among others. No code changes; RSpec, standardrb and Brakeman pass. (OWASP A06 — Vulnerable and Outdated Components)
 
 ### Docs
 - **Fix:** ARCHITECTURE and CLAUDE.md describe frontend state as it is: `AppContext` holds auth and the selected game, `UiContext` holds toast and color mode, and the deleted `moveCache` is gone. The query-key list gains `move` and `suggestions`.

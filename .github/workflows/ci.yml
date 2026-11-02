@@ -71,10 +71,10 @@ jobs:
         run: bundle exec rspec --format progress
 
       - name: Scan for security vulnerabilities (Brakeman)
-        run: bin/brakeman --no-pager
+        run: bundle exec brakeman --no-pager
 
       - name: Scan gems for known vulnerabilities (bundler-audit)
-        run: bin/bundler-audit
+        run: bin/bundler-audit check --update
 
   frontend:
     runs-on: ubuntu-latest
