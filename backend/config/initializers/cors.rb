@@ -2,7 +2,7 @@
 #
 # CORS_ORIGINS must be set in production to the exact frontend domain(s).
 # Multiple origins are supported as a comma-separated list:
-#   CORS_ORIGINS=https://pokemaniac.com,https://www.pokemaniac.com
+#   CORS_ORIGINS=https://example.com,https://www.example.com
 #
 # Never use a wildcard (*) in production — it defeats same-origin protection.
 

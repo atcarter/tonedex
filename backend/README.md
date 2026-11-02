@@ -1,4 +1,4 @@
-# PokéManiac backend
+# ToneDex backend
 
 The Rails 8 API-only app: the JSON API under `/api/v1`, the Sidekiq jobs that seed data from PokeAPI, and the Sidekiq Web UI. Setup is in the [root README](../README.md); the design is in [ARCHITECTURE.md](../ARCHITECTURE.md).
 

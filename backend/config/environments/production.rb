@@ -82,7 +82,7 @@ Rails.application.configure do
 
   # Host-header authorization (blocks DNS-rebinding / Host-header attacks).
   # Set ALLOWED_HOSTS as a comma-separated list once the domain is settled,
-  # e.g. "pokemaniac.com,www.pokemaniac.com". Left unset, no host filtering is
+  # e.g. "example.com,www.example.com". Left unset, no host filtering is
   # applied, so any hostname works out of the box.
   if ENV["ALLOWED_HOSTS"].present?
     config.hosts = ENV["ALLOWED_HOSTS"].split(",").map(&:strip)

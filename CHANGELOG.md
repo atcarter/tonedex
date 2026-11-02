@@ -6,6 +6,9 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ## 2026-11-02
 
+### Frontend
+- **Renamed** the app from PokéManiac to ToneDex: the header logo (styled as TONEDEX, with plain text "ToneDex" for screen readers), the page title, the Sidekiq login page and the docs. Domain examples in comments and `.env.example` now use `example.com`.
+
 ### Backend
 - **Removed:** `config/initializers/content_security_policy.rb`. It never took effect: API-only Rails leaves the CSP middleware out of the stack, so no response carried the policy. The Sidekiq UI, the only HTML Rails serves, sets its own CSP. `API_ORIGIN`, which only that file read, is gone too.
 

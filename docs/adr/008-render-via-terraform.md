@@ -5,7 +5,7 @@
 
 ## Context
 
-PokéManiac needs a public production deployment in time for a demo on 2026-11-03, about four evenings of work away. It has never been deployed: the repo carried Heroku config (`heroku.yml`, `app.json`, `Procfile`) that never ran, and the owner has since cancelled the Heroku account. `config/database.yml` still declares Rails 8's four default databases, the frontend has no production build or host, and nothing proves the production image boots.
+ToneDex needs a public production deployment in time for a demo on 2026-11-03, about four evenings of work away. It has never been deployed: the repo carried Heroku config (`heroku.yml`, `app.json`, `Procfile`) that never ran, and the owner has since cancelled the Heroku account. `config/database.yml` still declares Rails 8's four default databases, the frontend has no production build or host, and nothing proves the production image boots.
 
 Production needs four pieces plus a static SPA:
 - **web**: Puma behind Thruster, from `backend/Dockerfile`'s `production` stage

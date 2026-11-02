@@ -6,7 +6,7 @@ class AuthController < ActionController::Base
   def login
     render html: <<~HTML.html_safe, layout: false
       <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
-      <title>PokéManiac Admin</title>
+      <title>ToneDex Admin</title>
       <style>
         body{display:flex;align-items:center;justify-content:center;height:100vh;
              margin:0;font-family:sans-serif;background:#f5f5f5}

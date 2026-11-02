@@ -1,6 +1,6 @@
 # Architecture
 
-High-level overview of PokéManiac's architecture. For detailed rationale behind specific decisions, see `docs/adr/`.
+High-level overview of ToneDex's architecture. For detailed rationale behind specific decisions, see `docs/adr/`.
 
 ---
 

@@ -1,4 +1,4 @@
-# PokéManiac
+# ToneDex
 
 A Pokédex for the game you're actually playing. Pick a Pokémon game and browse its regional dex, with each Pokémon's moves and types as they are in that game.
 
@@ -58,7 +58,7 @@ Playwright needs the frontend running on :5173, plus `npm ci` and `npx playwrigh
 
 ## Disclaimer
 
-PokéManiac is an unofficial fan project. It isn't affiliated with, endorsed by or sponsored by Nintendo, Game Freak, Creatures Inc. or The Pokémon Company. Pokémon and Pokémon character names are trademarks of Nintendo. Sprites and game data come from [PokeAPI](https://pokeapi.co/) and belong to their respective owners.
+ToneDex is an unofficial fan project. It isn't affiliated with, endorsed by or sponsored by Nintendo, Game Freak, Creatures Inc. or The Pokémon Company. Pokémon and Pokémon character names are trademarks of Nintendo. Sprites and game data come from [PokeAPI](https://pokeapi.co/) and belong to their respective owners.
 
 ## License
 

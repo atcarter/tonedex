@@ -71,12 +71,15 @@ function AppBarContent() {
             flexShrink: 0,
             fontSize: "1.1rem",
             cursor: "pointer",
+            // Styled as TONEDEX, but the text stays "ToneDex" so screen
+            // readers say the name instead of spelling out capitals.
+            textTransform: "uppercase",
           }}
           onClick={() =>
             selectedGame ? navigate(`/game/${selectedGame.id}`) : navigate("/")
           }
         >
-          ◆ POKÉDEX
+          ◆ ToneDex
         </Typography>
         <Box sx={{ flexShrink: 0 }}>
           <GameSelector />

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-PokéManiac is a game-specific Pokédex SPA. Users select a Pokémon game and browse its regional dex; they can sign in with Google to persist favorites across devices. The app is a React frontend talking to a Rails 8 API-only backend, fully containerised with Docker Compose.
+ToneDex is a game-specific Pokédex SPA. Users select a Pokémon game and browse its regional dex; they can sign in with Google to persist favorites across devices. The app is a React frontend talking to a Rails 8 API-only backend, fully containerised with Docker Compose.
 
 ---
 

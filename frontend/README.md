@@ -1,4 +1,4 @@
-# PokéManiac frontend
+# ToneDex frontend
 
 React 19 + TypeScript SPA built with Vite. Talks to the Rails API at
 `VITE_API_URL` (see the root `.env.example`). Part of the monorepo — the root
