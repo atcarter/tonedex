@@ -2,10 +2,11 @@
 # us instead of raw.githubusercontent.com, which throttles request bursts
 # (fast scrolling / whole-dex filtering rendered broken images).
 #
-# The files are committed to git: Heroku dyno filesystems are ephemeral and
-# per-dyno, so the mirror must ship inside the slug — anything downloaded at
-# runtime disappears on restart and never reaches the web dyno. Serialization
-# falls back to the original PokeAPI URL whenever a file isn't mirrored yet.
+# The files are committed to git: production containers have ephemeral,
+# per-instance disks, so the mirror must ship inside the image — anything
+# downloaded at runtime disappears on restart and never reaches the web
+# service. Serialization falls back to the original PokeAPI URL whenever a
+# file isn't mirrored yet.
 #
 # (This intentionally fetches from PokeAPI's sprite CDN, not the REST API —
 # the PokeapiAdapter-only rule covers API calls and database writes.)

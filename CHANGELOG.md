@@ -4,6 +4,23 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ---
 
+## 2026-11-01
+
+### Infrastructure
+- **Removed:** the Heroku config (`heroku.yml`, `app.json`, `Procfile`). It was never deployed, and the account is cancelled. Heroku and dyno wording in ARCHITECTURE, CLAUDE.md, code comments and the JWT-rotation runbook is now platform-neutral; Render specifics land once production is live (ADR-008).
+
+### Docs
+- **Fix:** ARCHITECTURE and CLAUDE.md describe frontend state as it is: `AppContext` holds auth and the selected game, `UiContext` holds toast and color mode, and the deleted `moveCache` is gone. The query-key list gains `move` and `suggestions`.
+
+---
+
+## 2026-10-30
+
+### Docs
+- **Decision:** ADR-008 settles production hosting: Render, with every resource in Terraform (`infra/render`, applied by a human) and GitHub settings managed by hand.
+
+---
+
 ## 2026-07-10
 
 ### Frontend

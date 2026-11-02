@@ -35,7 +35,7 @@ Rails.application.configure do
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
 
   # Structured request logs: one JSON line per request instead of Rails'
-  # multi-line format — parseable by Heroku log drains / Datadog / Papertrail.
+  # multi-line format — parseable by log aggregators such as Datadog or Papertrail.
   config.lograge.enabled = true
   config.lograge.formatter = Lograge::Formatters::Json.new
   config.lograge.custom_options = lambda do |event|
@@ -83,7 +83,7 @@ Rails.application.configure do
   # Host-header authorization (blocks DNS-rebinding / Host-header attacks).
   # Set ALLOWED_HOSTS as a comma-separated list once the domain is settled,
   # e.g. "pokemaniac.com,www.pokemaniac.com". Left unset, no host filtering is
-  # applied (the Heroku default hostname keeps working out of the box).
+  # applied, so any hostname works out of the box.
   if ENV["ALLOWED_HOSTS"].present?
     config.hosts = ENV["ALLOWED_HOSTS"].split(",").map(&:strip)
     # Skip host checks for the health check endpoint (probes use IPs/internal names)

@@ -20,7 +20,7 @@ namespace :pokedex do
   task seed: [:seed_games, :seed_pokemon]
 
   desc "Mirror PokeAPI sprites into public/sprites (idempotent; LIMIT=n to cap). " \
-    "Commit the results — Heroku dynos can't keep runtime downloads."
+    "Commit the results — production disks can't keep runtime downloads."
   task mirror_sprites: :environment do
     scope = Pokemon.order(:pokeapi_id)
     scope = scope.limit(ENV["LIMIT"].to_i) if ENV["LIMIT"].present?

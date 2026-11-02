@@ -25,7 +25,7 @@ backend/vendor/bundle
 !backend/tmp/.keep
 !backend/storage/.keep
 
-# Rails secrets — must never be committed; use Heroku config vars in production
+# Rails secrets — must never be committed; production reads secrets from env vars
 backend/config/master.key
 backend/config/credentials.yml.enc
 backend/config/credentials/

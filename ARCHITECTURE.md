@@ -10,8 +10,9 @@ High-level overview of PokéManiac's architecture. For detailed rationale behind
 Browser
   │
   ├── React SPA (Vite, port 5173)
-  │     ├── TanStack Query — server state (games, pokémon, favorites, caught)
-  │     ├── AppContext     — UI/auth state (selectedGame, token, currentUser, toast, moveCache)
+  │     ├── TanStack Query — server state (games, pokémon, moves, favorites, caught, suggestions)
+  │     ├── AppContext     — auth + game state (selectedGame, token, currentUser)
+  │     ├── UiContext      — ephemeral UI state (toast, colorMode)
   │     ├── @react-oauth/google  ──── Google ID token ──▶ POST /api/v1/auth/google
   │     ├── Authorization: Bearer <jwt>  ──────────────▶ API routes
   │     └── /auth/login (browser redirect) ────────────▶ OmniAuth → /sidekiq
@@ -65,9 +66,10 @@ Server state and UI state are deliberately separated:
 |---|---|---|
 | Games list, Pokémon data, Moves | TanStack Query | Immutable PokeAPI data — cached with `staleTime: Infinity` |
 | Favorites, Caught | TanStack Query | User-owned — `staleTime: 0` for cross-tab freshness |
-| selectedGame, token, currentUser | AppContext | UI/auth state — not server data |
-| moveCache | AppContext | In-memory cache for move detail accordions |
-| toast | AppContext | Ephemeral UI notifications |
+| Search suggestions | TanStack Query | Short-lived — `staleTime` 5 min, previous results kept while typing |
+| selectedGame, token, currentUser | AppContext | Auth + game state — not server data |
+| toast, colorMode | UiContext | Ephemeral UI state, kept apart so toast churn doesn't re-render auth/game consumers |
+| Team | `useTeam` (localStorage) | Per-game scratch team, usable signed-out |
 
 See ADR-007 for the full rationale.
 
@@ -77,6 +79,8 @@ See ADR-007 for the full rationale.
 ["games"]                     — games list
 ["game", gameId]              — single game + paginated pokémon (infinite query)
 ["pokemon", name, gameId?]    — pokémon detail
+["move", name]                — move detail (fetched lazily when a row expands)
+["suggestions", query]        — as-you-type search suggestions (staleTime: 5 min)
 ["favorites"]                 — user's favorites (auth-gated, staleTime: 0)
 ["caught", gameId]            — caught pokémon for a game (auth-gated, staleTime: 0)
 ```
@@ -115,10 +119,10 @@ Session middleware is promoted to the main Rails stack in `config/initializers/o
 
 | Process | Threads | DB Pool | Config |
 |---|---|---|---|
-| Puma (web) | `RAILS_MAX_THREADS` (3) | `DB_POOL` (3) | Web dyno |
-| Sidekiq (worker) | `SIDEKIQ_CONCURRENCY` (5) | `DB_POOL` (5) | Worker dyno |
+| Puma (web) | `RAILS_MAX_THREADS` (3) | `DB_POOL` (3) | Web service |
+| Sidekiq (worker) | `SIDEKIQ_CONCURRENCY` (5) | `DB_POOL` (5) | Background worker |
 
-Pool size = concurrency per process. On Heroku, web and worker are separate dynos with independent pools.
+Pool size = concurrency per process. In production, web and worker run as separate services with independent pools.
 
 ---
 
@@ -126,7 +130,7 @@ Pool size = concurrency per process. On Heroku, web and worker are separate dyno
 
 - **CORS**: `CORS_ORIGINS` env var (required in production). Comma-separated for multi-domain. Defaults to `http://localhost:5173` in development.
 - **Rate limiting**: `Rack::Attack` — 300 req/5min (general API), 10 req/min (auth), 5 req/min (game seeding). Throttle counters stored in Redis.
-- **Secrets**: `master.key`, `credentials.yml.enc`, `.env.*` are gitignored. Secrets live in Heroku config vars and CI secrets only.
+- **Secrets**: `master.key`, `credentials.yml.enc`, `.env.*` are gitignored. Secrets live only in production env vars and CI secrets.
 
 ---
 
@@ -141,3 +145,4 @@ Pool size = concurrency per process. On Heroku, web and worker are separate dyno
 | 005 | URL as source of truth for game selection |
 | 006 | Google OAuth for user accounts |
 | 007 | TanStack Query for server state management |
+| 008 | Render via Terraform for production hosting |

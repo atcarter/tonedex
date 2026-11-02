@@ -1,5 +1,5 @@
 # Sidekiq concurrency: number of threads processing jobs simultaneously.
-# Must be <= DB_POOL on the worker dyno — each thread can hold a DB connection.
+# Must be <= DB_POOL in the worker process — each thread can hold a DB connection.
 # Default is 5 to match DB_POOL default; override with SIDEKIQ_CONCURRENCY env var.
 :concurrency: <%= ENV.fetch("SIDEKIQ_CONCURRENCY", 5) %>
 
