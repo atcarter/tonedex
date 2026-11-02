@@ -1,24 +1,21 @@
-# README
+# PokéManiac backend
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+The Rails 8 API-only app: the JSON API under `/api/v1`, the Sidekiq jobs that seed data from PokeAPI, and the Sidekiq Web UI. Setup is in the [root README](../README.md); the design is in [ARCHITECTURE.md](../ARCHITECTURE.md).
 
-Things you may want to cover:
+## Layout
 
-* Ruby version
+- `app/controllers/api/v1/`: JSON endpoints; signed-in routes use `ApplicationController#authenticate_user!` (JWT)
+- `app/services/`: PokeAPI access (`PokeapiClient`, `PokeapiAdapter`), the response cache (`CacheService`), database writes (`PokemonImporter`) and sprite mirroring (`SpriteStore`)
+- `app/jobs/`: seeding, cache-warming and sprite-mirroring jobs (Sidekiq)
+- `lib/tasks/pokedex.rake`: `pokedex:seed`, `pokedex:reseed_pokemon`, `pokedex:mirror_sprites`
 
-* System dependencies
+## Commands
 
-* Configuration
+Run inside Docker Compose:
 
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+```bash
+docker compose exec backend bundle exec rspec                # tests
+docker compose exec backend bundle exec standardrb --no-fix  # lint
+docker compose exec backend bundle exec brakeman             # security scan
+docker compose exec backend bundle exec rails pokedex:seed   # seed every game (slow; runs through Sidekiq)
+```

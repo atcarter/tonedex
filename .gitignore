@@ -1,3 +1,7 @@
+# Maintainer-only notes (backlog, runbooks) are kept privately, outside the repo
+BACKLOG.md
+docs/runbooks/
+
 # Environment files — never commit secrets
 .env
 .env.local

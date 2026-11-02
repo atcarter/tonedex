@@ -26,8 +26,8 @@ Use **Sidekiq 8** with Redis. Remove `solid_queue` from the `Gemfile` and all re
 
 **Accepted trade-offs:**
 - Redis is now a hard runtime dependency. If Redis goes down, job processing stops (though Rails request serving is unaffected).
-- Redis persistence must be configured separately to avoid losing queued jobs on container restart (see BACKLOG — "Enable Redis persistence").
-- The Sidekiq Web UI at `/sidekiq` must be secured before any public deploy (see BACKLOG — "Lock Sidekiq Web UI behind authentication").
+- Redis persistence must be configured separately to avoid losing queued jobs on container restart. (Since done for Docker Compose, which runs Redis with AOF; production depends on the Key Value plan, see ADR-008.)
+- The Sidekiq Web UI at `/sidekiq` must be secured before any public deploy (since done: see ADR-006).
 
 **Benefits gained:**
 - Proven reliability at scale with a large community.

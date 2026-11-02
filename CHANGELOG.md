@@ -4,10 +4,23 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ---
 
+## 2026-11-02
+
+### Backend
+- **Removed:** `config/initializers/content_security_policy.rb`. It never took effect: API-only Rails leaves the CSP middleware out of the stack, so no response carried the policy. The Sidekiq UI, the only HTML Rails serves, sets its own CSP. `API_ORIGIN`, which only that file read, is gone too.
+
+### Docs
+- **README** rewritten for a public audience: what the app does, how it works, a quick start that works on a fresh clone (copy `.env.example`, then `db:prepare`), how to run the tests, and links to ARCHITECTURE and the ADRs.
+- **License:** MIT for the code, plus a fan-project disclaimer: Pokémon names, sprites and data belong to their owners and aren't covered.
+- **Fix:** CLAUDE.md no longer calls `GAME_TO_POKEDEX` tech debt; `games.pokedex_name` has been authoritative since 2026-07-08, so adding a game is a DB insert.
+- **Fix:** ARCHITECTURE, CLAUDE.md, the READMEs and ADRs 001–007 match the code again: the service and job lists (`PokemonImporter`, `SpriteStore`, `MirrorSpriteJob`), seeding that auto-refreshes instead of asking for a reload, the search throttle that replaced the games one, the health check's Redis ping, and status notes on superseded or refined decisions. `backend/README.md` replaces the Rails generator placeholder. In older entries, a wrong ADR link (003 → 005) and two misdated headers are corrected.
+
+---
+
 ## 2026-11-01
 
 ### Infrastructure
-- **Removed:** the Heroku config (`heroku.yml`, `app.json`, `Procfile`). It was never deployed, and the account is cancelled. Heroku and dyno wording in ARCHITECTURE, CLAUDE.md, code comments and the JWT-rotation runbook is now platform-neutral; Render specifics land once production is live (ADR-008).
+- **Removed:** the Heroku config (`heroku.yml`, `app.json`, `Procfile`). It was never deployed, and the account is cancelled. Heroku and dyno wording in ARCHITECTURE, CLAUDE.md and code comments is now platform-neutral; Render specifics land once production is live (ADR-008).
 - **CI:** Brakeman runs through `bundle exec` (the binstub's `--ensure-latest` fails whenever a newer release exists), and bundler-audit runs `check --update`, so a fresh GitHub runner gets the current advisory database.
 
 ### Backend
@@ -25,7 +38,7 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ---
 
-## 2026-07-10
+## 2026-07-22
 
 ### Frontend
 - **Accessibility:** Type-badge contrast audited — 9 of 18 pairings failed WCAG AA with white text; per-badge text color now puts every pairing at ≥5.59:1. Route changes move focus to the main region so keyboard/screen-reader users land on the new content.
@@ -38,10 +51,10 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ---
 
-## 2026-07-09
+## 2026-07-09 to 2026-07-13
 
 ### Backend
-- **Feature:** Self-hosted sprites — `SpriteStore` mirrors PokeAPI sprite PNGs into `public/sprites/` (committed to git; Heroku dynos are ephemeral so the mirror ships in the slug). `PokemonSerializer` serves mirrored URLs rooted at the request origin and falls back to the original PokeAPI URL for unmirrored files. `rails pokedex:mirror_sprites` backfills idempotently; `MirrorSpriteJob` (enqueued by the adapter) covers newly created pokemon. Fixes broken card images under fast scrolling — `raw.githubusercontent.com` throttles request bursts. *(Don't put a third party's rate limits in your render path)*
+- **Feature:** Self-hosted sprites — `SpriteStore` mirrors PokeAPI sprite PNGs into `public/sprites/` (committed to git; production disks are ephemeral, so the mirror must ship in the image). `PokemonSerializer` serves mirrored URLs rooted at the request origin and falls back to the original PokeAPI URL for unmirrored files. `rails pokedex:mirror_sprites` backfills idempotently; `MirrorSpriteJob` (enqueued by the adapter) covers newly created pokemon. Fixes broken card images under fast scrolling — `raw.githubusercontent.com` throttles request bursts. *(Don't put a third party's rate limits in your render path)*
 
 ### Frontend
 - **Fix:** Card sprites load lazily (`loading="lazy"` — only near-viewport images fetch, verified 14/40 on first paint) and show a pokéball placeholder on load failure instead of the browser's broken-image icon.
@@ -145,7 +158,7 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 ## 2026-03-01
 
 ### Frontend
-- **Fix:** `GameSelector` dropdown showed "no game selected" while the correct game was loaded. Changed `Select` value to derive from the URL via `useMatch("/game/:gameId")` instead of `AppContext`, eliminating a race condition between the async games fetch and context hydration. *(URL as single source of truth — React Router best practice; see ADR-003)*
+- **Fix:** `GameSelector` dropdown showed "no game selected" while the correct game was loaded. Changed `Select` value to derive from the URL via `useMatch("/game/:gameId")` instead of `AppContext`, eliminating a race condition between the async games fetch and context hydration. *(URL as single source of truth — React Router best practice; see ADR-005)*
 - **Fix:** Duplicate Pokémon rows returned by `GamesController#show`. Removed redundant `.joins(:game_pokemons)` on a `has_many :through` association that was generating a double JOIN and duplicating every result row. *(Law of Demeter — let ActiveRecord manage association joins)*
 
 ---

@@ -3,6 +3,9 @@
 **Date:** 2026-03-13
 **Status:** Accepted
 
+> **Status note (2026-11-02):** toast and color mode later moved from `AppContext` into a separate `UiContext` (2026-07-22),
+> so `AppContext` holds only auth and the selected game. Search suggestions, added later, use a 5-minute `staleTime`.
+
 ## Context
 
 Async state handling in the frontend was inconsistent. Each data-fetching component (`GamePage`, `PokemonDetail`, `GameSelector`) independently managed its own `loading`, `error`, and `data` state with no shared pattern. `AppContext` conflated server state (favorites, caught, games lists) with UI/auth state (selectedGame, token, toast), making it responsible for too many concerns and causing unnecessary re-renders across unrelated consumers.

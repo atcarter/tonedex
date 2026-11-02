@@ -24,36 +24,39 @@ Browser
         │     ├── FavoritesController   — authenticated CRUD + reorder (JWT)
         │     ├── CaughtPokemonsController — per-game catch tracking (JWT)
         │     ├── GamesController       — game list + paginated Pokémon
-        │     ├── PokemonController     — detail + search
+        │     ├── PokemonController     — detail, search, suggestions
         │     └── MovesController       — move detail
         │
         ├── Auth routes (/auth/*)
         │     └── AuthController (ActionController::Base) — OmniAuth callback → session cookie
         │
-        ├── Health check (/up) — verifies DB connectivity, returns JSON
+        ├── Health check (/up) — pings Postgres and Redis, returns per-check JSON
         │
         ├── Sidekiq Web UI (/sidekiq) — gated by SidekiqAuth Rack middleware
         │
-        ├── Rack::Attack — per-IP rate limiting on API, auth, and seeding routes
+        ├── Rack::Attack — per-IP rate limiting on API, auth and search routes
         │
         ├── Services
         │     ├── PokeapiClient   — HTTP to pokeapi.co, delegates cache reads/writes
-        │     ├── CacheService    — routes to PostgresCache (api_caches table)
-        │     └── PokeapiAdapter  — orchestrates client + ActiveRecord persistence
+        │     ├── CacheService    — thin facade over ApiCache (api_caches table)
+        │     ├── PokeapiAdapter  — turns PokeAPI payloads into attribute hashes
+        │     ├── PokemonImporter — owns every write to games, pokemons, moves and their join tables
+        │     └── SpriteStore     — mirrors sprite PNGs into public/sprites
         │
         └── Background jobs (Sidekiq, Redis db 0)
               ├── SeedGamePokemonJob    — triggered on first game load (lazy seeding)
               ├── SeedAllPokemonJob     — seeds all Pokémon base data
               ├── PreloadGamePokemonJob — pre-warms a game's dex
-              └── WarmMoveCacheJob      — pre-warms a move entry
+              ├── WarmMoveCacheJob      — pre-warms a move entry
+              └── MirrorSpriteJob       — mirrors a new Pokémon's sprites
 
 PostgreSQL
   ├── games, pokemons, game_pokemons, moves, pokemon_moves
   ├── users, favorites (with position for drag-to-reorder), caught_pokemons
   └── api_caches (PokeAPI response cache)
 
-Redis (AOF persistence enabled)
-  └── db 0 — Sidekiq queues
+Redis (AOF persistence enabled in Docker Compose)
+  └── db 0 — Sidekiq queues, Rack::Attack throttle store, seed-job locks
 ```
 
 ---
@@ -89,13 +92,13 @@ See ADR-007 for the full rationale.
 
 ## Data Flow: Lazy Seeding
 
-Pokémon data is **not pre-loaded**. On `GET /api/v1/games/:id`, if the game has no Pokémon yet, `SeedGamePokemonJob` is enqueued. The response returns `pagination.seeding: true` — the frontend shows a banner prompting the user to refresh. Subsequent requests return data from Postgres, never PokeAPI directly.
+Pokémon data is seeded by Sidekiq jobs, never inside a request (ADR-002). `rails pokedex:seed` seeds every game up front; otherwise a game seeds on its first visit. When `GET /api/v1/games/:id` finds a game with no Pokémon yet (`game.game_pokemons.empty?`), it enqueues `SeedGamePokemonJob` (once, behind a Redis lock) and returns `pagination.seeding: true` with an empty list; `useGame` polls every 5s until the dex fills in. Subsequent requests read from the database.
 
 ---
 
 ## PokeAPI Caching
 
-`PokeapiClient` checks `CacheService` before every network call. Raw PokeAPI JSON is stored in `api_caches` (Postgres) by endpoint path. Each endpoint is fetched at most once across all time. Postgres is used (not Redis) because the data is durable and enables backfill tasks from raw cached responses without re-fetching.
+`PokeapiClient` checks `CacheService` before every network call. Raw PokeAPI JSON is stored in `api_caches` (Postgres) by endpoint path. Each endpoint is fetched at most once across all time; 404s are cached too, as sentinel rows. Postgres is used (not Redis) because the data is durable and enables backfill tasks from raw cached responses without re-fetching. `PokeapiAdapter` turns payloads into attribute hashes, and `PokemonImporter` owns every database write.
 
 ---
 
@@ -129,8 +132,9 @@ Pool size = concurrency per process. In production, web and worker run as separa
 ## Security
 
 - **CORS**: `CORS_ORIGINS` env var (required in production). Comma-separated for multi-domain. Defaults to `http://localhost:5173` in development.
-- **Rate limiting**: `Rack::Attack` — 300 req/5min (general API), 10 req/min (auth), 5 req/min (game seeding). Throttle counters stored in Redis.
-- **Secrets**: `master.key`, `credentials.yml.enc`, `.env.*` are gitignored. Secrets live only in production env vars and CI secrets.
+- **Rate limiting**: `Rack::Attack` — 300 req/5min (general API), 10 req/min (auth), 15 req/min (search, which can reach PokeAPI). Throttle counters are stored in Redis. There's deliberately no games throttle: `SeedGamePokemonJob.enqueue_once` prevents duplicate seeding instead.
+- **Secrets**: `master.key`, `credentials.yml.enc` and the real env files (`.env.local`, `.env.production`) are gitignored. Secrets live only in production env vars and CI secrets.
+- **Transport and headers**: production forces SSL (HSTS, secure cookies) and checks Host headers against `ALLOWED_HOSTS` when it's set. Rails sends no Content Security Policy: API-only apps leave out that middleware. The Sidekiq UI, the only HTML it serves, sets its own.
 
 ---
 

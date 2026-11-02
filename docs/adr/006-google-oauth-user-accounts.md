@@ -65,14 +65,14 @@ The two flows share one Google OAuth client ID/secret but are otherwise independ
 
 **Negative / Trade-offs:**
 - Two auth mechanisms to understand and maintain.
-- `JWT_SECRET` rotation invalidates all active user sessions simultaneously (no graceful migration). Document the runbook; consider short-lived tokens + refresh tokens in a future iteration (see BACKLOG.md).
-- JWT expiry (30 days) is silent — the app returns 401 with no UX feedback. Planned fix in BACKLOG.md.
+- `JWT_SECRET` rotation invalidates all active user sessions simultaneously (no graceful migration). Short-lived access tokens plus refresh tokens would fix this in a future iteration.
+- JWTs can't be extended: after 30 days the API returns 401, and the frontend signs the user out with a "session expired" toast.
 - Sidekiq session cookie expires after 30 minutes; owner must re-authenticate frequently during long admin sessions.
 
 ---
 
 ## Alternatives Considered
 
-- **HTTP Basic Auth for Sidekiq** — the original BACKLOG.md suggestion. Simpler but requires a shared username/password that must be rotated separately. Rejected in favour of tying Sidekiq access to the existing Google account.
+- **HTTP Basic Auth for Sidekiq** — the original suggestion. Simpler but requires a shared username/password that must be rotated separately. Rejected in favour of tying Sidekiq access to the existing Google account.
 - **Single auth mechanism for both** — using JWT for Sidekiq too would require a custom Sidekiq middleware that can parse headers. Sidekiq Web is a Rack app designed for browser use; session cookies are the natural fit.
 - **`devise` + `omniauth`** — full-featured but heavy; this app needs only `find_or_create_by` on Google UID, not registration flows, password resets, or email confirmation.

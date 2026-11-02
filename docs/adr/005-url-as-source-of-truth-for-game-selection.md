@@ -3,6 +3,9 @@
 **Date:** 2026-03-01
 **Status:** Accepted
 
+> **Status note (2026-11-02):** since 2026-07-08 the selector also matches `/game/:gameId/*`, so it shows the current game on
+> detail pages, and a game is auto-selected only on `/`, so deep links are never redirected.
+
 ## Context
 
 The `GameSelector` dropdown needed to show which game is currently active. Two approaches were considered:

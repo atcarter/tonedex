@@ -1,7 +1,10 @@
 # ADR-004 — Favorites persisted to localStorage, no backend
 
 **Date:** 2026-02-28
-**Status:** Accepted
+**Status:** Superseded by ADR-006
+
+> **Status note:** favorites moved to a database table keyed on the user when Google sign-in landed on 2026-03-02
+> (ADR-006). This record is kept for history.
 
 ## Context
 
