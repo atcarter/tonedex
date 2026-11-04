@@ -45,6 +45,8 @@ async function fetchJson<T>(
   if (!response.ok) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
+  // DELETE and reorder answer 204 with no body
+  if (response.status === 204) return undefined as T;
 
   return response.json();
 }
@@ -87,29 +89,21 @@ export async function reorderFavorites(
   favoriteIds: number[],
   token: string,
 ): Promise<void> {
-  const response = await fetch(`${API_URL}/api/v1/favorites/reorder`, {
+  return fetchJson<void>("/api/v1/favorites/reorder", {
     method: "PATCH",
     headers: authHeaders(token),
     body: JSON.stringify({ ids: favoriteIds }),
   });
-  if (response.status === 401) throw new UnauthorizedError();
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`);
-  }
 }
 
 export async function removeFavorite(
   favoriteId: number,
   token: string,
 ): Promise<void> {
-  const response = await fetch(`${API_URL}/api/v1/favorites/${favoriteId}`, {
+  return fetchJson<void>(`/api/v1/favorites/${favoriteId}`, {
     method: "DELETE",
     headers: authHeaders(token),
   });
-  if (response.status === 401) throw new UnauthorizedError();
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`);
-  }
 }
 
 export async function getGames(): Promise<Game[]> {
@@ -186,12 +180,8 @@ export async function uncatchPokemon(
   caughtId: number,
   token: string,
 ): Promise<void> {
-  const response = await fetch(
-    `${API_URL}/api/v1/caught_pokemons/${caughtId}`,
-    { method: "DELETE", headers: authHeaders(token) },
-  );
-  if (response.status === 401) throw new UnauthorizedError();
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status} ${response.statusText}`);
-  }
+  return fetchJson<void>(`/api/v1/caught_pokemons/${caughtId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
 }

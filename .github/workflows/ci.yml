@@ -135,23 +135,12 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
 
-      - name: Write .env.local for Docker Compose
-        working-directory: .
-        run: |
-          cat > .env.local <<'ENVEOF'
-          GOOGLE_CLIENT_ID=placeholder
-          GOOGLE_CLIENT_SECRET=placeholder
-          JWT_SECRET=ci-test-secret
-          SIDEKIQ_ALLOWED_EMAIL=ci@example.com
-          VITE_GOOGLE_CLIENT_ID=placeholder
-          VITE_API_URL=http://localhost:3000
-          ENVEOF
-
-      - name: Start Docker Compose stack
-        working-directory: .
-        run: docker compose up -d --wait
-
+      # Every API call is mocked, so Playwright's webServer (the Vite dev
+      # server) is the whole stack. The VITE_* values stand in for the env file.
       - name: Run E2E tests
+        env:
+          VITE_GOOGLE_CLIENT_ID: placeholder
+          VITE_API_URL: http://localhost:3000
         run: npm run test:e2e
 
       - name: Upload Playwright traces on failure

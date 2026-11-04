@@ -1,0 +1,147 @@
+import styled from "styled-components";
+import IconButton from "@mui/material/IconButton";
+import CircularProgress from "@mui/material/CircularProgress";
+
+export const PageWrapper = styled.div`
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px;
+`;
+
+export const FilterBar = styled.div`
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+export const Grid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+`;
+
+export const Sentinel = styled.div`
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+  color: ${({ theme }) => theme.palette.text.disabled};
+  font-size: 0.8rem;
+  gap: 8px;
+`;
+
+export const LoadingContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  gap: 12px;
+`;
+
+export const LoadingText = styled.span`
+  font-size: 0.875rem;
+  color: ${({ theme }) => theme.palette.text.secondary};
+`;
+
+export const RedSpinner = styled(CircularProgress)`
+  color: ${({ theme }) => theme.palette.primary.main} !important;
+`;
+
+export const ErrorText = styled.p`
+  color: ${({ theme }) => theme.palette.error.main};
+  font-size: 0.875rem;
+  padding: 24px;
+  margin: 0;
+`;
+
+export const CountText = styled.span`
+  font-size: 0.875rem;
+  color: ${({ theme }) => theme.palette.text.secondary};
+`;
+
+export const CaughtCounter = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.875rem;
+  color: ${({ theme }) => theme.palette.text.secondary};
+`;
+
+export const CaughtDot = styled.span`
+  color: ${({ theme }) => theme.palette.primary.main};
+  font-size: 0.6rem;
+  line-height: 1;
+`;
+
+export const TypeFilters = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+`;
+
+// Dex-section quick-jump (generation tabs don't fit regional dexes — their
+// ordering interleaves generations, so numeric sections are the honest cut)
+export const JumpRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+`;
+
+export const JumpLabel = styled.span`
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: ${({ theme }) => theme.palette.text.secondary};
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+`;
+
+export const JumpChip = styled.button`
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid ${({ theme }) => theme.palette.divider};
+  background: none;
+  color: ${({ theme }) => theme.palette.text.secondary};
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.palette.primary.main};
+    color: ${({ theme }) => theme.palette.primary.main};
+  }
+`;
+
+export const BackToTop = styled(IconButton)<{ $visible: boolean }>`
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  z-index: 1200 !important;
+  background: ${({ theme }) => theme.palette.primary.main} !important;
+  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
+  pointer-events: ${({ $visible }) => ($visible ? "auto" : "none")};
+  transition: opacity 0.2s ease !important;
+
+  svg {
+    color: #fff;
+  }
+`;
+
+// Amber tones stay recognisable as a "heads up" in both color modes
+export const SeedingBanner = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: rgba(255, 193, 7, 0.12);
+  border: 1px solid rgba(255, 193, 7, 0.4);
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 0.875rem;
+  color: ${({ theme }) => theme.palette.text.secondary};
+`;

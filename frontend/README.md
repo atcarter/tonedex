@@ -26,7 +26,7 @@ npm run lint           # ESLint (CI check)
 npm run format         # Prettier write
 npm run format:check   # Prettier check (CI check)
 npm test               # Vitest unit tests
-npm run test:e2e       # Playwright (needs the app running on :5173)
+npm run test:e2e       # Playwright (starts or reuses the dev server on :5173)
 ```
 
 Day-to-day commands run inside Docker
@@ -37,4 +37,5 @@ the host after `npm install`.
 
 - **Unit:** Vitest + Testing Library (`src/**/*.test.{ts,tsx}`)
 - **E2E:** Playwright specs in `e2e/`; all API calls are intercepted with
-  route mocks (`e2e/fixtures.ts`), so no backend is needed by the test runner
+  route mocks (`e2e/fixtures.ts`), so the runner needs only the Vite dev
+  server, which `playwright.config.ts` starts itself

@@ -54,7 +54,7 @@ docker compose exec frontend npm test           # frontend unit tests
 cd frontend && npm run test:e2e                 # Playwright (API calls are mocked)
 ```
 
-Playwright needs the frontend running on :5173, plus `npm ci` and `npx playwright install chromium` in `frontend/`.
+Playwright starts the Vite dev server itself (or reuses one already on :5173); it needs `npm ci` and `npx playwright install chromium` in `frontend/` first.
 
 ## Disclaimer
 

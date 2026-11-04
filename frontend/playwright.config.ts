@@ -1,11 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Requires the full Docker Compose stack to be running:
-//   docker compose up -d
+// Every API call is mocked with page.route (see e2e/fixtures.ts), so the suite
+// needs only the Vite dev server, which Playwright starts itself (or reuses,
+// when one is already running on :5173 outside CI). No backend, no Docker.
 //
-// Run tests:
-//   docker compose exec frontend npx playwright test
-//   docker compose exec frontend npx playwright test --headed
+//   npm run test:e2e
+//   npm run test:e2e:headed
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -13,8 +13,13 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
 
+  webServer: {
+    command: "npm run dev",
+    url: "http://localhost:5173",
+    reuseExistingServer: !process.env.CI,
+  },
+
   use: {
-    // Vite dev server exposed by Docker Compose at port 5173
     baseURL: "http://localhost:5173",
     // Capture traces on first retry in CI so failures are debuggable
     trace: "on-first-retry",
