@@ -1,0 +1,33 @@
+name: Terraform
+
+# No path filter on purpose: this is a required check, and a required check
+# that skips never reports.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Terraform fmt and validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.17.1
+          terraform_wrapper: false
+
+      - name: Check formatting
+        run: terraform fmt -check -recursive infra
+
+      - name: Init (no backend, no credentials)
+        run: terraform -chdir=infra/render init -backend=false -input=false
+
+      - name: Validate
+        run: terraform -chdir=infra/render validate

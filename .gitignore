@@ -52,3 +52,10 @@ playwright-report/
 
 # In-flight sprite downloads (SpriteStore writes .tmp then renames)
 backend/public/sprites/**/*.tmp
+
+# Terraform (state and tfvars hold secrets in plain text)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
