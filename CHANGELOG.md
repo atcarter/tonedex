@@ -7,6 +7,7 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 ## 2026-11-04
 
 ### Backend
+- **Security:** loofah 2.25.2 → 2.25.3, nokogiri 1.19.4 → 1.19.7 and rails-html-sanitizer 1.7.1 → 1.7.2, for advisories published after the 2026-11-01 audit; the first CI run on GitHub caught them. (OWASP A06 — Vulnerable and Outdated Components)
 - **Removed:** the `pokemon_moves` table, `PokemonMove` and `PokemonImporter#link_move`. Nothing ever wrote the table: the detail page reads move lists from the cached PokeAPI payload. `PokeapiAdapter#pokemon_moves_for_game` and `#pokedex_count_for_game`, `PreloadGamePokemonJob`, `WarmMoveCacheJob` and the one-off `backfill:past_types` task had no callers and are gone too.
 - **Removed:** `CacheService`. It was a pass-through to `ApiCache` left over from the Redis cache option; `PokeapiClient` takes the model directly.
 - **Refactor:** one `Generation` lookup maps PokeAPI generation names to numbers for both game seeding and `Pokemon#types_for_generation`; the adapter's roman-numeral parser is gone.
@@ -16,6 +17,7 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 - **Fix:** the Sidekiq login page heading reads ToneDex.
 
 ### Frontend
+- **Security:** `npm audit fix` clears every high and low npm advisory (vite, undici, react-router, postcss, zod, brace-expansion and others, all within existing semver ranges; `package.json` is unchanged). Fifteen moderate advisories in the ESLint, typescript-eslint and Vitest tooling remain, since the only fix npm offers is a downgrade.
 - **Chore:** `App.css`, `index.css` and the Vite logo, none of which were imported, are removed. `GamePage`'s styled components move to `GamePage.styles.ts`. React Query devtools become a dev dependency, and the package is named `tonedex-frontend`.
 - **Refactor:** `fetchJson` handles 204 responses, so the DELETE and reorder calls share its 401 and 429 handling instead of repeating it.
 
