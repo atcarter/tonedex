@@ -1,9 +1,10 @@
-# ADR-002 — Pre-seeding over lazy loading
+# ADR-002 — Seed through background jobs, never inside a request
 
 **Date:** 2026-02-28
 **Status:** Accepted
 
-> **Status note (2026-11-02):** still the approach, with three refinements. A game with no Pokémon is seeded on its first visit
+> **Status note (2026-11-02):** still the approach, with three refinements. (Originally titled "Pre-seeding over lazy loading":
+> the contrast was with fetching inside the request, not with seeding a game on its first visit.) A game with no Pokémon is seeded on its first visit
 > (one job, behind a Redis lock), not on deploy. Two request paths do reach PokeAPI at runtime, always cache-first: search for a
 > name not yet in the database (throttled to 15/min) and move details. Writes go through `PokemonImporter`.
 

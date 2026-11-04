@@ -36,8 +36,7 @@ Browser
         ├── Sidekiq Web UI (/sidekiq) — gated by SidekiqAuth Rack middleware
         │
         ├── Services
-        │     ├── PokeapiClient   — HTTP to pokeapi.co, delegates cache reads/writes
-        │     ├── CacheService    — thin facade over ApiCache (Postgres api_caches table)
+        │     ├── PokeapiClient   — HTTP to pokeapi.co, cache-first through ApiCache
         │     ├── PokeapiAdapter  — turns PokeAPI payloads into attribute hashes
         │     ├── PokemonImporter — owns every write to games, pokemons, moves and their join tables
         │     └── SpriteStore     — mirrors sprite PNGs into public/sprites
@@ -45,12 +44,10 @@ Browser
         └── Background jobs (Sidekiq, Redis db 0)
               ├── SeedGamePokemonJob    — triggered on first game load (lazy seeding)
               ├── SeedAllPokemonJob     — seeds all Pokémon base data
-              ├── PreloadGamePokemonJob — pre-warms a game's dex
-              ├── WarmMoveCacheJob      — pre-warms a move entry
               └── MirrorSpriteJob       — mirrors a new Pokémon's sprites
 
 PostgreSQL
-  ├── games, pokemons, game_pokemons, moves, pokemon_moves
+  ├── games, pokemons, game_pokemons, moves
   ├── users, favorites, caught_pokemons
   └── api_caches (PokeAPI response cache)
 
@@ -64,9 +61,9 @@ Pokémon data is seeded by Sidekiq jobs, never inside a request (ADR-002). `rail
 
 ### PokeAPI caching
 
-`PokeapiClient` never hits the network without checking `CacheService` first. Raw PokeAPI JSON is stored by endpoint path in the `api_caches` Postgres table (`CacheService` is a thin facade over the `ApiCache` model). Each PokeAPI endpoint is fetched at most once across all time. (An earlier Redis-backed cache option was removed; there is no `CACHE_BACKEND` switch.)
+`PokeapiClient` never hits the network without checking `ApiCache` first. Raw PokeAPI JSON is stored by endpoint path in the `api_caches` Postgres table. Each PokeAPI endpoint is fetched at most once across all time. (An earlier Redis-backed cache option was removed; there is no `CACHE_BACKEND` switch.)
 
-`PokeapiAdapter` (through `PokeapiClient`) is the only place that calls PokeAPI, and `PokemonImporter` is the only place that writes `games`, `pokemons`, `moves`, `game_pokemons` and `pokemon_moves`. Do not add PokeAPI calls or writes elsewhere. Two request paths reach the adapter at runtime, always cache-first: search for a name not yet in the database, and move details.
+`PokeapiAdapter` (through `PokeapiClient`) is the only place that calls PokeAPI, and `PokemonImporter` is the only place that writes `games`, `pokemons`, `moves` and `game_pokemons`. Do not add PokeAPI calls or writes elsewhere. Two request paths reach the adapter at runtime, always cache-first: search for a name not yet in the database, and move details.
 
 ### Sprite self-hosting
 

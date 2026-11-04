@@ -9,7 +9,8 @@ docs/runbooks/
 .env.production
 .env.development
 
-# IDE
+# Editor and desktop-app tooling (the preview launch config is per machine)
+.claude/launch.json
 .idea/
 .vscode/
 *.swp

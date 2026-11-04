@@ -37,8 +37,7 @@ Browser
         ├── Rack::Attack — per-IP rate limiting on API, auth and search routes
         │
         ├── Services
-        │     ├── PokeapiClient   — HTTP to pokeapi.co, delegates cache reads/writes
-        │     ├── CacheService    — thin facade over ApiCache (api_caches table)
+        │     ├── PokeapiClient   — HTTP to pokeapi.co, cache-first through ApiCache
         │     ├── PokeapiAdapter  — turns PokeAPI payloads into attribute hashes
         │     ├── PokemonImporter — owns every write to games, pokemons, moves and their join tables
         │     └── SpriteStore     — mirrors sprite PNGs into public/sprites
@@ -46,12 +45,10 @@ Browser
         └── Background jobs (Sidekiq, Redis db 0)
               ├── SeedGamePokemonJob    — triggered on first game load (lazy seeding)
               ├── SeedAllPokemonJob     — seeds all Pokémon base data
-              ├── PreloadGamePokemonJob — pre-warms a game's dex
-              ├── WarmMoveCacheJob      — pre-warms a move entry
               └── MirrorSpriteJob       — mirrors a new Pokémon's sprites
 
 PostgreSQL
-  ├── games, pokemons, game_pokemons, moves, pokemon_moves
+  ├── games, pokemons, game_pokemons, moves
   ├── users, favorites (with position for drag-to-reorder), caught_pokemons
   └── api_caches (PokeAPI response cache)
 
@@ -98,7 +95,7 @@ Pokémon data is seeded by Sidekiq jobs, never inside a request (ADR-002). `rail
 
 ## PokeAPI Caching
 
-`PokeapiClient` checks `CacheService` before every network call. Raw PokeAPI JSON is stored in `api_caches` (Postgres) by endpoint path. Each endpoint is fetched at most once across all time; 404s are cached too, as sentinel rows. Postgres is used (not Redis) because the data is durable and enables backfill tasks from raw cached responses without re-fetching. `PokeapiAdapter` turns payloads into attribute hashes, and `PokemonImporter` owns every database write.
+`PokeapiClient` checks `ApiCache` before every network call. Raw PokeAPI JSON is stored in `api_caches` (Postgres) by endpoint path. Each endpoint is fetched at most once across all time; 404s are cached too, as sentinel rows. Postgres is used (not Redis) because the data is durable and enables backfill tasks from raw cached responses without re-fetching. `PokeapiAdapter` turns payloads into attribute hashes, and `PokemonImporter` owns every database write.
 
 ---
 
@@ -143,7 +140,7 @@ Pool size = concurrency per process. In production, web and worker run as separa
 | ADR | Decision |
 |---|---|
 | 001 | Sidekiq over solid_queue |
-| 002 | Pre-seeding over lazy loading |
+| 002 | Seed through background jobs, never inside a request |
 | 003 | Single Redis, multiple databases |
 | 004 | Favorites in localStorage → DB-backed |
 | 005 | URL as source of truth for game selection |

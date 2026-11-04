@@ -4,6 +4,29 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ---
 
+## 2026-11-04
+
+### Backend
+- **Removed:** the `pokemon_moves` table, `PokemonMove` and `PokemonImporter#link_move`. Nothing ever wrote the table: the detail page reads move lists from the cached PokeAPI payload. `PokeapiAdapter#pokemon_moves_for_game` and `#pokedex_count_for_game`, `PreloadGamePokemonJob`, `WarmMoveCacheJob` and the one-off `backfill:past_types` task had no callers and are gone too.
+- **Removed:** `CacheService`. It was a pass-through to `ApiCache` left over from the Redis cache option; `PokeapiClient` takes the model directly.
+- **Refactor:** one `Generation` lookup maps PokeAPI generation names to numbers for both game seeding and `Pokemon#types_for_generation`; the adapter's roman-numeral parser is gone.
+- **Refactor:** `Favorite` drops its `default_scope`; the favorites index orders by position explicitly.
+- **Security:** `/up` reports a failing check by error class only and logs the message, which can name internal hosts.
+- **Chore:** Rails scaffolding with no role here is removed: Action Mailer (railtie, base mailer, layouts and config), `bin/ci` with `config/ci.rb` (it ran RuboCop against a config that didn't exist; the project uses standardrb), `bin/jobs` (solid_queue) and `bin/rubocop`.
+- **Fix:** the Sidekiq login page heading reads ToneDex.
+
+### Frontend
+- **Chore:** `App.css`, `index.css` and the Vite logo, none of which were imported, are removed. `GamePage`'s styled components move to `GamePage.styles.ts`. React Query devtools become a dev dependency, and the package is named `tonedex-frontend`.
+- **Refactor:** `fetchJson` handles 204 responses, so the DELETE and reorder calls share its 401 and 429 handling instead of repeating it.
+
+### CI
+- The e2e job no longer boots Docker Compose. Every API call is mocked, so Playwright's `webServer` starts the Vite dev server and that is the whole stack.
+
+### Docs
+- ADR-002 is retitled to say what it decides (seed through background jobs, never inside a request); the file name is unchanged. ADR-008 drops scheduling and personal context. ARCHITECTURE, CLAUDE.md and the backend README match the removals above. The desktop-app preview config `.claude/launch.json` is no longer tracked.
+
+---
+
 ## 2026-11-02
 
 ### Frontend
@@ -77,7 +100,7 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 ## 2026-07-08
 
 ### Repository
-- **Chore:** Brought the whole project under version control — backend, docs, and infra config were previously untracked (only 19 frontend files were committed). Committed in logical chunks together with the finished React Query migration. Added `.gitignore` coverage for Playwright artifacts and a root `.env.example` documenting every env key.
+- **Chore:** The backend, docs and infra config join the repository alongside the finished React Query migration, committed in logical chunks. Added `.gitignore` coverage for Playwright artifacts and a root `.env.example` documenting every env key.
 
 ### Frontend
 - **Fix:** `GameSelector`'s auto-navigate hijacked deep links — `useMatch("/game/:gameId")` doesn't match deeper routes, so any detail-page URL bounced back to the grid, making detail pages unreachable. Auto-select is now scoped strictly to `/`, and the selector matches `/game/:gameId/*` so it shows the current game on detail pages. Caught by three failing Playwright specs; all 12 now pass. *(URL as source of truth — see ADR-005)*

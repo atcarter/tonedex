@@ -5,7 +5,7 @@
 
 ## Context
 
-ToneDex needs a public production deployment in time for a demo on 2026-11-03, about four evenings of work away. It has never been deployed: the repo carried Heroku config (`heroku.yml`, `app.json`, `Procfile`) that never ran, and the owner has since cancelled the Heroku account. `config/database.yml` still declares Rails 8's four default databases, the frontend has no production build or host, and nothing proves the production image boots.
+ToneDex needs a public production deployment. It has never been deployed: the repo carried Heroku config (`heroku.yml`, `app.json`, `Procfile`) that never ran, and that Heroku account has since been cancelled. `config/database.yml` still declares Rails 8's four default databases, the frontend has no production build or host, and nothing proves the production image boots.
 
 Production needs four pieces plus a static SPA:
 - **web**: Puma behind Thruster, from `backend/Dockerfile`'s `production` stage
@@ -15,8 +15,8 @@ Production needs four pieces plus a static SPA:
 - **frontend**: static Vite build
 
 Constraints:
-- **Low running cost.** This is a portfolio app with demo-scale traffic.
-- **Infrastructure as code.** The owner works on a Terraform migration professionally and wants the practice, even though Terraform is more than this project strictly needs.
+- **Low running cost.** This is a personal project with a handful of visitors.
+- **Infrastructure as code.** Terraform is more than this project strictly needs. The practice is the point, and the stack should be reproducible from one `apply`.
 - **Deploys and credentials stay human.** Agents may write and validate infrastructure code. `apply`, cloud keys and the Google OAuth console stay with the owner.
 
 Heroku has been in sustaining engineering since February 2026: maintained, but getting no new features.
@@ -34,7 +34,7 @@ Host on **Render**, with every resource declared in Terraform under `infra/rende
 Supporting decisions:
 - **Production config is env-only.** It runs on `DATABASE_URL` and `REDIS_URL`. `solid_cache` goes, and the cache store becomes `:memory_store`.
 - **State is local and gitignored.** Terraform state holds secrets in plain text (`sensitive = true` only hides CLI output), so it must never be committed.
-- **GitHub repository settings are managed by hand in the UI.** That covers rulesets, required checks and secret scanning, matching how the owner's workplace runs GitHub. Terraform covers the cloud, not the forge.
+- **GitHub repository settings are managed by hand in the UI.** That covers rulesets, required checks and secret scanning: a handful of one-time settings that aren't worth a second provider and token. Terraform covers the cloud, not the forge.
 - **Agents run only `terraform fmt` and `terraform validate`** (with `init -backend=false`). CI does the same without credentials. `plan` and `apply` are run by the owner.
 - **Heroku config is deleted now**, not after go-live. It was never deployed, so there is nothing to migrate away from.
 
@@ -51,12 +51,12 @@ Supporting decisions:
 - **Local state is a single point of loss** on one laptop. Revisit with a remote backend if a second machine ever needs to apply.
 - **Free Key Value isn't persistent.** Acceptable for now: the only queued jobs are re-runnable seed crawls, and resetting Rack::Attack counters is harmless.
 - **Render instances have ephemeral disks.** Mirrored sprites stay committed to git so they ship in the image.
-- **The free `onrender.com` URLs aren't memorable.** That's fine for a demo link.
+- **The free `onrender.com` URLs aren't memorable.** That's fine until a domain is chosen.
 
 ## Alternatives Considered
 
 **Heroku (~$22/month):** unused config for it already sat in the repo. Rejected because the platform is in sustaining engineering and offers the least Terraform practice of the options.
 
-**AWS ECS on Fargate (~$55–75/month at list price, ~$0 on new-account credits for six months):** the most Terraform practice (VPC, IAM, load balancer, RDS, ElastiCache), but also the most moving parts, too many to build and debug in four evenings. App Runner, AWS's simpler option, closed to new customers on 2026-04-30. Rejected for this timeline.
+**AWS ECS on Fargate (~$55–75/month at list price, ~$0 on new-account credits for six months):** the most Terraform practice (VPC, IAM, load balancer, RDS, ElastiCache), but also the most moving parts, too many for the first deployment of a small app. App Runner, AWS's simpler option, closed to new customers on 2026-04-30. Rejected for now.
 
 **AWS Lightsail (~$13/month):** cheapest. Rejected because operations are largely manual and the Terraform story is thin.
