@@ -23,6 +23,7 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 - The e2e job no longer boots Docker Compose. Every API call is mocked, so Playwright's `webServer` starts the Vite dev server and that is the whole stack.
 
 ### Docs
+- **CLAUDE.md** is rewritten: the architecture sections that duplicated ARCHITECTURE.md become a pointer plus the invariants an agent must keep, and it gains a Gotchas section (the worktree bind-mount trap with a verified one-off-container command, the `RAILS_ENV` override, the secrets-file rule, Brakeman, Thruster's port) and a Conventions section (commits, styling, docs, no planning in the repo).
 - ADR-002 is retitled to say what it decides (seed through background jobs, never inside a request); the file name is unchanged. ADR-008 drops scheduling and personal context. ARCHITECTURE, CLAUDE.md and the backend README match the removals above. The desktop-app preview config `.claude/launch.json` is no longer tracked.
 
 ---
