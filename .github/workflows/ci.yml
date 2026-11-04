@@ -9,6 +9,18 @@ jobs:
   backend:
     runs-on: ubuntu-latest
 
+    # Every Rails command boots the app, and the OmniAuth initializer fetches
+    # the Google credentials at boot, so placeholders are needed throughout.
+    env:
+      RAILS_ENV: test
+      POSTGRES_HOST: localhost
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      JWT_SECRET: ci-test-secret
+      GOOGLE_CLIENT_ID: placeholder
+      GOOGLE_CLIENT_SECRET: placeholder
+      SIDEKIQ_ALLOWED_EMAIL: ci@example.com
+
     services:
       postgres:
         image: postgres:15
@@ -48,12 +60,6 @@ jobs:
           bundler-cache: true
 
       - name: Set up database
-        env:
-          RAILS_ENV: test
-          POSTGRES_HOST: localhost
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: pokedex_test
         run: bundle exec rails db:schema:load
 
       - name: Lint (standardrb)
@@ -61,12 +67,6 @@ jobs:
 
       - name: Run RSpec (with coverage)
         env:
-          RAILS_ENV: test
-          POSTGRES_HOST: localhost
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: pokedex_test
-          JWT_SECRET: ci-test-secret
           COVERAGE: "1"
         run: bundle exec rspec --format progress
 

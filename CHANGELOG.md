@@ -20,6 +20,7 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 - **Refactor:** `fetchJson` handles 204 responses, so the DELETE and reorder calls share its 401 and 429 handling instead of repeating it.
 
 ### CI
+- **Fix:** the backend job sets placeholder `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `SIDEKIQ_ALLOWED_EMAIL` at job level. The OmniAuth initializer fetches them at boot, so `db:schema:load` raised `KeyError` on the first run on GitHub (earlier runs had only happened inside the dev container, where the real values exist).
 - The e2e job no longer boots Docker Compose. Every API call is mocked, so Playwright's `webServer` starts the Vite dev server and that is the whole stack.
 
 ### Docs
