@@ -42,6 +42,8 @@ locals {
     branch          = var.github_branch
     dockerfile_path = "./backend/Dockerfile"
     context         = "./backend"
+    # Deploy a commit only after its GitHub checks pass (README: "Deploys wait for CI").
+    auto_deploy_trigger = "checksPass"
   }
 }
 
@@ -148,6 +150,8 @@ resource "render_static_site" "web" {
   root_directory = "frontend"
   build_command  = "npm ci && npm run build"
   publish_path   = "dist"
+  # Deploy a commit only after its GitHub checks pass (README: "Deploys wait for CI").
+  auto_deploy_trigger = "checksPass"
 
   env_vars = merge(
     {
