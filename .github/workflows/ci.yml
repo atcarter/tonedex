@@ -149,3 +149,71 @@ jobs:
         with:
           name: playwright-traces
           path: frontend/test-results/
+
+  # Builds the production image and proves it boots: the entrypoint runs
+  # db:prepare against the service Postgres, then /up must answer 200. Host
+  # networking lets the container reach the service ports on localhost.
+  backend-image:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pokedex_ci_smoke
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build production image
+        run: docker build --target production -t tonedex-backend:ci backend
+
+      # The OmniAuth initializer fetches the Google values at boot, so the
+      # placeholders are required even though nothing signs in.
+      - name: Start production image
+        run: |
+          docker run -d --name backend-ci --network host \
+            -e SECRET_KEY_BASE="$(openssl rand -hex 64)" \
+            -e CORS_ORIGINS=https://example.com \
+            -e HTTP_PORT=10000 \
+            -e DATABASE_URL=postgres://postgres:postgres@localhost:5432/pokedex_ci_smoke \
+            -e REDIS_URL=redis://localhost:6379/0 \
+            -e JWT_SECRET=ci-test-secret \
+            -e GOOGLE_CLIENT_ID=placeholder \
+            -e GOOGLE_CLIENT_SECRET=placeholder \
+            -e SIDEKIQ_ALLOWED_EMAIL=ci@example.com \
+            tonedex-backend:ci
+
+      - name: Wait for /up to answer 200
+        run: |
+          deadline=$((SECONDS + 60))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            status=$(curl -s --max-time 5 -o /tmp/up.json -w '%{http_code}' http://localhost:10000/up || true)
+            if [ "$status" = "200" ]; then
+              echo "/up returned 200: $(cat /tmp/up.json)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::/up did not return 200 within 60 seconds (last status: ${status:-none})"
+          docker logs backend-ci
+          exit 1
