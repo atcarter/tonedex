@@ -91,6 +91,12 @@ Why each non-`'self'` source is there:
 
 The CSP belongs on the static host because Rails, as an API-only app, sends none.
 
+## Deploys wait for CI
+
+`tonedex-api`, `tonedex-worker` and `tonedex-web` set `auto_deploy_trigger = "checksPass"`: Render deploys a new commit on `github_branch` only after every GitHub check on that commit has passed (`ci.yml`'s backend, frontend, e2e and backend-image jobs, and `terraform.yml`). A failed check means that commit never deploys, and production stays on the last good one. The production smoke suite isn't part of this gate. It tests whatever is already live.
+
+If CI stops running on pushes to `main` (a workflow is deleted or disabled, or its `push` trigger is removed), nothing deploys automatically. Use **Manual Deploy** in the Render dashboard until CI runs again.
+
 ## CI
 
 `.github/workflows/terraform.yml` runs `terraform fmt -check -recursive infra`, `init -backend=false` and `validate` on every pull request and push to `main`. It has no credentials and never plans or applies.
