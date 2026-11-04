@@ -377,10 +377,6 @@ GEM
     snaky_hash (2.0.9)
       hashie (>= 0.1.0, < 6)
       version_gem (~> 1.1, >= 1.1.16)
-    solid_cache (1.0.10)
-      activejob (>= 7.2)
-      activerecord (>= 7.2)
-      railties (>= 7.2)
     standard (1.54.0)
       language_server-protocol (~> 3.17.0.2)
       lint_roller (~> 1.0)
@@ -454,7 +450,6 @@ DEPENDENCIES
   shoulda-matchers
   sidekiq
   simplecov
-  solid_cache
   standardrb
   thruster
   tzinfo-data
