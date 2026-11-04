@@ -24,7 +24,7 @@ class PokeapiClient
   class ApiError < StandardError; end
   class NotFoundError < ApiError; end
 
-  def initialize(cache: CacheService)
+  def initialize(cache: ApiCache)
     @cache = cache
   end
 

@@ -12,14 +12,14 @@ class AuthController < ActionController::Base
              margin:0;font-family:sans-serif;background:#f5f5f5}
         .card{background:#fff;padding:40px;border-radius:12px;
               box-shadow:0 2px 12px rgba(0,0,0,.1);text-align:center}
-        h1{color:#cc0000;margin-bottom:8px;letter-spacing:2px}
+        h1{color:#cc0000;margin-bottom:8px;letter-spacing:2px;text-transform:uppercase}
         p{color:#666;margin-bottom:24px}
         button{background:#cc0000;color:#fff;border:none;padding:12px 28px;
                border-radius:6px;font-size:1rem;cursor:pointer}
         button:hover{background:#aa0000}
       </style></head>
       <body><div class="card">
-        <h1>&#9670; POKÉDEX</h1><p>Admin access required</p>
+        <h1>&#9670; ToneDex</h1><p>Admin access required</p>
         <form action="/auth/google_oauth2" method="post">
           <input type="hidden" name="authenticity_token"
                  value="#{ERB::Util.html_escape(form_authenticity_token)}">

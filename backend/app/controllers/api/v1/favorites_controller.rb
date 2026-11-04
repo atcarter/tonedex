@@ -2,7 +2,7 @@ class Api::V1::FavoritesController < ApplicationController
   before_action :authenticate_user!
 
   def index
-    favorites = current_user.favorites.includes(:pokemon)
+    favorites = current_user.favorites.includes(:pokemon).order(:position)
     render json: favorites.map { |f|
       PokemonSerializer.favorite_entry(f.pokemon, f.id, sprite_base: request.base_url)
     }

@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe PokeapiClient do
-  let(:cache) { class_double(CacheService, fetch: nil, store: nil) }
+  let(:cache) { class_double(ApiCache, fetch: nil, store: nil) }
   let(:client) { described_class.new(cache: cache) }
 
   # Retries back off with real sleeps — stub them out so specs stay fast

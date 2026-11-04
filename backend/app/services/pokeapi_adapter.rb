@@ -56,14 +56,6 @@ class PokeapiAdapter
     end
   end
 
-  def pokedex_count_for_game(game)
-    pokedex_name = resolve_pokedex_name(game)
-    return 0 unless pokedex_name
-
-    pokedex_data = @client.pokedex(pokedex_name)
-    (pokedex_data["pokemon_entries"] || []).length
-  end
-
   def find_or_create_pokemon(name_or_id)
     data = @client.pokemon(name_or_id)
 
@@ -115,22 +107,9 @@ class PokeapiAdapter
     )
   end
 
-  def pokemon_moves_for_game(pokemon, game)
-    each_move_for_game(pokemon, game) do |move_data, version_details|
-      move = find_or_create_move(move_data.dig("move", "name"))
-
-      @importer.link_move(
-        pokemon: pokemon,
-        move: move,
-        game: game,
-        level_learned: version_details["level_learned_at"],
-        learn_method: version_details.dig("move_learn_method", "name")
-      )
-    end
-  end
-
-  # Returns basic move info without fetching move details from API
-  # This is much faster as it only uses data from the Pokemon endpoint
+  # Move list for the detail page, read from the cached pokemon payload: the
+  # name, level and learn method are all there, so no move endpoint is fetched
+  # until a row is expanded (MovesController).
   def basic_moves_for_game(pokemon, game)
     each_move_for_game(pokemon, game) do |move_data, version_details|
       {
@@ -183,8 +162,8 @@ class PokeapiAdapter
     game.pokedex_name.presence || GAME_TO_POKEDEX[game.name] || game.region
   end
 
-  # Shared iteration for the two public move readers: yields each move entry
-  # that applies to the given game, with its matching version_group details.
+  # Yields each move entry that applies to the given game, with its matching
+  # version_group details.
   def each_move_for_game(pokemon, game)
     data = @client.pokemon(pokemon.pokeapi_id)
 
@@ -225,30 +204,7 @@ class PokeapiAdapter
   end
 
   def extract_generation_number(version_group_data)
-    gen_name = version_group_data.dig("generation", "name")
-    roman_numeral = gen_name&.split("-")&.last
-    roman_numeral_to_int(roman_numeral)
-  end
-
-  def roman_numeral_to_int(roman_numeral)
-    return 0 if roman_numeral.nil?
-
-    roman_values = {"i" => 1, "v" => 5, "x" => 10}
-    chars = roman_numeral.downcase.chars
-    total = 0
-
-    chars.each_with_index do |char, i|
-      value = roman_values[char] || 0
-      next_value = roman_values[chars[i + 1]] || 0
-
-      if value < next_value
-        total -= value
-      else
-        total += value
-      end
-    end
-
-    total
+    Generation.number_for(version_group_data.dig("generation", "name"))
   end
 
   def extract_region(version_group_data)

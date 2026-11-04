@@ -13,7 +13,7 @@ class HealthController < ActionController::API
     ActiveRecord::Base.connection.execute("SELECT 1")
     {ok: true}
   rescue => e
-    {ok: false, error: e.message}
+    failed(:database, e)
   end
 
   # Redis backs Sidekiq queues and the Rack::Attack store — an outage there
@@ -22,6 +22,13 @@ class HealthController < ActionController::API
     Sidekiq.redis(&:ping)
     {ok: true}
   rescue => e
-    {ok: false, error: e.message}
+    failed(:redis, e)
+  end
+
+  # The endpoint is public, so the response carries the error class only;
+  # the message (which can name internal hosts) goes to the log.
+  def failed(check, error)
+    Rails.logger.error("[health] #{check} check failed: #{error.class}: #{error.message}")
+    {ok: false, error: error.class.name}
   end
 end

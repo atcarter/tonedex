@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_08_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_04_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -82,20 +82,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_090000) do
     t.index ["pokeapi_id"], name: "index_moves_on_pokeapi_id", unique: true
   end
 
-  create_table "pokemon_moves", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.bigint "game_id", null: false
-    t.string "learn_method"
-    t.integer "level_learned"
-    t.bigint "move_id", null: false
-    t.bigint "pokemon_id", null: false
-    t.datetime "updated_at", null: false
-    t.index ["game_id"], name: "index_pokemon_moves_on_game_id"
-    t.index ["move_id"], name: "index_pokemon_moves_on_move_id"
-    t.index ["pokemon_id", "game_id"], name: "index_pokemon_moves_on_pokemon_id_and_game_id"
-    t.index ["pokemon_id"], name: "index_pokemon_moves_on_pokemon_id"
-  end
-
   create_table "pokemons", force: :cascade do |t|
     t.jsonb "base_stats"
     t.datetime "created_at", null: false
@@ -127,7 +113,4 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_090000) do
   add_foreign_key "favorites", "users"
   add_foreign_key "game_pokemons", "games"
   add_foreign_key "game_pokemons", "pokemons"
-  add_foreign_key "pokemon_moves", "games"
-  add_foreign_key "pokemon_moves", "moves"
-  add_foreign_key "pokemon_moves", "pokemons"
 end

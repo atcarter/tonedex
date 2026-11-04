@@ -50,11 +50,4 @@ class PokemonImporter
     # Another concurrent seed job beat us to it — find the existing row
     GamePokemon.find_by!(pokemon: pokemon, game: game)
   end
-
-  def link_move(pokemon:, move:, game:, level_learned:, learn_method:)
-    PokemonMove.find_or_create_by!(pokemon: pokemon, move: move, game: game) do |pm|
-      pm.level_learned = level_learned
-      pm.learn_method = learn_method
-    end
-  end
 end

@@ -5,7 +5,7 @@ The Rails 8 API-only app: the JSON API under `/api/v1`, the Sidekiq jobs that se
 ## Layout
 
 - `app/controllers/api/v1/`: JSON endpoints; signed-in routes use `ApplicationController#authenticate_user!` (JWT)
-- `app/services/`: PokeAPI access (`PokeapiClient`, `PokeapiAdapter`), the response cache (`CacheService`), database writes (`PokemonImporter`) and sprite mirroring (`SpriteStore`)
+- `app/services/`: PokeAPI access (`PokeapiClient`, `PokeapiAdapter`), the response cache (the `ApiCache` model), database writes (`PokemonImporter`) and sprite mirroring (`SpriteStore`)
 - `app/jobs/`: seeding, cache-warming and sprite-mirroring jobs (Sidekiq)
 - `lib/tasks/pokedex.rake`: `pokedex:seed`, `pokedex:reseed_pokemon`, `pokedex:mirror_sprites`
 

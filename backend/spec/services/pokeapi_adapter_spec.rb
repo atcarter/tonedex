@@ -504,43 +504,4 @@ RSpec.describe PokeapiAdapter do
       end
     end
   end
-
-  # ---------------------------------------------------------------------------
-  # roman_numeral_to_int (private — tested via send; non-trivial enough to
-  # warrant direct coverage since it drives generation number extraction)
-  # ---------------------------------------------------------------------------
-
-  describe "#roman_numeral_to_int (private)" do
-    subject { adapter.send(:roman_numeral_to_int, input) }
-
-    context "with nil" do
-      let(:input) { nil }
-      it { is_expected.to eq(0) }
-    end
-
-    {
-      "i" => 1,
-      "ii" => 2,
-      "iii" => 3,
-      "iv" => 4,
-      "v" => 5,
-      "vi" => 6,
-      "vii" => 7,
-      "viii" => 8,
-      "ix" => 9,
-      "x" => 10
-    }.each do |numeral, expected|
-      context "with \"#{numeral}\"" do
-        let(:input) { numeral }
-        it { is_expected.to eq(expected) }
-      end
-    end
-
-    context "with uppercase input" do
-      let(:input) { "VIII" }
-      it "is case-insensitive" do
-        is_expected.to eq(8)
-      end
-    end
-  end
 end

@@ -29,6 +29,15 @@ RSpec.describe "Favorites API", type: :request do
       expect(json.first["favorite_id"]).to be_present
     end
 
+    it "returns favorites in position order" do
+      later = create(:favorite, user: user, pokemon: create(:pokemon), position: 2)
+      first = create(:favorite, user: user, pokemon: create(:pokemon), position: 1)
+
+      get "/api/v1/favorites", headers: headers
+
+      expect(response.parsed_body.map { |f| f["favorite_id"] }).to eq([first.id, later.id])
+    end
+
     it "does not return another user's favorites" do
       other = create(:user)
       create(:favorite, user: other, pokemon: create(:pokemon))
