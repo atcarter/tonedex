@@ -13,6 +13,8 @@ This directory declares the whole production stack on [Render](https://render.co
 
 Service names become public `onrender.com` hostnames, which is why every resource has the `tonedex-` prefix. One `region` variable (default `oregon`) applies to every regional resource. The static site is served from Render's global CDN, so it has no region.
 
+The database and Key Value set `ip_allow_list = []`, so only services on Render's private network in the same region can reach them.
+
 State is local (`terraform.tfstate` in this directory) for now.
 
 ## Prerequisites
@@ -59,7 +61,7 @@ cd infra/render
 terraform destroy
 ```
 
-This deletes every resource above, including the database and all its data. Export a backup from the database's page in the Render dashboard first if you want to keep anything. The database accepts no external connections, because `render_postgres.db` sets no IP allow list.
+This deletes every resource above, including the database and all its data. Export a backup from the database's page in the Render dashboard first if you want to keep anything. The database accepts no external connections, because `render_postgres.db` sets an empty IP allow list.
 
 ## Content Security Policy
 

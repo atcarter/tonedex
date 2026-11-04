@@ -54,6 +54,10 @@ resource "render_postgres" "db" {
   version       = "15"
   database_name = "pokedex_production"
   database_user = "pokedex"
+
+  # Private network only: an empty allow list blocks every external connection.
+  # Set explicitly so this doesn't depend on provider or API defaults.
+  ip_allow_list = []
 }
 
 resource "render_keyvalue" "redis" {
@@ -62,6 +66,9 @@ resource "render_keyvalue" "redis" {
   region = var.region
   # Sidekiq needs noeviction: an evicted key is a silently lost job.
   max_memory_policy = "noeviction"
+
+  # Private network only, as for the database.
+  ip_allow_list = []
 }
 
 # --- Backend -----------------------------------------------------------------
