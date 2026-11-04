@@ -17,7 +17,7 @@ Browser
   │     ├── Authorization: Bearer <jwt>  ──────────────▶ API routes
   │     └── /auth/login (browser redirect) ────────────▶ OmniAuth → /sidekiq
   │
-  └── Rails 8 API (Puma, port 3000)
+  └── Rails 8 API (Puma, port 3000; behind Thruster in production)
         │
         ├── API routes (/api/v1/*)
         │     ├── SessionsController    — verifies Google ID token, issues JWT
@@ -130,8 +130,43 @@ Pool size = concurrency per process. In production, web and worker run as separa
 
 - **CORS**: `CORS_ORIGINS` env var (required in production). Comma-separated for multi-domain. Defaults to `http://localhost:5173` in development.
 - **Rate limiting**: `Rack::Attack` — 300 req/5min (general API), 10 req/min (auth), 15 req/min (search, which can reach PokeAPI). Throttle counters are stored in Redis. There's deliberately no games throttle: `SeedGamePokemonJob.enqueue_once` prevents duplicate seeding instead.
-- **Secrets**: `master.key`, `credentials.yml.enc` and the real env files (`.env.local`, `.env.production`) are gitignored. Secrets live only in production env vars and CI secrets.
-- **Transport and headers**: production forces SSL (HSTS, secure cookies) and checks Host headers against `ALLOWED_HOSTS` when it's set. Rails sends no Content Security Policy: API-only apps leave out that middleware. The Sidekiq UI, the only HTML it serves, sets its own.
+- **Secrets**: `master.key`, `credentials.yml.enc` and the real env files (`.env.local`, `.env.production`) are gitignored. Production secrets live in the `tonedex-backend` env group, set from Terraform variables, and in the local Terraform state, which holds them in plain text and is gitignored too.
+- **Transport and headers**: production forces SSL (HSTS, secure cookies) and checks Host headers against `ALLOWED_HOSTS` when it's set. Rails sends no Content Security Policy: API-only apps leave out that middleware. The Sidekiq UI, the only HTML it serves, sets its own. The SPA's headers, including a report-only CSP, come from the static site (see Deployment).
+- **Scanning**: CI runs Brakeman and bundler-audit. GitHub secret scanning is on for the repository.
+
+---
+
+## Deployment
+
+Production runs on Render, region ohio, and every resource is declared in Terraform under `infra/render` with the `render-oss/render` provider (ADR-008). [`infra/render/README.md`](infra/render/README.md) is the source of truth for the stack: first apply, the state file, tear-down and the CSP. `terraform plan` and `apply` are run by hand by the owner.
+
+| Render name | Kind | Runs |
+|---|---|---|
+| `tonedex-api` | Web service, Docker | `backend/Dockerfile`'s production stage: Thruster on `HTTP_PORT` 10000 in front of Puma. Health check `/up`; `./bin/rails db:migrate` runs before each deploy |
+| `tonedex-worker` | Background worker, Docker | `bundle exec sidekiq` from the same image |
+| `tonedex-web` | Static site | `npm ci && npm run build` in `frontend/`, publishing `dist`. Rewrites every path to `index.html` for deep links, and sends `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` and `Content-Security-Policy-Report-Only` |
+| `tonedex-db` | Postgres 15 | Private network only (empty IP allow list) |
+| `tonedex-redis` | Key Value, free plan | `noeviction`, so queued Sidekiq jobs are never evicted. Private network only |
+| `tonedex-backend` | Env group | Linked to the api and worker: `DATABASE_URL`, `REDIS_URL`, `SECRET_KEY_BASE`, `JWT_SECRET`, the Google OAuth values, `SIDEKIQ_ALLOWED_EMAIL`, `CORS_ORIGINS`, `ALLOWED_HOSTS` and the optional `SENTRY_DSN` |
+
+```
+Browser
+  ├──▶ tonedex-web     https://tonedex-web.onrender.com (Render's global CDN, no region)
+  └──▶ tonedex-api     https://tonedex-api.onrender.com ──┐
+       tonedex-worker  Sidekiq ───────────────────────────┤
+                                                          ├──▶ tonedex-db     Postgres 15
+                                                          └──▶ tonedex-redis  Key Value
+
+tonedex-backend env group ──▶ tonedex-api, tonedex-worker
+```
+
+The api, worker, database and Key Value all run in region ohio; the database and Key Value accept connections only from Render's private network. The Sidekiq UI is at https://tonedex-api.onrender.com/sidekiq, behind Google sign-in for the one `SIDEKIQ_ALLOWED_EMAIL`.
+
+- **Configuration is env-only.** Production reads the database from `DATABASE_URL` (`config/database.yml` has a single `production` entry) and Redis from `REDIS_URL`. The Rails cache is `:memory_store`; there is no solid_cache, solid_queue or solid_cable database.
+- **The env group breaks a URL cycle.** The api needs the frontend's URL for `CORS_ORIGINS` and the static site needs the api's URL for `VITE_API_URL` and its CSP. `CORS_ORIGINS` lives in the env group, so the api resource never references the static site.
+- **Concurrency** matches Concurrency & Connection Pools: the api sets `RAILS_MAX_THREADS=3` and `DB_POOL=3`, the worker `SIDEKIQ_CONCURRENCY=5` and `DB_POOL=5`.
+- **Seeding** runs in `tonedex-worker`, as in development (ADR-002). The first production seed copied the development `api_caches` table in, so it made no PokeAPI calls.
+- **CI** gates `main` with five required checks: `backend`, `frontend`, `e2e` and `backend-image` from `ci.yml`, and `terraform.yml`'s fmt and validate job. `backend-image` builds the production image and waits for `/up` to answer 200 against real Postgres and Redis. The Terraform job has no credentials and never plans or applies.
 
 ---
 

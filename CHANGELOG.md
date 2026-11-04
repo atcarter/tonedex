@@ -6,6 +6,24 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ## 2026-11-04
 
+### Infrastructure
+- **Deployed:** production runs on Render, region ohio, with every resource declared in Terraform under `infra/render` (`render-oss/render` provider, ADR-008): the `tonedex-api` web service (Docker, Thruster on `HTTP_PORT` 10000, `/up` health check, `db:migrate` before each deploy), the `tonedex-worker` Sidekiq worker, the `tonedex-web` static site (SPA rewrite, security headers, report-only CSP), `tonedex-db` (Postgres 15, private network only), `tonedex-redis` (Key Value, free plan, `noeviction`) and the `tonedex-backend` env group the api and worker share. `plan` and `apply` are run by hand; state is local and gitignored. The first seed copied the development `api_caches` table in, so it made no PokeAPI calls.
+
+### Backend
+- **Fix:** production boots from a single `DATABASE_URL`. `config/database.yml` has one `production` entry, `solid_cache` and its schema are gone, and the cache store is `:memory_store`.
+
+### CI
+- **New:** the `backend-image` job in `ci.yml` builds the production backend image and waits for `/up` to answer 200 against Postgres and Redis service containers.
+- **New:** `terraform.yml` runs `terraform fmt -check`, `init -backend=false` and `validate` on `infra/`, without credentials. Both workflows' five jobs are required checks on `main`.
+- **New:** a scheduled, read-only Playwright smoke suite against production (`frontend/e2e-smoke`, `.github/workflows/smoke.yml`, run locally with `npm run test:smoke`).
+
+### Docs
+- **README** gains the live URL, a Screenshots section, a Render architecture sketch, suite sizes, a security-posture section and the dev and production `VITE_API_URL` values. **ARCHITECTURE** gains a Deployment section, **CLAUDE.md** a deployment rule (agents never run `plan` or `apply`), and `.env.example` documents the production-only `SECRET_KEY_BASE`, `DATABASE_URL`, `ALLOWED_HOSTS` and `HTTP_PORT`.
+
+---
+
+## 2026-11-04
+
 ### Backend
 - **Security:** loofah 2.25.2 → 2.25.3, nokogiri 1.19.4 → 1.19.7 and rails-html-sanitizer 1.7.1 → 1.7.2, for advisories published after the 2026-11-01 audit; the first CI run on GitHub caught them. (OWASP A06 — Vulnerable and Outdated Components)
 - **Removed:** the `pokemon_moves` table, `PokemonMove` and `PokemonImporter#link_move`. Nothing ever wrote the table: the detail page reads move lists from the cached PokeAPI payload. `PokeapiAdapter#pokemon_moves_for_game` and `#pokedex_count_for_game`, `PreloadGamePokemonJob`, `WarmMoveCacheJob` and the one-off `backfill:past_types` task had no callers and are gone too.
