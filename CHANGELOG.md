@@ -20,10 +20,6 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 ### Docs
 - **README** gains the live URL, a Screenshots section, a Render architecture sketch, suite sizes, a security-posture section and the dev and production `VITE_API_URL` values. **ARCHITECTURE** gains a Deployment section, **CLAUDE.md** a deployment rule (agents never run `plan` or `apply`), and `.env.example` documents the production-only `SECRET_KEY_BASE`, `DATABASE_URL`, `ALLOWED_HOSTS` and `HTTP_PORT`.
 
----
-
-## 2026-11-04
-
 ### Backend
 - **Security:** loofah 2.25.2 → 2.25.3, nokogiri 1.19.4 → 1.19.7 and rails-html-sanitizer 1.7.1 → 1.7.2, for advisories published after the 2026-11-01 audit; the first CI run on GitHub caught them. (OWASP A06 — Vulnerable and Outdated Components)
 - **Removed:** the `pokemon_moves` table, `PokemonMove` and `PokemonImporter#link_move`. Nothing ever wrote the table: the detail page reads move lists from the cached PokeAPI payload. `PokeapiAdapter#pokemon_moves_for_game` and `#pokedex_count_for_game`, `PreloadGamePokemonJob`, `WarmMoveCacheJob` and the one-off `backfill:past_types` task had no callers and are gone too.
