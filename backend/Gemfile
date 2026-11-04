@@ -15,9 +15,6 @@ gem "puma", ">= 5.0"
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[windows jruby]
 
-# Database-backed Rails.cache (production cache_store)
-gem "solid_cache"
-
 # Background jobs via Sidekiq (Redis-backed)
 # Web UI is built into sidekiq gem — mount via require "sidekiq/web" in routes.rb
 gem "sidekiq"

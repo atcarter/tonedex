@@ -48,8 +48,10 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
-  # Replace the default in-process memory cache store with a durable alternative.
-  config.cache_store = :solid_cache_store
+  # In-process cache: the only data stores in production are DATABASE_URL and
+  # REDIS_URL. Not :null_store, because Rack::Attack falls back to Rails.cache
+  # when REDIS_URL is unset, and a null store would silently disable throttling.
+  config.cache_store = :memory_store
 
   # Background jobs via Sidekiq (Redis-backed).
   config.active_job.queue_adapter = :sidekiq
