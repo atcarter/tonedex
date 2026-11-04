@@ -31,6 +31,15 @@ variable "keyvalue_plan" {
   }
 }
 
+variable "postgres_ip_allow_list" {
+  description = "External IPs allowed to reach Postgres. Empty means private network only. Set your own IP (x.x.x.x/32) for a one-off external psql session, then clear it and apply again."
+  type = set(object({
+    cidr_block  = string
+    description = string
+  }))
+  default = []
+}
+
 # --- Secrets ---------------------------------------------------------------
 
 variable "secret_key_base" {

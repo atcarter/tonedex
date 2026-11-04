@@ -13,7 +13,9 @@ This directory declares the whole production stack on [Render](https://render.co
 
 Service names become public `onrender.com` hostnames, which is why every resource has the `tonedex-` prefix. One `region` variable (default `oregon`) applies to every regional resource. The static site is served from Render's global CDN, so it has no region.
 
-The database and Key Value set `ip_allow_list = []`, so only services on Render's private network in the same region can reach them.
+By default the database and Key Value have empty IP allow lists, so only services on Render's private network in the same region can reach them. The Key Value is always private. The database's list comes from the `postgres_ip_allow_list` variable (default `[]`).
+
+The first seed copies a table into the database over its external connection string. That needs your IP in `postgres_ip_allow_list` (for example `[{ cidr_block = "x.x.x.x/32", description = "first seed" }]`) for that apply. A follow-up apply with the list empty again closes the door.
 
 State is local (`terraform.tfstate` in this directory) for now.
 
@@ -61,14 +63,14 @@ cd infra/render
 terraform destroy
 ```
 
-This deletes every resource above, including the database and all its data. Export a backup from the database's page in the Render dashboard first if you want to keep anything. The database accepts no external connections, because `render_postgres.db` sets an empty IP allow list.
+This deletes every resource above, including the database and all its data. Export a backup from the database's page in the Render dashboard first if you want to keep anything. With `postgres_ip_allow_list` empty, the database accepts no external connections, so add your IP for that export if it needs one.
 
 ## Content Security Policy
 
 The static site sends `Content-Security-Policy-Report-Only`, which logs violations in the browser console but blocks nothing. Terraform builds the value in `main.tf` (`local.content_security_policy`) from the api URL and the Sentry ingest origin, which comes from `vite_sentry_dsn` (an empty DSN adds no source):
 
 ```
-default-src 'self'; script-src 'self' https://accounts.google.com; frame-src https://accounts.google.com; connect-src 'self' <api url> https://accounts.google.com <sentry ingest origin>; img-src 'self' data: https://raw.githubusercontent.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+default-src 'self'; script-src 'self' https://accounts.google.com; frame-src https://accounts.google.com; connect-src 'self' <api url> https://accounts.google.com <sentry ingest origin>; img-src 'self' data: <api url> https://raw.githubusercontent.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
 ```
 
 Why each non-`'self'` source is there:
@@ -77,6 +79,7 @@ Why each non-`'self'` source is there:
 - **`'unsafe-inline'` in `style-src`**: styled-components and MUI inject `<style>` tags at runtime.
 - **`https://raw.githubusercontent.com`** in `img-src`: the sprite fallback for anything not mirrored under `backend/public/sprites/`.
 - **`https://*.googleusercontent.com`** in `img-src`: serves the signed-in user's avatar.
+- **The api URL** in `img-src`: the API serves the mirrored sprites from `backend/public/sprites`.
 - **The api URL and the Sentry ingest origin** in `connect-src`: the SPA's API calls and Sentry's error reports.
 
 ### Switching to enforcing

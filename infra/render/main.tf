@@ -21,7 +21,7 @@ locals {
       "https://accounts.google.com",
       local.sentry_ingest_origin,
     ])),
-    "img-src 'self' data: https://raw.githubusercontent.com https://*.googleusercontent.com",
+    join(" ", ["img-src 'self' data:", local.api_url, "https://raw.githubusercontent.com https://*.googleusercontent.com"]),
     "style-src 'self' 'unsafe-inline' https://accounts.google.com",
     "font-src 'self' data:",
     "object-src 'none'",
@@ -55,9 +55,9 @@ resource "render_postgres" "db" {
   database_name = "pokedex_production"
   database_user = "pokedex"
 
-  # Private network only: an empty allow list blocks every external connection.
-  # Set explicitly so this doesn't depend on provider or API defaults.
-  ip_allow_list = []
+  # Private network only by default: an empty allow list blocks every external
+  # connection. Set explicitly so this doesn't depend on provider or API defaults.
+  ip_allow_list = var.postgres_ip_allow_list
 }
 
 resource "render_keyvalue" "redis" {
@@ -67,7 +67,7 @@ resource "render_keyvalue" "redis" {
   # Sidekiq needs noeviction: an evicted key is a silently lost job.
   max_memory_policy = "noeviction"
 
-  # Private network only, as for the database.
+  # Private network only: an empty allow list blocks every external connection.
   ip_allow_list = []
 }
 
@@ -153,6 +153,8 @@ resource "render_static_site" "web" {
     {
       VITE_API_URL          = { value = local.api_url }
       VITE_GOOGLE_CLIENT_ID = { value = var.google_client_id }
+      # Render reads NODE_VERSION; matches CI, and Vite 7 needs Node 20.19+ or 22.12+.
+      NODE_VERSION = { value = "22" }
     },
     local.optional_frontend_env,
   )

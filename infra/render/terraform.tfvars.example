@@ -15,3 +15,9 @@ sidekiq_allowed_email = "CHANGEME"
 # keyvalue_plan   = "free"
 # sentry_dsn      = ""
 # vite_sentry_dsn = ""
+
+# Empty (the default) keeps Postgres private. Add your IP only for an apply
+# that needs an external connection, then remove it and apply again.
+# postgres_ip_allow_list = [
+#   { cidr_block = "203.0.113.7/32", description = "one-off psql session" },
+# ]
