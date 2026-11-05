@@ -40,7 +40,6 @@ const CompareGrid = styled.div`
   gap: 16px;
   align-items: start;
 
-  /* Phones: one column, so the pickers stack full-width */
   ${({ theme }) => theme.breakpoints.down("sm")} {
     grid-template-columns: minmax(0, 1fr);
   }

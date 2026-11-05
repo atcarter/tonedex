@@ -16,8 +16,7 @@ const SectionPaper = styled(Paper)`
   }
 `;
 
-// The .main shades fall under 4.5:1 on the tinted net-weak cells, so the
-// counts use the deeper shade in light mode and the lighter one in dark mode
+// .main shades fail 4.5:1 on the tinted net-weak cells
 const readable = (theme: Theme, color: "error" | "success") =>
   theme.palette.mode === "dark"
     ? theme.palette[color].light

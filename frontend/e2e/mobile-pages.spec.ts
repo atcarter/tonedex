@@ -7,8 +7,7 @@ import {
   seedAuthState,
 } from "./fixtures";
 
-// Phone pass for the non-dex pages: at 375px wide with touch, no page
-// scrolls sideways, and favorites can be reordered without hover or drag.
+// 375px with touch: no page scrolls sideways; favorites reorder by tap.
 test.use({
   viewport: { width: 375, height: 812 },
   isMobile: true,
@@ -42,8 +41,7 @@ const FLORAGATO_DETAIL = {
   },
 };
 
-// Long move names and learn methods so a 30-row move list is as wide as it
-// gets in practice.
+// Long names make the 30-row move list as wide as it gets.
 const THIRTY_MOVES = Array.from({ length: 30 }, (_, i) => ({
   name: `extremely-long-signature-move-number-${i + 1}`,
   level_learned: i % 2 === 0 ? i + 1 : 0,
@@ -112,7 +110,6 @@ test.describe("Phone width: pages fit the viewport", () => {
     expect(scrollWidth).toBeGreaterThanOrEqual(clientWidth);
     expect(await pageScrollWidth(page)).toBe(PHONE_WIDTH);
 
-    // Expandable move rows stay comfortable touch targets
     const firstRow = wrapper.getByRole("button").first();
     const box = await firstRow.boundingBox();
     expect(box?.height).toBeGreaterThanOrEqual(44);
@@ -130,7 +127,6 @@ test.describe("Phone width: pages fit the viewport", () => {
       .boundingBox();
     const name = await heading.boundingBox();
     expect(sprite && name).toBeTruthy();
-    // Sprite sits above the name, and both are centred in the viewport
     expect(sprite!.y + sprite!.height).toBeLessThanOrEqual(name!.y);
     const centre = (b: { x: number; width: number }) => b.x + b.width / 2;
     expect(Math.abs(centre(sprite!) - PHONE_WIDTH / 2)).toBeLessThan(8);
@@ -149,7 +145,6 @@ test.describe("Phone width: pages fit the viewport", () => {
     const first = await page.getByLabel("First Pokémon...").boundingBox();
     const second = await page.getByLabel("Second Pokémon...").boundingBox();
     expect(first && second).toBeTruthy();
-    // Stacked: same left edge, second below first, each nearly full width
     expect(Math.abs(first!.x - second!.x)).toBeLessThan(1);
     expect(second!.y).toBeGreaterThan(first!.y + first!.height);
     expect(first!.width).toBeGreaterThan(PHONE_WIDTH - 100);
@@ -166,7 +161,7 @@ test.describe("Phone width: pages fit the viewport", () => {
   test("team builder has a full-width picker and fits the viewport", async ({
     page,
   }) => {
-    // A full team so both analysis sections render
+    // Six members so the analysis renders
     const team = [
       SPRIGATITO,
       FLORAGATO,
@@ -186,7 +181,7 @@ test.describe("Phone width: pages fit the viewport", () => {
     const picker = await page.getByLabel("Add a Pokémon").boundingBox();
     const main = await page.locator("main").boundingBox();
     expect(picker && main).toBeTruthy();
-    // Full width of the page content (main minus its 16px side padding)
+    // main minus its 16px side padding
     expect(picker!.width).toBeGreaterThanOrEqual(main!.width - 32 - 1);
 
     expect(await pageScrollWidth(page)).toBe(PHONE_WIDTH);
@@ -212,8 +207,7 @@ test.describe("Phone width: favorites reorder by touch", () => {
     await mockPublicGameRoutes(page);
     await mockAuthenticatedRoutes(page, { favorites: [FIRST, SECOND] });
 
-    // Override the shared favorites mock so refetches after a reorder return
-    // the order the PATCH stored.
+    // Refetches return the order the last PATCH stored
     let serverOrder = [FIRST, SECOND];
     await page.route(`${API}/api/v1/favorites`, (r) =>
       r.fulfill(json(serverOrder)),

@@ -66,9 +66,7 @@ const DragItem = styled.div<{ $dragging: boolean }>`
 `;
 
 // Keyboard alternative to drag-and-drop: revealed on hover or when a button
-// inside receives focus (so Tab users can find it), space always reserved.
-// Phones have no hover and no HTML5 drag, so there the buttons are always
-// shown and sized for a finger.
+// inside receives focus (so Tab users can find it), space always reserved
 const MoveControls = styled.div`
   display: flex;
   justify-content: center;
@@ -87,6 +85,7 @@ const MoveControls = styled.div`
     color: ${({ theme }) => theme.palette.text.secondary};
   }
 
+  /* Phones have no hover or HTML5 drag */
   ${({ theme }) => theme.breakpoints.down("sm")} {
     height: auto;
     margin-top: 4px;

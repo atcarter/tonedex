@@ -103,7 +103,6 @@ const PokemonHeader = styled.div`
   border-left: 5px solid ${({ theme }) => theme.palette.primary.main};
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
-  /* Phones: sprite above the name, everything centred */
   ${({ theme }) => theme.breakpoints.down("sm")} {
     flex-direction: column;
     gap: 12px;

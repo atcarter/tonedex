@@ -112,7 +112,7 @@ const RemoveButton = styled(IconButton)`
     color: ${({ theme }) => theme.palette.text.secondary};
   }
 
-  /* A bigger target for fingers */
+  /* Finger-sized target */
   ${({ theme }) => theme.breakpoints.down("sm")} {
     top: 0 !important;
     right: 0 !important;
@@ -248,7 +248,7 @@ export function TeamBuilderPage() {
             size="small"
             color="error"
             onClick={clearTeam}
-            // error.main is under 4.5:1 on the light page background
+            // error.main fails 4.5:1 on the light page background
             sx={(theme) => ({
               ml: "auto",
               color:

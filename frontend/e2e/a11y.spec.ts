@@ -8,9 +8,7 @@ import {
   seedAuthState,
 } from "./fixtures";
 
-// Automated accessibility audit: every non-dex page, at the default desktop
-// viewport and at phone width, must have no serious or critical axe
-// violations.
+// No serious or critical axe violations on each page, desktop and phone.
 
 const API = "http://localhost:3000";
 
@@ -35,19 +33,15 @@ const TEAM = [
 
 const BLOCKING_IMPACTS = new Set(["serious", "critical"]);
 
-// Known violations in components other work owns. Each entry names the file
-// to fix; drop the exclusion once that file is clean.
+// Violations in files other specs own; drop each once its file is fixed.
 const EXCLUDED = [
-  // PokemonSearch.tsx: the search input carries aria-expanded without a
-  // combobox role, and the submit icon button has no accessible name
+  // PokemonSearch.tsx: aria-expanded without a combobox role; unnamed submit
   "header form",
-  // GameSelector.tsx: the game Select has no accessible name
+  // GameSelector.tsx: unnamed Select
   "header .MuiSelect-select",
 ];
 
-// PokemonCard.tsx: the favorite icon button has no accessible name and the
-// dex number fails contrast. FavoritesPage wraps each card in its draggable
-// item, so this selects the card and nothing else on the page.
+// PokemonCard.tsx (first child of each favorite): unnamed button, dex number contrast
 const FAVORITE_CARD = '[draggable="true"] > :first-child';
 
 function json(body: unknown) {
@@ -173,7 +167,6 @@ for (const viewport of VIEWPORTS) {
           BLOCKING_IMPACTS.has(v.impact ?? ""),
         );
 
-        // Name each failure and where it is, so a red run says what to fix
         const summary = blocking.map((v) => ({
           id: v.id,
           impact: v.impact,

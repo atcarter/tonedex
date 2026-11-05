@@ -135,7 +135,7 @@ const EmptyText = styled.span`
   color: ${({ theme }) => theme.palette.text.secondary};
 `;
 
-// Long lists scroll sideways inside this box, never the page
+// Wide rows scroll here, not the page
 const MoveList = styled.div`
   overflow-x: auto;
 `;
