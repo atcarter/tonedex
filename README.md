@@ -64,7 +64,7 @@ cd frontend && npm run test:e2e                 # Playwright (API calls are mock
 
 Each Playwright run starts its own Vite dev server on a free port and never reuses one, so separate copies of the repo can run e2e at the same time. To run against a dev server you already started, set `E2E_BASE_URL` (for example `E2E_BASE_URL=http://localhost:5173 npm run test:e2e`). It needs `npm ci` and `npx playwright install chromium` in `frontend/` first.
 
-The backend suite has about 170 RSpec examples, the frontend about 90 Vitest tests, and the end-to-end suite about 70 Playwright tests.
+The backend suite has about 190 RSpec examples, the frontend about 100 Vitest tests, and the end-to-end suite about 70 Playwright tests.
 
 The smoke suite (`frontend/e2e-smoke`, 18 tests) checks a live deployment without mocks, sign-in or writes: the API's health and game list, Scarlet's dex and a deep-linked detail page, and that no route triggers a Content Security Policy violation at desktop or phone width. `.github/workflows/smoke.yml` runs it against production every Sunday and on demand. To run it locally:
 
