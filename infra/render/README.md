@@ -4,12 +4,15 @@ This directory declares the whole production stack on [Render](https://render.co
 
 | Resource | Render name | What it is |
 |---|---|---|
+| `render_project.tonedex` | `ToneDex` | The Render project holding everything below, with one environment, `Production` |
 | `render_postgres.db` | `tonedex-db` | PostgreSQL 15 (matches dev and CI), `basic_256mb` plan |
 | `render_keyvalue.redis` | `tonedex-redis` | Redis-compatible Key Value for Sidekiq and Rack::Attack, plan from `keyvalue_plan` (default `free`) |
 | `render_web_service.api` | `tonedex-api` | Rails API, built from `backend/Dockerfile`; runs `./bin/rails db:migrate` before each deploy and uses `/up` as its health check |
 | `render_background_worker.worker` | `tonedex-worker` | Sidekiq (`bundle exec sidekiq`) from the same Dockerfile |
 | `render_env_group.backend` | `tonedex-backend` | Secrets and connection strings shared by the api and worker |
 | `render_static_site.web` | `tonedex-web` | The Vite SPA from `frontend/` |
+
+Every other resource in the table sets `environment_id` to the `Production` environment, so all six live in **ToneDex → Production** in the dashboard. `render_env_group_link.backend` has no environment of its own. It only attaches the env group to the api and worker. `Production` is `unprotected`, Render's default for a new environment. The configuration leaves the environment's IP allow list and network isolation unset, so Terraform doesn't manage them. If you turn on network isolation in the dashboard, add `network_isolated = true` to the environment in `main.tf` as well, because the provider sends `false` whenever it updates the environment without it. The project was created in the dashboard, so an existing stack has to [import it](#importing-the-tonedex-project) before its next apply.
 
 Service names become public `onrender.com` hostnames, which is why every resource has the `tonedex-` prefix. One `region` variable (default `oregon`) applies to every regional resource. The static site is served from Render's global CDN, so it has no region.
 
@@ -44,11 +47,32 @@ State is local (`terraform.tfstate` in this directory) for now.
 
 `terraform output` then prints `api_url` and `frontend_url`.
 
+On a stack built from nothing, this apply creates the ToneDex project and its Production environment too, so there's nothing to import.
+
 The env group is linked to the api and worker after both services exist, so their very first deploy can start before `DATABASE_URL`, `CORS_ORIGINS` and the secrets are present, and fail. If either service shows a failed first deploy, trigger **Manual Deploy → Deploy latest commit** on it once the apply finishes.
 
 ### Why the env group
 
 The api needs the static site's URL (`CORS_ORIGINS`) and the static site needs the api's URL (`VITE_API_URL` and the CSP). If both URLs sat on the services themselves, that would be a dependency cycle. `CORS_ORIGINS` (and everything else the backend shares) lives in `render_env_group.backend` instead, attached with `render_env_group_link`, so the api resource never references the static site.
+
+## Importing the ToneDex project
+
+The ToneDex project and its Production environment were created in the Render dashboard, and every resource above was moved into them there. Until the project is in Terraform state, `terraform apply` plans to create a second ToneDex project and move every resource into it, and fails. **Import the existing project once, before the next `terraform apply`.**
+
+1. **Find the project ID.** In the Render dashboard, open the ToneDex project. Its ID starts with `prj-` and appears in the page's URL.
+2. **Import it**, with `RENDER_API_KEY` and `RENDER_OWNER_ID` exported and `terraform.tfvars` in place (import reads the whole configuration, so the required variables must be set):
+
+   ```bash
+   cd infra/render
+   terraform init
+   terraform import render_project.tonedex prj-...   # the ID from step 1
+   ```
+
+   This one command imports the environments as well. In 1.9.1 of the provider an environment is part of `render_project`, not a resource of its own. The import keys each environment by its name, which is why `main.tf` uses `"Production"` as the map key. Leave the key as it is. With a different key, Terraform would create a new environment and delete the existing one.
+3. **`terraform plan`** before applying. Expect no change to `render_project.tonedex`, and no `environment_id` change on any service, the database, the Key Value or the env group. If the plan changes `protected_status`, the environment was made protected in the dashboard. Set `protected_status = "protected"` in `main.tf` to keep it that way, or let the apply turn protection off.
+4. **`terraform apply`.**
+
+The import is needed only once. If `terraform import` reports that the resource is already managed, the project is already in state, so go on to step 3.
 
 ## The state file holds secrets
 
@@ -63,7 +87,7 @@ cd infra/render
 terraform destroy
 ```
 
-This deletes every resource above, including the database and all its data. Export a backup from the database's page in the Render dashboard first if you want to keep anything. With `postgres_ip_allow_list` empty, the database accepts no external connections, so add your IP for that export if it needs one.
+This deletes every resource above, including the database and all its data, and then the ToneDex project and its Production environment. Export a backup from the database's page in the Render dashboard first if you want to keep anything. With `postgres_ip_allow_list` empty, the database accepts no external connections, so add your IP for that export if it needs one.
 
 ## Content Security Policy
 

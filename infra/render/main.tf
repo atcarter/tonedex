@@ -1,4 +1,7 @@
 locals {
+  # Every resource that can belong to an environment goes in ToneDex/Production.
+  environment_id = render_project.tonedex.environments["Production"].id
+
   api_url      = trimsuffix(render_web_service.api.url, "/")
   frontend_url = trimsuffix(render_static_site.web.url, "/")
 
@@ -47,15 +50,33 @@ locals {
   }
 }
 
+# --- Project -----------------------------------------------------------------
+
+# Created in the dashboard and imported (README: "Importing the ToneDex
+# project"). The map key must equal the environment's name: that is the key
+# an import gives it, and a different key would make Terraform replace the
+# environment instead of keeping it.
+resource "render_project" "tonedex" {
+  name = "ToneDex"
+
+  environments = {
+    "Production" = {
+      name             = "Production"
+      protected_status = "unprotected"
+    }
+  }
+}
+
 # --- Data stores -------------------------------------------------------------
 
 resource "render_postgres" "db" {
-  name          = "tonedex-db"
-  plan          = "basic_256mb"
-  region        = var.region
-  version       = "15"
-  database_name = "pokedex_production"
-  database_user = "pokedex"
+  name           = "tonedex-db"
+  environment_id = local.environment_id
+  plan           = "basic_256mb"
+  region         = var.region
+  version        = "15"
+  database_name  = "pokedex_production"
+  database_user  = "pokedex"
 
   # Private network only by default: an empty allow list blocks every external
   # connection. Set explicitly so this doesn't depend on provider or API defaults.
@@ -63,9 +84,10 @@ resource "render_postgres" "db" {
 }
 
 resource "render_keyvalue" "redis" {
-  name   = "tonedex-redis"
-  plan   = var.keyvalue_plan
-  region = var.region
+  name           = "tonedex-redis"
+  environment_id = local.environment_id
+  plan           = var.keyvalue_plan
+  region         = var.region
   # Sidekiq needs noeviction: an evicted key is a silently lost job.
   max_memory_policy = "noeviction"
 
@@ -79,9 +101,10 @@ resource "render_keyvalue" "redis" {
 # render_env_group_link.backend. Neither service references the static site,
 # which is what keeps the api <-> web URL dependency from forming a cycle.
 resource "render_web_service" "api" {
-  name   = "tonedex-api"
-  plan   = "starter"
-  region = var.region
+  name           = "tonedex-api"
+  environment_id = local.environment_id
+  plan           = "starter"
+  region         = var.region
 
   runtime_source = {
     docker = local.backend_docker_source
@@ -98,9 +121,10 @@ resource "render_web_service" "api" {
 }
 
 resource "render_background_worker" "worker" {
-  name   = "tonedex-worker"
-  plan   = "starter"
-  region = var.region
+  name           = "tonedex-worker"
+  environment_id = local.environment_id
+  plan           = "starter"
+  region         = var.region
 
   runtime_source = {
     docker = local.backend_docker_source
@@ -115,7 +139,8 @@ resource "render_background_worker" "worker" {
 }
 
 resource "render_env_group" "backend" {
-  name = "tonedex-backend"
+  name           = "tonedex-backend"
+  environment_id = local.environment_id
 
   env_vars = merge(
     {
@@ -145,6 +170,7 @@ resource "render_env_group_link" "backend" {
 
 resource "render_static_site" "web" {
   name           = "tonedex-web"
+  environment_id = local.environment_id
   repo_url       = var.github_repo_url
   branch         = var.github_branch
   root_directory = "frontend"
