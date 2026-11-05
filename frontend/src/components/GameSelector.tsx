@@ -12,8 +12,7 @@ import { useGames } from "../hooks/useGames";
 const StyledFormControl = styled(FormControl)`
   min-width: 200px;
 
-  /* On phones the selector shares one row with the logo and two icon
-     buttons, so it fills whatever width its flex parent leaves it. */
+  /* Phones: fill the header row's flexible slot */
   ${({ theme }) => theme.breakpoints.down("sm")} {
     min-width: 0;
     width: 100%;

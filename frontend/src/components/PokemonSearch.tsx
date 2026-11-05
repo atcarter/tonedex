@@ -13,9 +13,7 @@ import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useSuggestions } from "../hooks/useSuggestions";
 import { formatName } from "../utils/formatters";
 
-// $expanded is the phone header's full-width search row. The wrapper drops
-// its positioning there so the dropdown and error anchor to the toolbar
-// (MUI's Toolbar is position: relative) and span its full width.
+// $expanded: static, so the dropdown anchors to the toolbar and spans its width
 const SearchWrapper = styled.div<{ $expanded: boolean }>`
   position: ${({ $expanded }) => ($expanded ? "static" : "relative")};
   ${({ $expanded }) => $expanded && "flex: 1; min-width: 0;"}
@@ -108,9 +106,9 @@ const ErrorBadge = styled.div<{ $expanded: boolean }>`
 `;
 
 interface PokemonSearchProps {
-  /** Phone layout: fills the toolbar row, autofocuses, full-width dropdown. */
+  /** Phone layout: full row, autofocus, full-width dropdown */
   expanded?: boolean;
-  /** Called when the user is done searching: Escape, or opening a result. */
+  /** Escape, or opening a result */
   onClose?: () => void;
 }
 

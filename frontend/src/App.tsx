@@ -17,7 +17,7 @@ const Layout = styled.div`
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  /* Phone browsers' collapsing address bar: track the dynamic viewport */
+  /* dvh follows collapsing phone address bars; vh above is the fallback */
   min-height: 100dvh;
 `;
 
