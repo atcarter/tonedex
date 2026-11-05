@@ -143,14 +143,15 @@ for (const viewport of VIEWPORTS) {
       await expect(page.getByText("Scratch")).toBeVisible();
     });
 
-    test("no defensive overview cell overflows", async ({ page }) => {
+    test("no defensive overview row overflows", async ({ page }) => {
       await openTeamBuilder(page, DEX.slice(0, 6));
       await expect(page.getByText("Defensive Overview")).toBeVisible();
 
-      const cells = page.locator("[data-testid=defense-cell]");
-      await expect(cells).toHaveCount(18);
-      const overflowing = await cells.evaluateAll((els) =>
+      const rows = page.locator("[data-testid=defense-row]");
+      await expect(rows).toHaveCount(3);
+      const overflowing = await rows.evaluateAll((els) =>
         els
+          .flatMap((row) => [row, ...Array.from(row.querySelectorAll("li"))])
           .filter((el) => el.scrollWidth > el.clientWidth)
           .map((el) => el.textContent),
       );

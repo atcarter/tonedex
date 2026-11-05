@@ -54,22 +54,57 @@ describe("defenseSummary", () => {
     return rows.find((r) => r.type === type)!;
   }
 
-  it("counts weaknesses, resists, and immunities for a single member", () => {
+  const names = (hits: { member: Pokemon }[]) =>
+    hits.map((hit) => hit.member.name);
+
+  it("groups a single member's weaknesses, resists, and immunities", () => {
     const rows = defenseSummary([dragapult]);
 
     for (const weakTo of ["ghost", "dark", "ice", "dragon", "fairy"]) {
-      expect(row(rows, weakTo).weak, weakTo).toBe(1);
+      expect(names(row(rows, weakTo).weak), weakTo).toEqual(["dragapult"]);
     }
     for (const immuneTo of ["normal", "fighting"]) {
-      expect(row(rows, immuneTo).immune, immuneTo).toBe(1);
-      // immunities count as resists
-      expect(row(rows, immuneTo).resist, immuneTo).toBe(1);
+      expect(names(row(rows, immuneTo).immune), immuneTo).toEqual([
+        "dragapult",
+      ]);
+      // immunities are kept apart from resists
+      expect(row(rows, immuneTo).resist, immuneTo).toEqual([]);
     }
-    expect(row(rows, "water").resist).toBe(1);
-    expect(row(rows, "water").weak).toBe(0);
+    expect(row(rows, "water").resist).toEqual([
+      { member: dragapult, multiplier: 0.5 },
+    ]);
+    expect(row(rows, "water").weak).toEqual([]);
   });
 
-  it("aggregates across members", () => {
+  it("records each member's multiplier, including 4×, ¼× and immunity", () => {
+    const gyarados = mon("gyarados", ["water", "flying"]);
+    const lapras = mon("lapras", ["water", "ice"]);
+    const zekrom = mon("zekrom", ["dragon", "electric"]);
+    const garchomp = mon("garchomp", ["dragon", "ground"]);
+    const electric = row(
+      defenseSummary([
+        gyarados,
+        lapras,
+        mon("snorlax", ["normal"]), // 1×, left out
+        dragapult,
+        zekrom,
+        garchomp,
+      ]),
+      "electric",
+    );
+
+    expect(electric.weak).toEqual([
+      { member: gyarados, multiplier: 4 },
+      { member: lapras, multiplier: 2 },
+    ]);
+    expect(electric.resist).toEqual([
+      { member: dragapult, multiplier: 0.5 },
+      { member: zekrom, multiplier: 0.25 },
+    ]);
+    expect(electric.immune).toEqual([{ member: garchomp, multiplier: 0 }]);
+  });
+
+  it("aggregates across members in team order", () => {
     // Two ice-weak members and one ice-resisting member
     const rows = defenseSummary([
       dragapult,
@@ -78,13 +113,14 @@ describe("defenseSummary", () => {
     ]);
 
     const ice = row(rows, "ice");
-    expect(ice.weak).toBe(2); // dragapult, garchomp (4×)
-    expect(ice.resist).toBe(1); // lapras
+    expect(names(ice.weak)).toEqual(["dragapult", "garchomp"]);
+    expect(ice.weak.map((hit) => hit.multiplier)).toEqual([2, 4]);
+    expect(names(ice.resist)).toEqual(["lapras"]);
   });
 
-  it("returns all-zero rows for an empty team", () => {
+  it("returns empty groups for an empty team", () => {
     for (const r of defenseSummary([])) {
-      expect(r.weak + r.resist + r.immune).toBe(0);
+      expect([...r.weak, ...r.resist, ...r.immune]).toEqual([]);
     }
   });
 });

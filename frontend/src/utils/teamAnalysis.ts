@@ -1,31 +1,39 @@
 import { ALL_TYPES, effectivenessAgainst } from "../constants/typeChart";
 import type { Pokemon } from "../types";
 
-// How the team as a whole holds up against one attacking type.
-export interface DefenseRow {
-  type: string; // the attacking type
-  weak: number; // members taking >1× from it
-  resist: number; // members taking <1× (immunities included)
-  immune: number; // members taking 0×
+// A team member and the damage multiplier it takes from one attacking type.
+export interface MemberHit {
+  member: Pokemon;
+  multiplier: number;
 }
 
-// One row per attacking type, in chart order.
+// Which members one attacking type hits harder, softer, or not at all.
+export interface DefenseRow {
+  type: string; // the attacking type
+  weak: MemberHit[]; // 2× or 4×
+  resist: MemberHit[]; // ½× or ¼×
+  immune: MemberHit[]; // 0×
+}
+
+// One row per attacking type, in chart order; members keep team order.
 export function defenseSummary(team: Pokemon[]): DefenseRow[] {
   return ALL_TYPES.map((attackType) => {
-    let weak = 0;
-    let resist = 0;
-    let immune = 0;
+    const row: DefenseRow = {
+      type: attackType,
+      weak: [],
+      resist: [],
+      immune: [],
+    };
 
     for (const member of team) {
       const multiplier = effectivenessAgainst(attackType, member.types);
-      if (multiplier > 1) weak++;
-      else if (multiplier < 1) {
-        resist++;
-        if (multiplier === 0) immune++;
-      }
+      const hit = { member, multiplier };
+      if (multiplier > 1) row.weak.push(hit);
+      else if (multiplier === 0) row.immune.push(hit);
+      else if (multiplier < 1) row.resist.push(hit);
     }
 
-    return { type: attackType, weak, resist, immune };
+    return row;
   });
 }
 
