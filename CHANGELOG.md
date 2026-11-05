@@ -28,6 +28,9 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 - **Chore:** build, test and lint tooling majors: Vite 8, `@vitejs/plugin-react` 6, Vitest 5, jsdom 30, `@testing-library/jest-dom` 7, ESLint 10. The dev image moves to Node 22, matching CI and Render. npm packages are also updated within range, clearing the Dependabot alerts.
 - **Dependency:** MUI 7 → 9 (`@mui/material` and `@mui/icons-material` 9.5; MUI skipped 8). v9 drops system props and the deprecated slot props, so Typography and Box system props in `AppHeader` and `ErrorBoundary` move into `sx`, the game menu's `PaperProps` becomes `slotProps.paper`, and the compare picker's `inputProps` becomes `slotProps.htmlInput`. A game menu opened by pointer no longer draws the focus tint on the selected game. MUI's supported browsers rise to Chrome 117, Firefox 121 and Safari 17.
 
+### Tooling
+- **Test:** each Playwright e2e run starts its own Vite dev server on a free port (`--strictPort`) and never reuses a server it didn't start, so two copies of the repo can run e2e at once without one testing the other's code. `E2E_BASE_URL` opts in to a dev server that's already running. CI still starts a fresh server per run.
+
 ### Docs
 - ADR-009, a status note on ADR-002, and ARCHITECTURE's regional and national data flow, columns and query keys.
 - **Refresh:** README and ARCHITECTURE match what has shipped. Both describe the CSP as enforcing and the deploy gate; ARCHITECTURE lists the ToneDex project and Production environment, game switching, the smoke suite and `SeedAllPokemonJob`'s fan-out. README gains the national view, the team builder changes, phone layouts, the smoke suite, Dependabot, current versions and suite sizes, and drops the Screenshots section, whose images were never committed.

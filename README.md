@@ -61,7 +61,7 @@ docker compose exec frontend npm test           # frontend unit tests
 cd frontend && npm run test:e2e                 # Playwright (API calls are mocked)
 ```
 
-Playwright starts the Vite dev server itself (or reuses one already on :5173); it needs `npm ci` and `npx playwright install chromium` in `frontend/` first.
+Each Playwright run starts its own Vite dev server on a free port and never reuses one, so separate copies of the repo can run e2e at the same time. To run against a dev server you already started, set `E2E_BASE_URL` (for example `E2E_BASE_URL=http://localhost:5173 npm run test:e2e`). It needs `npm ci` and `npx playwright install chromium` in `frontend/` first.
 
 The backend suite has about 170 RSpec examples, the frontend about 90 Vitest tests, and the end-to-end suite about 70 Playwright tests.
 
