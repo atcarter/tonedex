@@ -103,10 +103,25 @@ const SpriteBox = styled.span`
   }
 `;
 
+// Badges wrap under the name when the entry is narrow
+const MemberTitle = styled.div`
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+`;
+
 const MemberName = styled.span`
   min-width: 0;
   overflow-wrap: anywhere;
   font-weight: 700;
+`;
+
+const MemberTypes = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 `;
 
 const TierRow = styled.div`
@@ -162,7 +177,14 @@ function MemberDefense({ member }: { member: Pokemon }) {
             loading="lazy"
           />
         </SpriteBox>
-        <MemberName>{formatName(member.name)}</MemberName>
+        <MemberTitle>
+          <MemberName>{formatName(member.name)}</MemberName>
+          <MemberTypes data-testid="member-types">
+            {member.types.map((type) => (
+              <TypeBadge key={type} type={type} size="small" />
+            ))}
+          </MemberTypes>
+        </MemberTitle>
       </MemberHeader>
       {tiers.map(({ multiplier, types }) => {
         const tier = TIERS[multiplier];
