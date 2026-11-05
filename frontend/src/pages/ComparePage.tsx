@@ -237,7 +237,7 @@ function PokemonPicker({
         placeholder={label}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        inputProps={{ "aria-label": label }}
+        slotProps={{ htmlInput: { "aria-label": label } }}
       />
       {suggestions.length > 0 && (
         <SuggestionList elevation={3} role="listbox">
