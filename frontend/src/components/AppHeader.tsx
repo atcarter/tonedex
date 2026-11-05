@@ -29,12 +29,10 @@ import { GameSelector } from "./GameSelector";
 import { PokemonSearch } from "./PokemonSearch";
 import { AuthButton, GoogleSignIn, UserAvatar } from "./AuthButton";
 
-// Phones (< sm, 600px) get a single 56px row that slides away on scroll;
-// wider screens keep the original one-row toolbar with everything inline.
+// Below sm: one 56px row that hides on scroll; otherwise the original toolbar
 export function AppHeader() {
   const theme = useTheme();
-  // noSsr reads matchMedia on the first render, so phones never mount the
-  // desktop toolbar (and its Google sign-in iframe) for one frame.
+  // noSsr: match on first render so phones never flash the desktop header
   const isPhone = useMediaQuery(theme.breakpoints.down("sm"), { noSsr: true });
 
   return isPhone ? <PhoneHeader /> : <DesktopHeader />;
@@ -53,8 +51,7 @@ function Logo() {
         flexShrink: 0,
         fontSize: "1.1rem",
         cursor: "pointer",
-        // Styled as TONEDEX, but the text stays "ToneDex" so screen
-        // readers say the name instead of spelling out capitals.
+        // Shows TONEDEX; screen readers still read "ToneDex"
         textTransform: "uppercase",
       }}
       onClick={() =>
@@ -111,13 +108,9 @@ function PhoneHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
   const openSearchRef = useRef<HTMLButtonElement>(null);
   const wasSearchOpen = useRef(false);
-  // Hides once the page has scrolled down past 100px; any upward scroll
-  // brings it back.
   const scrolledDown = useScrollTrigger();
 
-  // Hand focus back to the search button when the expanded search closes.
-  // Closing by opening a result also navigates, and App's route-change focus
-  // effect runs after this one (parent effects run last), so it wins there.
+  // Refocus search on close; on navigation App's main-focus effect wins
   useEffect(() => {
     if (wasSearchOpen.current && !searchOpen) openSearchRef.current?.focus();
     wasSearchOpen.current = searchOpen;
@@ -126,7 +119,7 @@ function PhoneHeader() {
   const closeSearch = () => setSearchOpen(false);
 
   return (
-    // Stays put while searching so the input never slides away mid-typing
+    // Never slide away mid-search
     <Slide appear={false} direction="down" in={!scrolledDown || searchOpen}>
       <AppBar position="sticky" sx={{ bgcolor: "primary.main", zIndex: 1201 }}>
         <Toolbar sx={{ gap: 1, minHeight: "56px" }}>
@@ -165,7 +158,6 @@ function PhoneHeader() {
   );
 }
 
-// Favorites, color mode and sign-in/out, which sit inline on desktop
 function AccountMenu() {
   const navigate = useNavigate();
   const { currentUser, signOut } = useAppContext();
@@ -238,8 +230,7 @@ function AccountMenu() {
             <ListItemText>Sign out</ListItemText>
           </MenuItem>
         ) : (
-          // Google renders its own button in an iframe, so it can't be a
-          // MenuItem; it mounts only while the menu is open.
+          // Google's iframe button can't be a MenuItem; mounts only when open
           <Box sx={{ px: 2, py: 1 }}>
             <GoogleSignIn />
           </Box>

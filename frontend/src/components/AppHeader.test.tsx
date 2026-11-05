@@ -24,8 +24,7 @@ const { useUi } = await import("../hooks/useUi");
 
 const theme = buildTheme("light");
 
-// jsdom has no matchMedia. Answer MUI's width queries as a browser of the
-// given width would, so useMediaQuery picks the phone or desktop header.
+// jsdom lacks matchMedia; answer MUI's width queries for a fake viewport
 function setViewportWidth(width: number) {
   window.matchMedia = ((query: string) => {
     const max = /max-width:\s*([\d.]+)px/.exec(query);
@@ -83,7 +82,6 @@ describe("AppHeader on a phone", () => {
     expect(
       screen.queryByRole("button", { name: "favorites" }),
     ).not.toBeInTheDocument();
-    // Google's sign-in button waits for the account menu
     expect(screen.queryByTestId("google-login")).not.toBeInTheDocument();
   });
 

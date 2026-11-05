@@ -6,9 +6,7 @@ import type { CredentialResponse } from "@react-oauth/google";
 import type { User } from "../types";
 import { useAppContext } from "../hooks/useAppContext";
 
-// The pieces below are shared with the phone header's account menu, which
-// arranges them differently; AuthButton is the desktop toolbar layout.
-
+// UserAvatar and GoogleSignIn are shared with the phone account menu
 export function UserAvatar({ user }: { user: User }) {
   return (
     <Avatar

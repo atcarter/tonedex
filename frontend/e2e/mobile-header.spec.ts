@@ -17,7 +17,7 @@ const headerRect = (page: Page) =>
     return { top, bottom, height };
   });
 
-// Forty cards make the dex page tall enough to scroll on a phone
+// Enough cards for the phone page to scroll
 const FORTY_POKEMON = Array.from({ length: 40 }, (_, i) => ({
   ...SPRIGATITO,
   id: 100_000 + i,
@@ -25,16 +25,14 @@ const FORTY_POKEMON = Array.from({ length: 40 }, (_, i) => ({
   pokedex_number: i + 1,
 }));
 
-// Stand-in for Google's GSI script: renders an iframe where the real one
-// would, so the test can see where (and when) the sign-in button mounts
-// without reaching accounts.google.com.
+// Fake GSI script: renders an iframe so sign-in placement is testable offline
 const FAKE_GSI = `
   window.google = { accounts: { id: {
     initialize() {},
     renderButton(parent) {
       const frame = document.createElement("iframe");
       frame.title = "Sign in with Google Button";
-      // Like the real script, re-rendering replaces the button
+      // StrictMode renders twice; replace, as the real script does
       parent.replaceChildren(frame);
     },
     prompt() {},
@@ -120,7 +118,7 @@ test.describe("Phone header", () => {
   test("slides away on scroll down and returns on scroll up", async ({
     page,
   }) => {
-    // Registered after the shared mock, so it takes precedence
+    // Overrides the shared mock (last registered route wins)
     await page.route(`${API}/api/v1/games/1*`, (r) =>
       r.fulfill({
         status: 200,
