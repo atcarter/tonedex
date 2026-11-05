@@ -531,11 +531,29 @@ RSpec.describe PokeapiAdapter do
       expect { adapter.load_national_dexes([game]) }.not_to change(GamePokemon, :count)
     end
 
-    it "leaves out a game whose version group can't be fetched" do
+    it "covers a game whose version group is a 404, keeping only its existing rows" do
       allow(client).to receive(:version).with(other_game.name).and_raise(PokeapiClient::NotFoundError, "404")
 
-      expect(adapter.load_national_dexes([game, other_game])).to eq([game])
+      expect(adapter.load_national_dexes([game, other_game])).to eq([game, other_game])
       expect(other_game.game_pokemons).to be_empty
+    end
+
+    it "raises on a transient version lookup failure so the job retries" do
+      allow(client).to receive(:version).with(other_game.name).and_raise(PokeapiClient::ApiError, "503")
+
+      expect { adapter.load_national_dexes([game, other_game]) }.to raise_error(PokeapiClient::ApiError)
+    end
+
+    it "raises on a transient species failure instead of skipping it" do
+      allow(client).to receive(:pokemon).with(100_802).and_raise(PokeapiClient::ApiError, "timeout")
+
+      expect { adapter.load_national_dexes([game]) }.to raise_error(PokeapiClient::ApiError)
+    end
+
+    it "raises on a transient species-payload failure instead of leaving mythical unset" do
+      allow(client).to receive(:pokemon_species).with(100_803).and_raise(PokeapiClient::ApiError, "503")
+
+      expect { adapter.load_national_dexes([game]) }.to raise_error(PokeapiClient::ApiError)
     end
   end
 

@@ -60,13 +60,13 @@ class PokeapiAdapter
   # One pass over species, one cached payload at a time. Returns the games covered.
   def load_national_dexes(games)
     version_groups = games.to_h { |game| [game.id, version_group_name(game)] }.compact
-    games = games.select { |game| version_groups.key?(game.id) }
+    targetable = games.select { |game| version_groups.key?(game.id) }
     dex_species = version_groups.values.uniq.to_h { |vg| [vg, version_group_dex_species(vg)] }
 
     national_species_ids.each do |species_id|
       data = @client.pokemon(species_id)
       learnset = learnset_version_groups(data)
-      targets = games.select do |game|
+      targets = targetable.select do |game|
         vg = version_groups[game.id]
         learnset.include?(vg) || dex_species[vg].include?(species_id)
       end
@@ -76,7 +76,7 @@ class PokeapiAdapter
       mythical = species_mythical(species_id)
       @importer.mark_mythical(pokemon, mythical) unless mythical.nil?
       @importer.link_national_pokemon(pokemon, targets)
-    rescue PokeapiClient::ApiError => e
+    rescue PokeapiClient::NotFoundError => e
       Rails.logger.warn("[PokeapiAdapter] Skipping species ##{species_id}: #{e.message}")
     end
 
@@ -188,7 +188,7 @@ class PokeapiAdapter
 
   def version_group_name(game)
     @client.version(game.name).dig("version_group", "name")
-  rescue PokeapiClient::ApiError => e
+  rescue PokeapiClient::NotFoundError => e
     Rails.logger.warn("[PokeapiAdapter] No version group for #{game.name}: #{e.message}")
     nil
   end
@@ -215,7 +215,7 @@ class PokeapiAdapter
   # nil when the species payload is unavailable, so a known label is kept
   def species_mythical(species_id)
     @client.pokemon_species(species_id)["is_mythical"] == true
-  rescue PokeapiClient::ApiError
+  rescue PokeapiClient::NotFoundError
     nil
   end
 
