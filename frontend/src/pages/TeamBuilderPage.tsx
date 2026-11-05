@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
 import CloseIcon from "@mui/icons-material/Close";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { alpha } from "@mui/material/styles";
 import type { Pokemon } from "../types";
 import { useGames } from "../hooks/useGames";
@@ -59,14 +61,31 @@ const SlotsGrid = styled.div`
 
 const Slot = styled.div`
   position: relative;
+`;
+
+// The remove button sits beside the link, not inside it
+const SlotLink = styled(Link)`
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  height: 100%;
+  box-sizing: border-box;
   padding: 12px 8px 10px;
   border-radius: 12px;
   background: ${({ theme }) => theme.palette.background.paper};
   border: 2px solid ${({ theme }) => theme.palette.divider};
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.palette.primary.main};
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.palette.primary.main};
+    outline-offset: 2px;
+  }
 
   img {
     width: 64px;
@@ -122,7 +141,24 @@ const RemoveButton = styled(IconButton)`
 
 // ── Picker ───────────────────────────────────────────────────────────────────
 
-const PickerSection = styled.div`
+// open, collapsed by the user, or collapsed because the team filled up
+type PickerState = "open" | "collapsed" | "auto-collapsed";
+
+const PickerToggle = styled(Button)<{ $open: boolean }>`
+  margin-bottom: 10px !important;
+
+  .MuiButton-endIcon svg {
+    transition: transform 0.2s ease;
+    transform: rotate(${({ $open }) => ($open ? "180deg" : "0deg")});
+  }
+
+  /* Finger-sized target */
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    min-height: 44px;
+  }
+`;
+
+const PickerSection = styled(Collapse)`
   margin-bottom: 20px;
 `;
 
@@ -219,6 +255,28 @@ export function TeamBuilderPage() {
 
   const [filter, setFilter] = useState("");
 
+  const pickerId = useId();
+  const pickerToggleRef = useRef<HTMLButtonElement>(null);
+  const [picker, setPicker] = useState<PickerState>(
+    isFull ? "auto-collapsed" : "open",
+  );
+  const pickerOpen = picker === "open";
+  // Collapse when the team fills; re-open on removal only if that collapse was automatic
+  const [wasFull, setWasFull] = useState(isFull);
+  if (wasFull !== isFull) {
+    setWasFull(isFull);
+    if (isFull) setPicker("auto-collapsed");
+    else if (picker === "auto-collapsed") setPicker("open");
+  }
+
+  // Keep keyboard focus from falling to <body> when the picker hides
+  const handlePickerExit = (node: HTMLElement) => {
+    const active = document.activeElement;
+    if (!active || active === document.body || node.contains(active)) {
+      pickerToggleRef.current?.focus();
+    }
+  };
+
   // Team building needs the whole dex available in the picker — pull all pages
   useEffect(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -265,19 +323,21 @@ export function TeamBuilderPage() {
       <SlotsGrid>
         {team.map((member) => (
           <Slot key={member.id} data-testid="team-slot">
+            <SlotLink to={`/game/${numericGameId}/pokemon/${member.name}`}>
+              <img src={member.sprite_url} alt="" loading="lazy" />
+              <SlotName>{formatName(member.name)}</SlotName>
+              <SlotTypes>
+                {member.types.map((type) => (
+                  <TypeBadge key={type} type={type} size="small" />
+                ))}
+              </SlotTypes>
+            </SlotLink>
             <RemoveButton
               aria-label={`remove ${member.name}`}
               onClick={() => removeMember(member.id)}
             >
               <CloseIcon />
             </RemoveButton>
-            <img src={member.sprite_url} alt={member.name} loading="lazy" />
-            <SlotName>{formatName(member.name)}</SlotName>
-            <SlotTypes>
-              {member.types.map((type) => (
-                <TypeBadge key={type} type={type} size="small" />
-              ))}
-            </SlotTypes>
           </Slot>
         ))}
         {Array.from({ length: emptySlots }).map((_, i) => (
@@ -285,7 +345,18 @@ export function TeamBuilderPage() {
         ))}
       </SlotsGrid>
 
-      <PickerSection>
+      <PickerToggle
+        ref={pickerToggleRef}
+        $open={pickerOpen}
+        aria-expanded={pickerOpen}
+        aria-controls={pickerId}
+        endIcon={<ExpandMoreIcon />}
+        onClick={() => setPicker(pickerOpen ? "collapsed" : "open")}
+      >
+        {pickerOpen ? "Hide picker" : "Show picker"}
+      </PickerToggle>
+
+      <PickerSection in={pickerOpen} id={pickerId} onExit={handlePickerExit}>
         <PickerBar>
           <PickerField
             size="small"
