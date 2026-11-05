@@ -17,6 +17,12 @@ const PageWrapper = styled.div`
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px 16px;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    padding: 16px max(16px, env(safe-area-inset-right))
+      max(24px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+  }
 `;
 
 const PageHeader = styled.div`
@@ -60,7 +66,9 @@ const DragItem = styled.div<{ $dragging: boolean }>`
 `;
 
 // Keyboard alternative to drag-and-drop: revealed on hover or when a button
-// inside receives focus (so Tab users can find it), space always reserved
+// inside receives focus (so Tab users can find it), space always reserved.
+// Phones have no hover and no HTML5 drag, so there the buttons are always
+// shown and sized for a finger.
 const MoveControls = styled.div`
   display: flex;
   justify-content: center;
@@ -77,6 +85,17 @@ const MoveControls = styled.div`
   svg {
     font-size: 18px;
     color: ${({ theme }) => theme.palette.text.secondary};
+  }
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    height: auto;
+    margin-top: 4px;
+    opacity: 1;
+
+    .MuiIconButton-root {
+      min-width: 44px;
+      min-height: 44px;
+    }
   }
 `;
 
@@ -113,13 +132,13 @@ const EmptyText = styled.p`
 
 const EmptyHint = styled.p`
   font-size: 0.875rem;
-  color: ${({ theme }) => theme.palette.text.disabled};
+  color: ${({ theme }) => theme.palette.text.secondary};
   margin: 0;
 `;
 
 const DragHint = styled.p`
   font-size: 0.75rem;
-  color: ${({ theme }) => theme.palette.text.disabled};
+  color: ${({ theme }) => theme.palette.text.secondary};
   margin-top: 20px;
   text-align: center;
 `;

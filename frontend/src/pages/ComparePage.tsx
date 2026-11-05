@@ -19,6 +19,12 @@ const PageWrapper = styled.div`
   margin: 0 auto;
   padding: 24px 16px;
   width: 100%;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    padding: 16px max(16px, env(safe-area-inset-right))
+      max(24px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+  }
 `;
 
 const Title = styled.h1`
@@ -33,11 +39,21 @@ const CompareGrid = styled.div`
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 16px;
   align-items: start;
+
+  /* Phones: one column, so the pickers stack full-width */
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    grid-template-columns: minmax(0, 1fr);
+  }
 `;
 
 const Column = styled(Paper)`
   padding: 20px 24px !important;
   border-radius: 12px !important;
+  min-width: 0;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    padding: 16px !important;
+  }
 `;
 
 // ── Picker ───────────────────────────────────────────────────────────────────
@@ -114,6 +130,16 @@ const SpriteCircle = styled.div`
     object-fit: contain;
     image-rendering: pixelated;
   }
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    width: 64px;
+    height: 64px;
+
+    img {
+      width: 52px;
+      height: 52px;
+    }
+  }
 `;
 
 const Name = styled.h2`
@@ -121,6 +147,7 @@ const Name = styled.h2`
   font-weight: 800;
   color: ${({ theme }) => theme.palette.text.primary};
   margin: 0 0 8px;
+  overflow-wrap: anywhere;
 `;
 
 const Types = styled.div`
@@ -153,7 +180,7 @@ const EmptyHint = styled.div`
   min-height: 220px;
   border-radius: 10px;
   border: 2px dashed ${({ theme }) => theme.palette.divider};
-  color: ${({ theme }) => theme.palette.text.disabled};
+  color: ${({ theme }) => theme.palette.text.secondary};
   font-size: 0.85rem;
   margin-top: 12px;
 `;

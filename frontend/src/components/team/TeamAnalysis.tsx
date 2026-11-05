@@ -1,6 +1,7 @@
 import styled from "styled-components";
 import Paper from "@mui/material/Paper";
 import { alpha } from "@mui/material/styles";
+import type { Theme } from "@mui/material/styles";
 import type { Pokemon } from "../../types";
 import { defenseSummary, offensiveCoverage } from "../../utils/teamAnalysis";
 import { TypeBadge } from "../TypeBadge";
@@ -9,7 +10,18 @@ const SectionPaper = styled(Paper)`
   padding: 20px 24px !important;
   margin-bottom: 16px !important;
   border-radius: 12px !important;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    padding: 16px !important;
+  }
 `;
+
+// The .main shades fall under 4.5:1 on the tinted net-weak cells, so the
+// counts use the deeper shade in light mode and the lighter one in dark mode
+const readable = (theme: Theme, color: "error" | "success") =>
+  theme.palette.mode === "dark"
+    ? theme.palette[color].light
+    : theme.palette[color].dark;
 
 const SectionTitle = styled.div`
   font-size: 0.78rem;
@@ -41,7 +53,7 @@ const Hint = styled.p`
 
 const DefenseGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
   gap: 8px;
 `;
 
@@ -68,15 +80,15 @@ const Counts = styled.span`
 `;
 
 const WeakCount = styled.span`
-  color: ${({ theme }) => theme.palette.error.main};
+  color: ${({ theme }) => readable(theme, "error")};
 `;
 
 const ResistCount = styled.span`
-  color: ${({ theme }) => theme.palette.success.main};
+  color: ${({ theme }) => readable(theme, "success")};
 `;
 
 const NeutralCount = styled.span`
-  color: ${({ theme }) => theme.palette.text.disabled};
+  color: ${({ theme }) => theme.palette.text.secondary};
 `;
 
 // ── Coverage ─────────────────────────────────────────────────────────────────

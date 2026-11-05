@@ -11,10 +11,12 @@ import { useGames } from "../hooks/useGames";
 const PageWrapper = styled.div`
   max-width: 900px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 24px;
 
-  @media (min-width: 600px) {
-    padding: 24px;
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    padding: 16px max(16px, env(safe-area-inset-right))
+      max(16px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
   }
 `;
 

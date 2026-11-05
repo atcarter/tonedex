@@ -45,7 +45,7 @@ const Arrow = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: ${({ theme }) => theme.palette.text.disabled};
+  color: ${({ theme }) => theme.palette.text.secondary};
   font-size: 0.68rem;
   text-align: center;
   padding: 0 4px;

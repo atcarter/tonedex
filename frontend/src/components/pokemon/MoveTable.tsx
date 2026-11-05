@@ -58,6 +58,8 @@ const StyledExpandIcon = styled(ExpandMoreIcon)`
 
 const MoveName = styled.span`
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 0.875rem;
   font-weight: 600;
   color: ${({ theme }) => theme.palette.text.primary};
@@ -131,6 +133,11 @@ const HintText = styled.span`
 const EmptyText = styled.span`
   font-size: 0.875rem;
   color: ${({ theme }) => theme.palette.text.secondary};
+`;
+
+// Long lists scroll sideways inside this box, never the page
+const MoveList = styled.div`
+  overflow-x: auto;
 `;
 
 // ── MoveDetail sub-component ─────────────────────────────────────────────────
@@ -224,14 +231,16 @@ export function MoveTable({
   return (
     <>
       <HintText>Click a move to see details</HintText>
-      {moves.map((move, index) => (
-        <MoveRow
-          key={`${move.name}-${index}`}
-          move={move}
-          isExpanded={expandedMove === move.name}
-          onClick={() => onMoveClick(move.name)}
-        />
-      ))}
+      <MoveList data-testid="move-table">
+        {moves.map((move, index) => (
+          <MoveRow
+            key={`${move.name}-${index}`}
+            move={move}
+            isExpanded={expandedMove === move.name}
+            onClick={() => onMoveClick(move.name)}
+          />
+        ))}
+      </MoveList>
     </>
   );
 }
