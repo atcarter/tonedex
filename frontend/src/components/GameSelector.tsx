@@ -176,7 +176,7 @@ export function GameSelector() {
         }}
         displayEmpty
         inputProps={{ "aria-label": "select game" }}
-        MenuProps={{ PaperProps: { sx: { maxHeight: 400 } } }}
+        MenuProps={{ slotProps: { paper: { sx: { maxHeight: 400 } } } }}
       >
         <MenuItem value="" disabled>
           <em>Choose a game</em>

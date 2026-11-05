@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
       return (
-        <Box p={3}>
+        <Box sx={{ p: 3 }}>
           <Paper
             sx={{
               p: 3,
@@ -53,13 +53,13 @@ export class ErrorBoundary extends Component<Props, State> {
           >
             <Typography
               variant="h6"
-              fontWeight={700}
               color="error"
               gutterBottom
+              sx={{ fontWeight: 700 }}
             >
               Something went wrong
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
               {this.state.error?.message ?? "An unexpected error occurred."}
             </Typography>
             <Button

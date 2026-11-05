@@ -7,7 +7,7 @@ React 19 + TypeScript SPA built with Vite. Talks to the Rails API at
 
 ## Stack
 
-- **UI:** MUI v7 + styled-components (both consume one theme — see
+- **UI:** MUI v9 + styled-components (both consume one theme — see
   `src/ThemedApp.tsx` and `src/styled.d.ts`); light/dark mode
 - **Server state:** TanStack React Query v5 — focused hooks in `src/hooks/`
   (see ADR-007); client state lives in `AppContext` (auth + selected game)

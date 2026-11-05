@@ -45,8 +45,8 @@ function Logo() {
   return (
     <Typography
       variant="h6"
-      fontWeight={800}
       sx={{
+        fontWeight: 800,
         letterSpacing: 2,
         flexShrink: 0,
         fontSize: "1.1rem",
