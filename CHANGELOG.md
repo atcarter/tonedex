@@ -9,6 +9,8 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 ### Infrastructure
 - **Deployed:** production runs on Render, region ohio, with every resource declared in Terraform under `infra/render` (`render-oss/render` provider, ADR-008): the `tonedex-api` web service (Docker, Thruster on `HTTP_PORT` 10000, `/up` health check, `db:migrate` before each deploy), the `tonedex-worker` Sidekiq worker, the `tonedex-web` static site (SPA rewrite, security headers, report-only CSP), `tonedex-db` (Postgres 15, private network only), `tonedex-redis` (Key Value, free plan, `noeviction`) and the `tonedex-backend` env group the api and worker share. `plan` and `apply` are run by hand; state is local and gitignored. The first seed copied the development `api_caches` table in, so it made no PokeAPI calls.
 
+- **Fix:** `infra/render` declares the ToneDex project and its Production environment and places every resource in it, matching the dashboard, so `apply` no longer tries to move services out of the environment. An existing stack imports the project once before its next apply (see `infra/render/README.md`).
+
 ### Backend
 - **Fix:** production boots from a single `DATABASE_URL`. `config/database.yml` has one `production` entry, `solid_cache` and its schema are gone, and the cache store is `:memory_store`.
 
