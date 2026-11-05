@@ -56,11 +56,14 @@ const DefenseGrid = styled.div`
   gap: 8px;
 `;
 
+// Counts drop under the badge when the cell is too narrow for both
 const DefenseCell = styled.div<{ $netWeak: boolean }>`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px 8px;
+  min-width: 0;
   padding: 6px 10px;
   border-radius: 8px;
   border: 1px solid
@@ -74,8 +77,12 @@ const Counts = styled.span`
   font-size: 0.75rem;
   font-weight: 700;
   display: flex;
-  gap: 8px;
-  white-space: nowrap;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+
+  & > span {
+    white-space: nowrap;
+  }
 `;
 
 const WeakCount = styled.span`
@@ -134,7 +141,11 @@ export function TeamAnalysis({ team }: TeamAnalysisProps) {
         </Hint>
         <DefenseGrid>
           {defense.map((row) => (
-            <DefenseCell key={row.type} $netWeak={row.weak > row.resist}>
+            <DefenseCell
+              key={row.type}
+              $netWeak={row.weak > row.resist}
+              data-testid="defense-cell"
+            >
               <TypeBadge type={row.type} size="small" />
               <Counts>
                 {row.weak > 0 ? (

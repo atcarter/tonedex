@@ -178,6 +178,9 @@ test.describe("Phone width: pages fit the viewport", () => {
     await expect(page.getByTestId("team-slot")).toHaveCount(6);
     await expect(page.getByText("Defensive Overview")).toBeVisible();
 
+    // A full team starts with the picker collapsed
+    await page.getByRole("button", { name: "Show picker" }).click();
+    await expect(page.getByLabel("Add a Pokémon")).toBeVisible();
     const picker = await page.getByLabel("Add a Pokémon").boundingBox();
     const main = await page.locator("main").boundingBox();
     expect(picker && main).toBeTruthy();
