@@ -45,7 +45,7 @@ Browser
         └── Background jobs (Sidekiq, Redis db 0)
               ├── SeedGamePokemonJob    — triggered on first game load (lazy seeding)
               ├── SeedNationalDexJob    — fills every game's national view in one pass
-              ├── SeedAllPokemonJob     — seeds all Pokémon base data
+              ├── SeedAllPokemonJob     — enqueues SeedGamePokemonJob for every game without a regional dex, through the per-game lock
               └── MirrorSpriteJob       — mirrors a new Pokémon's sprites
 
 PostgreSQL
@@ -73,6 +73,10 @@ Server state and UI state are deliberately separated:
 | Team | `useTeam` (localStorage) | Per-game scratch team, usable signed-out |
 
 See ADR-007 for the full rationale.
+
+### Game Switching
+
+The URL is the source of truth for the selected game (ADR-005). Switching games keeps the current page where it can: the team builder stays on `/game/<new>/team`, and a detail page stays on that Pokémon when the detail endpoint returns a `pokedex_number` for it in the new game (fetched under the detail page's own query key, so it renders from cache); otherwise the switch goes to the new game's dex. The `?dex=` view carries over.
 
 ### Query Key Conventions
 
@@ -142,8 +146,8 @@ Pool size = concurrency per process. In production, web and worker run as separa
 - **CORS**: `CORS_ORIGINS` env var (required in production). Comma-separated for multi-domain. Defaults to `http://localhost:5173` in development.
 - **Rate limiting**: `Rack::Attack` — 300 req/5min (general API), 10 req/min (auth), 15 req/min (search, which can reach PokeAPI). Throttle counters are stored in Redis. There's deliberately no games throttle: `SeedGamePokemonJob.enqueue_once` prevents duplicate seeding instead.
 - **Secrets**: `master.key`, `credentials.yml.enc` and the real env files (`.env.local`, `.env.production`) are gitignored. Production secrets live in the `tonedex-backend` env group, set from Terraform variables, and in the local Terraform state, which holds them in plain text and is gitignored too.
-- **Transport and headers**: production forces SSL (HSTS, secure cookies) and checks Host headers against `ALLOWED_HOSTS` when it's set. Rails sends no Content Security Policy: API-only apps leave out that middleware. The Sidekiq UI, the only HTML it serves, sets its own. The SPA's headers, including a report-only CSP, come from the static site (see Deployment).
-- **Scanning**: CI runs Brakeman and bundler-audit. GitHub secret scanning is on for the repository.
+- **Transport and headers**: production forces SSL (HSTS, secure cookies) and checks Host headers against `ALLOWED_HOSTS` when it's set. Rails sends no Content Security Policy: API-only apps leave out that middleware. The Sidekiq UI, the only HTML it serves, sets its own. The SPA's headers, including an enforcing CSP, come from the static site (see Deployment).
+- **Scanning**: CI runs Brakeman and bundler-audit. GitHub secret scanning is on for the repository, and Dependabot opens weekly update pull requests for the gems, npm packages, GitHub Actions and the backend's Ruby base image.
 
 ---
 
@@ -153,9 +157,10 @@ Production runs on Render, region ohio, and every resource is declared in Terraf
 
 | Render name | Kind | Runs |
 |---|---|---|
+| `ToneDex` | Project | Holds every resource below in its one environment, `Production` (unprotected). Created in the dashboard, so an existing stack imports it into Terraform state once ([`infra/render/README.md`](infra/render/README.md#importing-the-tonedex-project)) |
 | `tonedex-api` | Web service, Docker | `backend/Dockerfile`'s production stage: Thruster on `HTTP_PORT` 10000 in front of Puma. Health check `/up`; `./bin/rails db:migrate` runs before each deploy |
 | `tonedex-worker` | Background worker, Docker | `bundle exec sidekiq` from the same image |
-| `tonedex-web` | Static site | `npm ci && npm run build` in `frontend/`, publishing `dist`. Rewrites every path to `index.html` for deep links, and sends `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` and `Content-Security-Policy-Report-Only` |
+| `tonedex-web` | Static site | `npm ci && npm run build` in `frontend/`, publishing `dist`. Rewrites every path to `index.html` for deep links, and sends `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` and an enforcing `Content-Security-Policy` |
 | `tonedex-db` | Postgres 15 | Private network only (empty IP allow list) |
 | `tonedex-redis` | Key Value, free plan | `noeviction`, so queued Sidekiq jobs are never evicted. Private network only |
 | `tonedex-backend` | Env group | Linked to the api and worker: `DATABASE_URL`, `REDIS_URL`, `SECRET_KEY_BASE`, `JWT_SECRET`, the Google OAuth values, `SIDEKIQ_ALLOWED_EMAIL`, `CORS_ORIGINS`, `ALLOWED_HOSTS` and the optional `SENTRY_DSN` |
@@ -178,6 +183,8 @@ The api, worker, database and Key Value all run in region ohio; the database and
 - **Concurrency** matches Concurrency & Connection Pools: the api sets `RAILS_MAX_THREADS=3` and `DB_POOL=3`, the worker `SIDEKIQ_CONCURRENCY=5` and `DB_POOL=5`.
 - **Seeding** runs in `tonedex-worker`, as in development (ADR-002). The first production seed copied the development `api_caches` table in, so it made no PokeAPI calls.
 - **CI** gates `main` with five required checks: `backend`, `frontend`, `e2e` and `backend-image` from `ci.yml`, and `terraform.yml`'s fmt and validate job. `backend-image` builds the production image and waits for `/up` to answer 200 against real Postgres and Redis. The Terraform job has no credentials and never plans or applies.
+- **Deploys wait for CI.** The api, worker and static site set `auto_deploy_trigger = "checksPass"`, so Render deploys a commit on `main` only after every GitHub check on it passes.
+- **Smoke tests** run against production from `.github/workflows/smoke.yml`, weekly (Sundays 14:17 UTC) and on demand. The Playwright suite in `frontend/e2e-smoke` is read-only: `/up`, the games list, a dex and a detail page, and `csp.spec.ts`, which loads every route at desktop and phone widths and fails on any CSP violation. It isn't part of the deploy gate.
 
 ---
 

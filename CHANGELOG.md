@@ -13,23 +13,33 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 - **New:** page one of either view carries the whole view's `pokemon_ids` and `dex_numbers`; list rows and the detail page carry `mythical`; `GET /api/v1/pokemon/:id?game_id=&dex=national` returns the national number.
 - **Refactor:** the seed jobs share an `EnqueueOnce` concern for their Redis lock. The regional trigger and `SeedAllPokemonJob` look at regional rows only.
 - **Sprites:** the 29 species no game had listed before (Xerneas, Yveltal, Meltan, Melmetal, Kubfu through Calyrex, Walking Wake through Pecharunt) are mirrored and committed.
+- **Fix:** `SeedAllPokemonJob` enqueues each game through `SeedGamePokemonJob.enqueue_once`, so the per-game lock is held from the fan-out on and a visitor can't start a second crawl of the same game.
+- **Chore:** the Ruby base image moves from 3.3.3-slim to 3.3.13-slim (Debian 13), the base stage runs `apt-get upgrade`, and `backend/.ruby-version` matches. Every outdated gem is updated, including Puma 8, sentry-ruby 7, redis 6 and Sidekiq 8.1.7. Dependabot watches the Dockerfile and groups minor and patch updates into one weekly PR per ecosystem.
 
 ### Frontend
 - **New:** a Regional/National toggle on the game page and the team builder, kept in the URL as `?dex=national` and carried onto detail links and game switches. The query key is `["game", gameId, dex]`.
 - **New:** a Mythical label on cards and the detail header.
 - **Fix:** the caught counter counts only caught Pokémon in the list shown, so national-only catches don't inflate the regional total. Dex-section jumps bucket the numbers actually present, which are sparse in the national view.
+- **New:** phone layouts. Below the `sm` breakpoint the header is one 56px row (logo, game selector, a search button and an account menu holding favorites, color mode and sign-in) that hides on scroll down; the dex is a three-column grid of equal-size compact cards with sideways-scrolling filter and jump rows; and the detail, compare, team, favorites and 404 pages fit 375px.
+- **New:** switching games keeps the page. The team builder stays on the team builder, and a detail page stays on its Pokémon when the new game's dex has it; otherwise the switch opens the new game's dex.
+- **New:** the team builder's picker collapses when the team fills and has a Show/Hide toggle, and team slots link to the member's detail page. The defensive overview groups attacking types into Weak, Resists and Immune rows with the sprites of the members each affects (4× and ¼× marked), and the offensive check reads "No strong attack against:".
+- **Accessibility:** `e2e/a11y.spec.ts` runs axe on the detail, compare, team, favorites and 404 pages at desktop and phone widths, with no exclusions. Header search is a named combobox, the game select and card toggles are named, and card toggles expose `aria-pressed`.
+- **Chore:** build, test and lint tooling majors: Vite 8, `@vitejs/plugin-react` 6, Vitest 5, jsdom 30, `@testing-library/jest-dom` 7, ESLint 10. The dev image moves to Node 22, matching CI and Render. npm packages are also updated within range, clearing the Dependabot alerts.
 
 ### Docs
 - ADR-009, a status note on ADR-002, and ARCHITECTURE's regional and national data flow, columns and query keys.
+- **Refresh:** README and ARCHITECTURE match what has shipped. Both describe the CSP as enforcing and the deploy gate; ARCHITECTURE lists the ToneDex project and Production environment, game switching, the smoke suite and `SeedAllPokemonJob`'s fan-out. README gains the national view, the team builder changes, phone layouts, the smoke suite, Dependabot, current versions and suite sizes, and drops the Screenshots section, whose images were never committed.
 
 ---
 
 ## 2026-11-04
 
 ### Infrastructure
-- **Deployed:** production runs on Render, region ohio, with every resource declared in Terraform under `infra/render` (`render-oss/render` provider, ADR-008): the `tonedex-api` web service (Docker, Thruster on `HTTP_PORT` 10000, `/up` health check, `db:migrate` before each deploy), the `tonedex-worker` Sidekiq worker, the `tonedex-web` static site (SPA rewrite, security headers, report-only CSP), `tonedex-db` (Postgres 15, private network only), `tonedex-redis` (Key Value, free plan, `noeviction`) and the `tonedex-backend` env group the api and worker share. `plan` and `apply` are run by hand; state is local and gitignored. The first seed copied the development `api_caches` table in, so it made no PokeAPI calls.
+- **Deployed:** production runs on Render, region ohio, with every resource declared in Terraform under `infra/render` (`render-oss/render` provider, ADR-008): the `tonedex-api` web service (Docker, Thruster on `HTTP_PORT` 10000, `/up` health check, `db:migrate` before each deploy), the `tonedex-worker` Sidekiq worker, the `tonedex-web` static site (SPA rewrite, security headers, CSP), `tonedex-db` (Postgres 15, private network only), `tonedex-redis` (Key Value, free plan, `noeviction`) and the `tonedex-backend` env group the api and worker share. `plan` and `apply` are run by hand; state is local and gitignored. The first seed copied the development `api_caches` table in, so it made no PokeAPI calls.
 
 - **Fix:** `infra/render` declares the ToneDex project and its Production environment and places every resource in it, matching the dashboard, so `apply` no longer tries to move services out of the environment. An existing stack imports the project once before its next apply (see `infra/render/README.md`).
+- **New:** deploys wait for CI. `tonedex-api`, `tonedex-worker` and `tonedex-web` set `auto_deploy_trigger = "checksPass"`, so Render deploys a commit on `main` only after its GitHub checks pass; before, every push deployed at once.
+- **Security:** the static site's CSP is enforced: it is sent as `Content-Security-Policy` instead of `Content-Security-Policy-Report-Only`. `frontend/e2e-smoke/csp.spec.ts` loads every route signed out at desktop and phone widths, plus Google sign-in, and fails on any CSP console message; it passed against the report-only header, so the policy needed no new sources.
 
 ### Backend
 - **Fix:** production boots from a single `DATABASE_URL`. `config/database.yml` has one `production` entry, `solid_cache` and its schema are gone, and the cache store is `:memory_store`.
@@ -37,7 +47,7 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 ### CI
 - **New:** the `backend-image` job in `ci.yml` builds the production backend image and waits for `/up` to answer 200 against Postgres and Redis service containers.
 - **New:** `terraform.yml` runs `terraform fmt -check`, `init -backend=false` and `validate` on `infra/`, without credentials. Both workflows' five jobs are required checks on `main`.
-- **New:** a scheduled, read-only Playwright smoke suite against production (`frontend/e2e-smoke`, `.github/workflows/smoke.yml`, run locally with `npm run test:smoke`).
+- **New:** a scheduled, read-only Playwright smoke suite against production (`frontend/e2e-smoke`, `.github/workflows/smoke.yml`, run locally with `npm run test:smoke`). It runs weekly, Sundays 14:17 UTC, and on demand.
 
 ### Docs
 - **README** gains the live URL, a Screenshots section, a Render architecture sketch, suite sizes, a security-posture section and the dev and production `VITE_API_URL` values. **ARCHITECTURE** gains a Deployment section, **CLAUDE.md** a deployment rule (agents never run `plan` or `apply`), and `.env.example` documents the production-only `SECRET_KEY_BASE`, `DATABASE_URL`, `ALLOWED_HOSTS` and `HTTP_PORT`.
