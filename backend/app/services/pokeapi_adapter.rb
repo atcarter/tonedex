@@ -383,16 +383,16 @@ class PokeapiAdapter
     vg_data["versions"].any? { |v| v["name"] == game.name }
   end
 
-  def parse_evolution_chain(chain, evolutions = [])
-    current = {
-      name: chain.dig("species", "name"),
+  def parse_evolution_chain(chain, evolutions = [], evolves_from = nil)
+    name = chain.dig("species", "name")
+    evolutions << {
+      name: name,
+      evolves_from: evolves_from,
       evolution_details: chain["evolution_details"].map { |ed| parse_evolution_details(ed) }
     }
 
-    evolutions << current
-
     chain["evolves_to"].each do |evolution|
-      parse_evolution_chain(evolution, evolutions)
+      parse_evolution_chain(evolution, evolutions, name)
     end
 
     evolutions

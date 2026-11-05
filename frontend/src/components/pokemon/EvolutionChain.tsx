@@ -1,13 +1,21 @@
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 import { alpha } from "@mui/material/styles";
 import type { EvolutionStep } from "../../types";
 import { formatName, formatEvolutionDetails } from "../../utils/formatters";
 
-const Chain = styled.div`
+const Chain = styled.div<{ $branching?: boolean }>`
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
+
+  ${({ $branching }) =>
+    $branching &&
+    css`
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    `}
 
   /* Phones stack stages so a wrapped row never starts with an arrow */
   ${({ theme }) => theme.breakpoints.down("sm")} {
@@ -25,6 +33,20 @@ const Step = styled.div`
     align-items: stretch;
     gap: 4px;
   }
+`;
+
+/* Branching chains: each card keeps its arrow with the evolution it leads to */
+const Branches = styled.div`
+  align-self: stretch;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+`;
+
+const Branch = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 `;
 
 const Pokemon = styled.div<{ $isCurrent: boolean; $clickable: boolean }>`
@@ -58,7 +80,17 @@ const Pokemon = styled.div<{ $isCurrent: boolean; $clickable: boolean }>`
   }
 `;
 
-const Arrow = styled.div`
+const downArrow = css`
+  flex-direction: row;
+  justify-content: center;
+  gap: 6px;
+
+  .arrow {
+    transform: rotate(90deg);
+  }
+`;
+
+const Arrow = styled.div<{ $down?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -74,14 +106,10 @@ const Arrow = styled.div`
     line-height: 1;
   }
 
-  ${({ theme }) => theme.breakpoints.down("sm")} {
-    flex-direction: row;
-    justify-content: center;
-    gap: 6px;
+  ${({ $down }) => $down && downArrow}
 
-    .arrow {
-      transform: rotate(90deg);
-    }
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    ${downArrow}
   }
 `;
 
@@ -98,34 +126,70 @@ interface EvolutionChainProps {
   onSelect: (name: string) => void;
 }
 
+// Branching when some stage evolves into two or more others (Eevee)
+function isBranching(chain: EvolutionStep[]) {
+  const parents = chain.flatMap((step) => step.evolves_from ?? []);
+  return new Set(parents).size < parents.length;
+}
+
 export function EvolutionChain({
   chain,
   currentName,
   onSelect,
 }: EvolutionChainProps) {
+  const stage = (step: EvolutionStep) => {
+    const isCurrent = step.name === currentName;
+    return (
+      <Pokemon
+        data-testid="evolution-stage"
+        $isCurrent={isCurrent}
+        $clickable={!isCurrent}
+        onClick={() => onSelect(step.name)}
+      >
+        <Name $isCurrent={isCurrent}>{formatName(step.name)}</Name>
+      </Pokemon>
+    );
+  };
+
+  const arrow = (step: EvolutionStep, down: boolean, from?: string | null) => (
+    <Arrow data-testid="evolution-arrow" $down={down}>
+      <span className="arrow">→</span>
+      <span>
+        {formatEvolutionDetails(step.evolution_details[0])}
+        {from && ` (from ${formatName(from)})`}
+      </span>
+    </Arrow>
+  );
+
+  if (isBranching(chain)) {
+    const [base, ...rest] = chain;
+    return (
+      <Chain data-testid="evolution-chain" $branching>
+        {stage(base)}
+        <Branches>
+          {rest.map((step) => (
+            <Branch key={step.name} data-testid="evolution-branch">
+              {arrow(
+                step,
+                true,
+                step.evolves_from !== base.name ? step.evolves_from : null,
+              )}
+              {stage(step)}
+            </Branch>
+          ))}
+        </Branches>
+      </Chain>
+    );
+  }
+
   return (
     <Chain data-testid="evolution-chain">
-      {chain.map((step, index) => {
-        const isCurrent = step.name === currentName;
-        return (
-          <Step key={step.name}>
-            {index > 0 && (
-              <Arrow>
-                <span className="arrow">→</span>
-                <span>{formatEvolutionDetails(step.evolution_details[0])}</span>
-              </Arrow>
-            )}
-            <Pokemon
-              data-testid="evolution-stage"
-              $isCurrent={isCurrent}
-              $clickable={!isCurrent}
-              onClick={() => onSelect(step.name)}
-            >
-              <Name $isCurrent={isCurrent}>{formatName(step.name)}</Name>
-            </Pokemon>
-          </Step>
-        );
-      })}
+      {chain.map((step, index) => (
+        <Step key={step.name}>
+          {index > 0 && arrow(step, false)}
+          {stage(step)}
+        </Step>
+      ))}
     </Chain>
   );
 }

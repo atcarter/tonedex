@@ -814,6 +814,11 @@ RSpec.describe PokeapiAdapter do
         result = adapter.evolution_chain_for(pokemon)
         expect(result[0][:evolution_details]).to be_empty
       end
+
+      it "links each stage to the species it evolves from" do
+        result = adapter.evolution_chain_for(pokemon)
+        expect(result.map { |e| e[:evolves_from] }).to eq([nil, "bulbasaur", "ivysaur"])
+      end
     end
 
     context "with a branching chain (eevee)" do
@@ -828,6 +833,13 @@ RSpec.describe PokeapiAdapter do
         result = adapter.evolution_chain_for(pokemon)
         vaporeon = result.find { |e| e[:name] == "vaporeon" }
         expect(vaporeon[:evolution_details].first).to include(trigger: "use-item", item: "water-stone")
+      end
+
+      it "links every branch to the base species" do
+        result = adapter.evolution_chain_for(pokemon)
+        expect(result.to_h { |e| [e[:name], e[:evolves_from]] }).to eq(
+          "eevee" => nil, "vaporeon" => "eevee", "flareon" => "eevee"
+        )
       end
     end
   end

@@ -5,38 +5,35 @@ const API = "http://localhost:3000";
 
 const lv = (min_level: number) => [{ trigger: "level-up", min_level }];
 const stone = (item: string) => [{ trigger: "use-item", item }];
+const happiness = [{ trigger: "level-up", min_happiness: 160 }];
+const step = (
+  name: string,
+  evolves_from: string | null = null,
+  evolution_details: unknown[] = [],
+) => ({ name, evolves_from, evolution_details });
 
 // One chain per shape: single, two and three stage, and branching
-const CHAINS: Record<string, { name: string; evolution_details: unknown[] }[]> =
-  {
-    tauros: [{ name: "tauros", evolution_details: [] }],
-    wingull: [
-      { name: "wingull", evolution_details: [] },
-      { name: "pelipper", evolution_details: lv(25) },
-    ],
-    sprigatito: [
-      { name: "sprigatito", evolution_details: [] },
-      { name: "floragato", evolution_details: lv(16) },
-      { name: "meowscarada", evolution_details: lv(36) },
-    ],
-    eevee: [
-      { name: "eevee", evolution_details: [] },
-      { name: "vaporeon", evolution_details: stone("water-stone") },
-      { name: "jolteon", evolution_details: stone("thunder-stone") },
-      { name: "flareon", evolution_details: stone("fire-stone") },
-      {
-        name: "espeon",
-        evolution_details: [{ trigger: "level-up", min_happiness: 160 }],
-      },
-      {
-        name: "umbreon",
-        evolution_details: [{ trigger: "level-up", min_happiness: 160 }],
-      },
-      { name: "leafeon", evolution_details: stone("leaf-stone") },
-      { name: "glaceon", evolution_details: stone("ice-stone") },
-      { name: "sylveon", evolution_details: [{ trigger: "level-up" }] },
-    ],
-  };
+const CHAINS: Record<string, ReturnType<typeof step>[]> = {
+  tauros: [step("tauros")],
+  wingull: [step("wingull"), step("pelipper", "wingull", lv(25))],
+  sprigatito: [
+    step("sprigatito"),
+    step("floragato", "sprigatito", lv(16)),
+    step("meowscarada", "floragato", lv(36)),
+  ],
+  eevee: [
+    step("eevee"),
+    step("vaporeon", "eevee", stone("water-stone")),
+    step("jolteon", "eevee", stone("thunder-stone")),
+    step("flareon", "eevee", stone("fire-stone")),
+    step("espeon", "eevee", happiness),
+    step("umbreon", "eevee", happiness),
+    step("leafeon", "eevee", stone("leaf-stone")),
+    step("glaceon", "eevee", stone("ice-stone")),
+    step("sylveon", "eevee", [{ trigger: "level-up" }]),
+  ],
+};
+const LINEAR = ["tauros", "wingull", "sprigatito"];
 
 async function mockChain(page: Page, name: string) {
   await mockPublicGameRoutes(page);
@@ -84,27 +81,78 @@ async function measure(page: Page) {
       stages: [
         ...chain.querySelectorAll('[data-testid="evolution-stage"]'),
       ].map(box),
+      // Each arrow with the stage it points to and whether one card holds both
+      arrows: [
+        ...chain.querySelectorAll('[data-testid="evolution-arrow"]'),
+      ].map((arrow) => {
+        const stages = [
+          ...chain.querySelectorAll('[data-testid="evolution-stage"]'),
+        ];
+        const target = stages.find(
+          (s) =>
+            arrow.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING,
+        )!;
+        const card = arrow.closest('[data-testid="evolution-branch"]');
+        const a = arrow.getBoundingClientRect();
+        const t = target.getBoundingClientRect();
+        return {
+          sameCard: !!card && card.contains(target),
+          center: (a.left + a.right) / 2,
+          bottom: a.bottom,
+          target: { left: t.left, right: t.right, top: t.top },
+        };
+      }),
+      branches: [
+        ...chain.querySelectorAll('[data-testid="evolution-branch"]'),
+      ].map(box),
       pageWidth: document.documentElement.scrollWidth,
     };
   });
 }
 
+type Measured = Awaited<ReturnType<typeof measure>>;
+
+function expectInsideSection(m: Measured) {
+  expect(m.overflow).toBe(0);
+  for (const part of m.parts) {
+    expect(part.left).toBeGreaterThanOrEqual(m.content.left - 0.5);
+    expect(part.right).toBeLessThanOrEqual(m.content.right + 0.5);
+  }
+}
+
+// Eevee: the base stage, then a grid of cards that each hold an arrow and its target
+function expectBranchGrid(m: Measured) {
+  const [base, ...targets] = m.stages;
+  expect(m.branches).toHaveLength(targets.length);
+  expect(m.arrows).toHaveLength(targets.length);
+  for (const arrow of m.arrows) {
+    expect(arrow.sameCard).toBe(true);
+    expect(arrow.target.top).toBeGreaterThanOrEqual(arrow.bottom);
+    expect(arrow.center).toBeGreaterThan(arrow.target.left);
+    expect(arrow.center).toBeLessThan(arrow.target.right);
+  }
+  // The grid wraps, and every row starts at the section's left edge
+  const tops = [...new Set(m.branches.map((b) => Math.round(b.top)))];
+  expect(tops.length).toBeGreaterThan(1);
+  for (const top of tops) {
+    const row = m.branches.filter((b) => Math.round(b.top) === top);
+    expect(Math.min(...row.map((b) => b.left))).toBeCloseTo(m.content.left, 0);
+  }
+  expect(Math.min(...m.branches.map((b) => b.top))).toBeGreaterThan(base.top);
+}
+
 test.describe("Evolution chain at phone width", () => {
   test.use({ viewport: { width: 375, height: 812 }, isMobile: true });
 
-  for (const name of Object.keys(CHAINS)) {
+  for (const name of LINEAR) {
     test(`${name} stacks its stages inside the section`, async ({ page }) => {
       await openChain(page, name);
       const m = await measure(page);
 
       expect(m.pageWidth).toBe(375);
-      expect(m.overflow).toBe(0);
       // 375 minus the page's and the Paper's 16px side padding
       expect(m.content.right - m.content.left).toBe(375 - 64);
-      for (const part of m.parts) {
-        expect(part.left).toBeGreaterThanOrEqual(m.content.left - 0.5);
-        expect(part.right).toBeLessThanOrEqual(m.content.right + 0.5);
-      }
+      expectInsideSection(m);
       // Every card spans the section, one per row, in chain order
       m.stages.forEach((stage, i) => {
         expect(stage.left).toBeCloseTo(m.content.left, 0);
@@ -113,6 +161,17 @@ test.describe("Evolution chain at phone width", () => {
       });
     });
   }
+
+  test("eevee lays its branches out as cards inside the section", async ({
+    page,
+  }) => {
+    await openChain(page, "eevee");
+    const m = await measure(page);
+
+    expect(m.pageWidth).toBe(375);
+    expectInsideSection(m);
+    expectBranchGrid(m);
+  });
 });
 
 test.describe("Evolution chain at desktop width", () => {
@@ -124,13 +183,16 @@ test.describe("Evolution chain at desktop width", () => {
       const m = await measure(page);
 
       expect(m.pageWidth).toBe(1280);
-      expect(m.overflow).toBe(0);
-      for (const part of m.parts) {
-        expect(part.left).toBeGreaterThanOrEqual(m.content.left - 0.5);
-        expect(part.right).toBeLessThanOrEqual(m.content.right + 0.5);
-      }
+      expectInsideSection(m);
     });
   }
+
+  test("eevee wraps its branches as cards, never a bare arrow", async ({
+    page,
+  }) => {
+    await openChain(page, "eevee");
+    expectBranchGrid(await measure(page));
+  });
 
   test("a three-stage chain stays on one row", async ({ page }) => {
     await openChain(page, "sprigatito");
