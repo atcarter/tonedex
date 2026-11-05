@@ -12,7 +12,7 @@ const step = (
   evolution_details: unknown[] = [],
 ) => ({ name, evolves_from, evolution_details });
 
-// One chain per shape: single, two and three stage, and branching
+// One chain per shape: single, two and three stage, branching, and branching past the base
 const CHAINS: Record<string, ReturnType<typeof step>[]> = {
   tauros: [step("tauros")],
   wingull: [step("wingull"), step("pelipper", "wingull", lv(25))],
@@ -31,6 +31,12 @@ const CHAINS: Record<string, ReturnType<typeof step>[]> = {
     step("leafeon", "eevee", stone("leaf-stone")),
     step("glaceon", "eevee", stone("ice-stone")),
     step("sylveon", "eevee", [{ trigger: "level-up" }]),
+  ],
+  oddish: [
+    step("oddish"),
+    step("gloom", "oddish", lv(21)),
+    step("vileplume", "gloom", stone("leaf-stone")),
+    step("bellossom", "gloom", stone("sun-stone")),
   ],
 };
 const LINEAR = ["tauros", "wingull", "sprigatito"];
@@ -192,6 +198,19 @@ test.describe("Evolution chain at desktop width", () => {
   }) => {
     await openChain(page, "eevee");
     expectBranchGrid(await measure(page));
+  });
+
+  test("a branch from a later stage names its parent", async ({ page }) => {
+    const chain = await openChain(page, "oddish");
+    const arrowOf = (name: string) =>
+      chain
+        .getByTestId("evolution-branch")
+        .filter({ has: page.getByText(name, { exact: true }) })
+        .getByTestId("evolution-arrow");
+
+    await expect(arrowOf("Gloom")).toHaveText("→Lv. 21");
+    await expect(arrowOf("Vileplume")).toHaveText("→Leaf Stone (from Gloom)");
+    await expect(arrowOf("Bellossom")).toHaveText("→Sun Stone (from Gloom)");
   });
 
   test("a three-stage chain stays on one row", async ({ page }) => {
