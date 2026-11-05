@@ -91,7 +91,7 @@ This deletes every resource above, including the database and all its data, and 
 
 ## Content Security Policy
 
-The static site sends `Content-Security-Policy-Report-Only`, which logs violations in the browser console but blocks nothing. Terraform builds the value in `main.tf` (`local.content_security_policy`) from the api URL and the Sentry ingest origin, which comes from `vite_sentry_dsn` (an empty DSN adds no source):
+The static site sends an enforcing `Content-Security-Policy`: the browser blocks anything the policy doesn't allow and logs each block as a console error. Terraform builds the value in `main.tf` (`local.content_security_policy`) from the api URL and the Sentry ingest origin, which comes from `vite_sentry_dsn` (an empty DSN adds no source):
 
 ```
 default-src 'self'; script-src 'self' https://accounts.google.com; frame-src https://accounts.google.com; connect-src 'self' <api url> https://accounts.google.com <sentry ingest origin>; img-src 'self' data: <api url> https://raw.githubusercontent.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
@@ -106,12 +106,20 @@ Why each non-`'self'` source is there:
 - **The api URL** in `img-src`: the API serves the mirrored sprites from `backend/public/sprites`.
 - **The api URL and the Sentry ingest origin** in `connect-src`: the SPA's API calls and Sentry's error reports.
 
-### Switching to enforcing
+### Enforcing
 
-1. After a deploy, open the site with the browser console open and click through everything: sign in and out, pick a game, browse the dex, search (including an unknown name), open Pokémon and move details, and make sure an avatar and a fallback sprite both load.
-2. Fix any `[Report Only]` violation by adding the missing source to `local.content_security_policy` in `main.tf`. Apply and repeat until a full click-through is clean.
-3. In the `headers` list of `render_static_site.web`, rename `Content-Security-Policy-Report-Only` to `Content-Security-Policy`, then `terraform apply`.
-4. Click through once more. Anything the policy now blocks shows as a console error rather than a warning.
+The policy is enforced, so a missing source breaks the feature that needs it rather than only logging a warning. `frontend/e2e-smoke/csp.spec.ts`, part of the production smoke suite, checks it: signed out, at desktop and phone (375×812) widths, it loads each route (`/`, a game's dex, a Pokémon's detail page, `/compare`, a game's team, `/favorites` and an unknown path), loads Google sign-in, and fails on any console message that mentions "Content Security Policy".
+
+Before changing `local.content_security_policy`:
+
+1. Run the spec against production from `frontend/`:
+
+   ```bash
+   SMOKE_BASE_URL=https://tonedex-web.onrender.com SMOKE_API_URL=https://tonedex-api.onrender.com npm run test:smoke
+   ```
+
+2. Add a source as the exact origin a violation names, not a wildcard, then `terraform apply` and run the spec again.
+3. The spec runs signed out, so after an apply also click through the signed-in flows with the browser console open: sign in and out, check that the avatar loads, and use the pages that need an account.
 
 The CSP belongs on the static host because Rails, as an API-only app, sends none.
 
