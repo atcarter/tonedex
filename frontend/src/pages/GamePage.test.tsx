@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ThemeProvider as SCThemeProvider } from "styled-components";
 import { ThemeProvider } from "@mui/material/styles";
 import { GamePage } from "./GamePage";
@@ -53,13 +53,23 @@ const POKEMONS: Pokemon[] = [
   },
 ];
 
-function gamePage(pokemons: Pokemon[], overrides = {}): GameResponse {
+const range = (from: number, to: number) =>
+  Array.from({ length: to - from + 1 }, (_, i) => from + i);
+
+// A regional dex numbered 1..total unless overridden
+function gamePage(
+  pokemons: Pokemon[],
+  overrides: Partial<GameResponse> = {},
+): GameResponse {
+  const total = overrides.pagination?.total ?? 400;
   return {
     game: { id: 1, name: "scarlet", generation: 9, region: "paldea" },
     pokemons,
     available_types: ["grass", "fire", "water", "fighting", "electric"],
+    pokemon_ids: range(1, total),
+    dex_numbers: range(1, total),
     pagination: {
-      total: 400,
+      total,
       limit: 40,
       offset: 0,
       has_more: false,
@@ -69,22 +79,28 @@ function gamePage(pokemons: Pokemon[], overrides = {}): GameResponse {
   };
 }
 
+function LocationProbe() {
+  const { search } = useLocation();
+  return <div data-testid="search">{search}</div>;
+}
+
 function setup({
   pages = [gamePage(POKEMONS)],
   hasNextPage = false,
   route = "/game/1",
+  caught = [] as { id: number; pokemon_id: number; game_id: number }[],
 } = {}) {
   const fetchNextPage = vi.fn();
   mockUseAppContext.mockReturnValue({
     setSelectedGame: vi.fn(),
-    currentUser: null,
+    currentUser: { id: 1 },
   } as unknown as ReturnType<typeof useAppContext>);
   mockUseGames.mockReturnValue({ data: [] } as unknown as ReturnType<
     typeof useGames
   >);
-  mockUseCaughtPokemons.mockReturnValue({ data: [] } as unknown as ReturnType<
-    typeof useCaughtPokemons
-  >);
+  mockUseCaughtPokemons.mockReturnValue({
+    data: caught,
+  } as unknown as ReturnType<typeof useCaughtPokemons>);
   mockUseGame.mockReturnValue({
     data: { pages, pageParams: [0] },
     isLoading: false,
@@ -102,6 +118,7 @@ function setup({
           <Routes>
             <Route path="/game/:gameId" element={<GamePage />} />
           </Routes>
+          <LocationProbe />
         </SCThemeProvider>
       </ThemeProvider>
     </MemoryRouter>,
@@ -214,5 +231,113 @@ describe("GamePage filtering", () => {
     });
 
     await waitFor(() => expect(fetchNextPage).toHaveBeenCalled());
+  });
+});
+
+describe("GamePage dex view", () => {
+  it("defaults to the regional view", () => {
+    setup();
+    expect(mockUseGame).toHaveBeenLastCalledWith(1, "regional");
+    expect(screen.getByRole("button", { name: "Regional" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("reads ?dex=national from the URL", () => {
+    setup({ route: "/game/1?dex=national" });
+    expect(mockUseGame).toHaveBeenLastCalledWith(1, "national");
+    expect(screen.getByRole("button", { name: "National" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("switches views through the URL and drops the loaded depth", () => {
+    setup({ route: "/game/1?loaded=80" });
+
+    fireEvent.click(screen.getByRole("button", { name: "National" }));
+    expect(screen.getByTestId("search")).toHaveTextContent("?dex=national");
+    expect(mockUseGame).toHaveBeenLastCalledWith(1, "national");
+
+    fireEvent.click(screen.getByRole("button", { name: "Regional" }));
+    expect(screen.getByTestId("search")).toBeEmptyDOMElement();
+  });
+
+  it("carries the view onto the team builder link", () => {
+    setup({ route: "/game/1?dex=national" });
+    expect(screen.getByRole("link", { name: "Team builder" })).toHaveAttribute(
+      "href",
+      "/game/1/team?dex=national",
+    );
+  });
+
+  it("counts only caught Pokémon in the list being shown", () => {
+    setup({
+      pages: [
+        gamePage(POKEMONS, {
+          pokemon_ids: [1, 2, 3],
+          pagination: {
+            total: 3,
+            limit: 40,
+            offset: 0,
+            has_more: false,
+            seeding: false,
+          },
+        }),
+      ],
+      caught: [
+        { id: 10, pokemon_id: 1, game_id: 1 },
+        // National-only catch: not in this list
+        { id: 11, pokemon_id: 151, game_id: 1 },
+      ],
+    });
+    expect(screen.getByText(/1 \/ 3 caught/)).toBeInTheDocument();
+  });
+
+  it("builds quick-jump sections from the national numbers present", () => {
+    const numbers = [...range(1, 60), ...range(120, 179), 900];
+    setup({
+      route: "/game/1?dex=national",
+      pages: [
+        gamePage(POKEMONS, {
+          dex_numbers: numbers,
+          pagination: {
+            total: numbers.length,
+            limit: 40,
+            offset: 0,
+            has_more: false,
+            seeding: false,
+          },
+        }),
+      ],
+    });
+
+    const jumps = screen
+      .getAllByRole("button", { name: /^\d+–\d+$/ })
+      .map((b) => b.textContent);
+    expect(jumps).toEqual(["1–50", "51–60", "120–150", "151–900"]);
+  });
+
+  it("explains the national seeding wait", () => {
+    setup({
+      route: "/game/1?dex=national",
+      pages: [
+        gamePage([], {
+          pokemon_ids: [],
+          dex_numbers: [],
+          pagination: {
+            total: 0,
+            limit: 40,
+            offset: 0,
+            has_more: false,
+            seeding: true,
+          },
+        }),
+      ],
+    });
+    expect(
+      screen.getByText(/national dex is being built/i),
+    ).toBeInTheDocument();
   });
 });

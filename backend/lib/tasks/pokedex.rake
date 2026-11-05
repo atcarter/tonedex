@@ -16,6 +16,15 @@ namespace :pokedex do
     puts "Enqueued full re-seed — monitor progress at /sidekiq"
   end
 
+  desc "Seed every game's national view in one background pass (FORCE=1 reseeds all games)"
+  task seed_national: :environment do
+    if SeedNationalDexJob.enqueue_once(force: ENV["FORCE"].present?)
+      puts "Enqueued SeedNationalDexJob — monitor progress at /sidekiq"
+    else
+      puts "A national seed is already enqueued or running"
+    end
+  end
+
   desc "Seed everything: game metadata + Pokemon (run this on first deploy)"
   task seed: [:seed_games, :seed_pokemon]
 

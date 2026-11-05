@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ThemeProvider as SCThemeProvider } from "styled-components";
 import { ThemeProvider } from "@mui/material/styles";
 import type { ReactNode } from "react";
@@ -41,11 +41,21 @@ const USER: User = { id: 1, email: "t@e.com", name: "T", avatar_url: "" };
 
 const theme = buildTheme("light");
 
+function LocationProbe() {
+  const { pathname, search } = useLocation();
+  return <div data-testid="location">{pathname + search}</div>;
+}
+
 function renderCard(ui: ReactNode) {
   return render(
     <MemoryRouter>
       <ThemeProvider theme={theme}>
-        <SCThemeProvider theme={theme}>{ui}</SCThemeProvider>
+        <SCThemeProvider theme={theme}>
+          <Routes>
+            <Route path="*" element={ui} />
+          </Routes>
+          <LocationProbe />
+        </SCThemeProvider>
       </ThemeProvider>
     </MemoryRouter>,
   );
@@ -173,5 +183,26 @@ describe("PokemonCard", () => {
     const { caughtBtn, favoriteBtn } = getButtons();
     expect(caughtBtn).toBeDisabled();
     expect(favoriteBtn).toBeDisabled();
+  });
+
+  it("labels mythical Pokémon", () => {
+    setup();
+    renderCard(<PokemonCard pokemon={{ ...PIKACHU, mythical: true }} />);
+    expect(screen.getByText("Mythical")).toBeInTheDocument();
+  });
+
+  it("has no label for other Pokémon", () => {
+    setup();
+    renderCard(<PokemonCard pokemon={PIKACHU} />);
+    expect(screen.queryByText("Mythical")).not.toBeInTheDocument();
+  });
+
+  it("carries the national view onto the detail link", () => {
+    setup();
+    renderCard(<PokemonCard pokemon={PIKACHU} gameId={1} dex="national" />);
+    fireEvent.click(screen.getByText("Pikachu"));
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      "/game/1/pokemon/pikachu?dex=national",
+    );
   });
 });

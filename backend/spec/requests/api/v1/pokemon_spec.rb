@@ -95,6 +95,24 @@ RSpec.describe "Pokemon API", type: :request do
 
         expect(response.parsed_body["pokemon"]["pokedex_number"]).to eq(4)
       end
+
+      it "numbers by the national dex in the national view" do
+        GamePokemon.create!(game: game, pokemon: pokemon, pokedex_number: 4)
+
+        get "/api/v1/pokemon/#{pokemon.id}", params: {game_id: game.id, dex: "national"}
+
+        expect(response.parsed_body["pokemon"]["pokedex_number"]).to eq(pokemon.pokeapi_id)
+      end
+
+      it "has no regional number for a national-only pokemon" do
+        GamePokemon.create!(game: game, pokemon: pokemon, regional: false)
+
+        get "/api/v1/pokemon/#{pokemon.id}", params: {game_id: game.id}
+        expect(response.parsed_body["pokemon"]["pokedex_number"]).to be_nil
+
+        get "/api/v1/pokemon/#{pokemon.id}", params: {game_id: game.id, dex: "national"}
+        expect(response.parsed_body["pokemon"]["pokedex_number"]).to eq(pokemon.pokeapi_id)
+      end
     end
   end
 

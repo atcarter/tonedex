@@ -23,12 +23,16 @@ export interface Game {
   region: string;
 }
 
+// regional: the game's main in-game dex; national: every species in the game's data
+export type DexView = "regional" | "national";
+
 export interface Pokemon {
   id: number;
   name: string;
   types: string[];
   sprite_url: string;
-  pokedex_number?: number;
+  mythical?: boolean;
+  pokedex_number?: number | null;
   favorite_id?: number;
 }
 
@@ -37,7 +41,7 @@ export interface Pagination {
   limit: number;
   offset: number;
   has_more: boolean;
-  seeding?: boolean; // true when DB is empty and a background seed job was just enqueued
+  seeding?: boolean; // true while a background seed job fills this view
 }
 
 export interface PokemonDetail extends Pokemon {
@@ -113,7 +117,10 @@ export interface PokemonResponse {
 export interface GameResponse {
   game: Game;
   pokemons: Pokemon[];
+  // The next three cover the whole view, but only page one fills them
   available_types: string[];
+  pokemon_ids: number[];
+  dex_numbers: number[]; // in list order
   pagination: Pagination;
 }
 

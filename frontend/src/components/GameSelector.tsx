@@ -1,6 +1,11 @@
 import { useEffect, useRef } from "react";
 import styled from "styled-components";
-import { useNavigate, useMatch, useLocation } from "react-router-dom";
+import {
+  useNavigate,
+  useMatch,
+  useLocation,
+  useSearchParams,
+} from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
@@ -10,6 +15,8 @@ import type { Game } from "../types";
 import { useAppContext } from "../hooks/useAppContext";
 import { useGames } from "../hooks/useGames";
 import { getPokemon } from "../services/api";
+import { pokemonQueryKey } from "../hooks/usePokemon";
+import { parseDexView, dexSearch } from "../hooks/useDexView";
 
 const StyledFormControl = styled(FormControl)`
   min-width: 200px;
@@ -43,6 +50,9 @@ const StyledFormControl = styled(FormControl)`
 export function GameSelector() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
+  // The dex view carries over to the new game
+  const dex = parseDexView(searchParams.get("dex"));
   const { setSelectedGame } = useAppContext();
   const { data: games = [], isLoading, isError, error } = useGames();
   const queryClient = useQueryClient();
@@ -87,25 +97,26 @@ export function GameSelector() {
       navigate(path);
     };
 
-    if (teamMatch) return go(`/game/${game.id}/team`);
+    const search = dexSearch(dex);
+    if (teamMatch) return go(`/game/${game.id}/team${search}`);
 
     const name = detailMatch?.params.pokemonName;
-    if (!name) return go(`/game/${game.id}`);
+    if (!name) return go(`/game/${game.id}${search}`);
 
     try {
       // Same query as usePokemon, so the detail page renders from cache.
       const data = await queryClient.fetchQuery({
-        queryKey: ["pokemon", name, game.id],
-        queryFn: () => getPokemon(name, game.id),
+        queryKey: pokemonQueryKey(name, game.id, dex),
+        queryFn: () => getPokemon(name, game.id, dex),
         staleTime: Infinity,
       });
       go(
         data.pokemon.pokedex_number != null
-          ? `/game/${game.id}/pokemon/${name}`
-          : `/game/${game.id}`,
+          ? `/game/${game.id}/pokemon/${name}${search}`
+          : `/game/${game.id}${search}`,
       );
     } catch {
-      go(`/game/${game.id}`);
+      go(`/game/${game.id}${search}`);
     }
   };
 

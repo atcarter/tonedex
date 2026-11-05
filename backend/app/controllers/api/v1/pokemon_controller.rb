@@ -45,7 +45,7 @@ class Api::V1::PokemonController < ApplicationController
     game = params[:game_id] ? Game.find(params[:game_id]) : nil
 
     render json: {
-      pokemon: PokemonSerializer.details(pokemon, game: game, sprite_base: request.base_url),
+      pokemon: PokemonSerializer.details(pokemon, game: game, dex: params[:dex], sprite_base: request.base_url),
       species: species_info(pokemon),
       moves: moves_for_game(pokemon, game),
       evolution_chain: evolution_chain(pokemon)

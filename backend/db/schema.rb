@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_05_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_05_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -24,11 +24,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_100000) do
   end
 
   create_table "caught_pokemons", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.bigint "game_id", null: false
-    t.bigint "pokemon_id", null: false
-    t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.bigint "pokemon_id", null: false
+    t.bigint "game_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["game_id"], name: "index_caught_pokemons_on_game_id"
     t.index ["pokemon_id"], name: "index_caught_pokemons_on_pokemon_id"
     t.index ["user_id", "pokemon_id", "game_id"], name: "index_caught_pokemons_on_user_pokemon_game", unique: true
@@ -38,9 +38,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_100000) do
   create_table "favorites", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "pokemon_id", null: false
-    t.integer "position"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.integer "position"
     t.index ["pokemon_id"], name: "index_favorites_on_pokemon_id"
     t.index ["user_id", "pokemon_id"], name: "index_favorites_on_user_id_and_pokemon_id", unique: true
     t.index ["user_id", "position"], name: "index_favorites_on_user_id_and_position"
@@ -53,6 +53,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_100000) do
     t.integer "pokedex_number"
     t.bigint "pokemon_id", null: false
     t.datetime "updated_at", null: false
+    t.boolean "regional", default: true, null: false
     t.index ["game_id", "pokemon_id"], name: "index_game_pokemons_on_game_and_pokemon_unique", unique: true
     t.index ["game_id"], name: "index_game_pokemons_on_game_id"
     t.index ["pokemon_id"], name: "index_game_pokemons_on_pokemon_id"
@@ -63,9 +64,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_100000) do
     t.integer "generation"
     t.string "name"
     t.integer "pokeapi_id"
-    t.string "pokedex_name"
     t.string "region"
     t.datetime "updated_at", null: false
+    t.string "pokedex_name"
+    t.datetime "national_seeded_at"
     t.index ["pokeapi_id"], name: "index_games_on_pokeapi_id"
   end
 
@@ -86,12 +88,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_05_100000) do
     t.jsonb "base_stats"
     t.datetime "created_at", null: false
     t.string "name"
-    t.jsonb "past_types", default: []
     t.integer "pokeapi_id"
     t.string "shiny_sprite_url"
     t.string "sprite_url"
     t.jsonb "types"
     t.datetime "updated_at", null: false
+    t.jsonb "past_types", default: []
+    t.boolean "mythical", default: false, null: false
     t.index ["pokeapi_id"], name: "index_pokemons_on_pokeapi_id", unique: true
   end
 

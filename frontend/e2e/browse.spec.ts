@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { mockPublicGameRoutes, SPRIGATITO_DETAIL } from "./fixtures";
+import {
+  GAME_PAGE_RESPONSE,
+  mockPublicGameRoutes,
+  SPRIGATITO_DETAIL,
+} from "./fixtures";
 
 const API = "http://localhost:3000";
 
@@ -45,6 +49,41 @@ test.describe("Unauthenticated browsing", () => {
     await expect(
       page.getByRole("heading", { name: /sprigatito/i }),
     ).toBeVisible();
+  });
+
+  test("the dex toggle switches to the national view", async ({ page }) => {
+    const MEW = {
+      id: 151,
+      name: "mew",
+      types: ["psychic"],
+      sprite_url: "",
+      mythical: true,
+      pokedex_number: 151,
+    };
+    await page.route(`${API}/api/v1/games/1?*dex=national*`, (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...GAME_PAGE_RESPONSE,
+          pokemons: [MEW],
+          pokemon_ids: [MEW.id],
+          dex_numbers: [MEW.pokedex_number],
+        }),
+      }),
+    );
+    await page.goto("/game/1");
+    await expect(page.getByText("Sprigatito")).toBeVisible();
+
+    await page.getByRole("button", { name: "National" }).click();
+
+    await expect(page).toHaveURL(/\/game\/1\?dex=national$/);
+    await expect(page.getByText("Mew")).toBeVisible();
+    await expect(page.getByText("Mythical")).toBeVisible();
+    await expect(page.getByText("Sprigatito")).not.toBeVisible();
+
+    await page.getByText("Mew").click();
+    await expect(page).toHaveURL(/\/game\/1\/pokemon\/mew\?dex=national$/);
   });
 
   test("favorite button is disabled when signed out", async ({ page }) => {

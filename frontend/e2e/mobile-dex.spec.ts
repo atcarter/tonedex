@@ -57,6 +57,8 @@ const GAME_PAGE_RESPONSE = {
   game: GAME,
   pokemons: POKEMONS,
   available_types: TYPES,
+  pokemon_ids: Array.from({ length: 151 }, (_, i) => 100_000 + i),
+  dex_numbers: Array.from({ length: 151 }, (_, i) => i + 1),
   pagination: {
     total: 151,
     limit: 40,

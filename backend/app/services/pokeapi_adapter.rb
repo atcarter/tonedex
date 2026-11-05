@@ -41,8 +41,7 @@ class PokeapiAdapter
     entries = entries.take(limit) if limit
 
     entries.filter_map do |entry|
-      species_url = entry.dig("pokemon_species", "url")
-      species_id = species_url&.split("/")&.compact&.last&.to_i
+      species_id = species_id_from(entry.dig("pokemon_species", "url"))
       pokedex_number = entry["entry_number"]
 
       next unless species_id
@@ -56,9 +55,39 @@ class PokeapiAdapter
     end
   end
 
-  def find_or_create_pokemon(name_or_id)
-    data = @client.pokemon(name_or_id)
+  # National view (ADR-009): a game's set is every species whose learnset names
+  # its version group, plus every species in all of the version group's dexes.
+  # One pass over species, one cached payload at a time. Returns the games covered.
+  def load_national_dexes(games)
+    version_groups = games.to_h { |game| [game.id, version_group_name(game)] }.compact
+    targetable = games.select { |game| version_groups.key?(game.id) }
+    dex_species = version_groups.values.uniq.to_h { |vg| [vg, version_group_dex_species(vg)] }
 
+    national_species_ids.each do |species_id|
+      data = @client.pokemon(species_id)
+      learnset = learnset_version_groups(data)
+      targets = targetable.select do |game|
+        vg = version_groups[game.id]
+        learnset.include?(vg) || dex_species[vg].include?(species_id)
+      end
+      next if targets.empty?
+
+      pokemon = import_pokemon(data)
+      mythical = species_mythical(species_id)
+      @importer.mark_mythical(pokemon, mythical) unless mythical.nil?
+      @importer.link_national_pokemon(pokemon, targets)
+    rescue PokeapiClient::NotFoundError => e
+      Rails.logger.warn("[PokeapiAdapter] Skipping species ##{species_id}: #{e.message}")
+    end
+
+    games
+  end
+
+  def find_or_create_pokemon(name_or_id)
+    import_pokemon(@client.pokemon(name_or_id))
+  end
+
+  def import_pokemon(data)
     @importer.upsert_pokemon(
       pokeapi_id: data["id"],
       attributes: {
@@ -152,6 +181,43 @@ class PokeapiAdapter
   end
 
   private
+
+  def species_id_from(url)
+    url&.split("/")&.compact&.last&.to_i
+  end
+
+  def version_group_name(game)
+    @client.version(game.name).dig("version_group", "name")
+  rescue PokeapiClient::NotFoundError => e
+    Rails.logger.warn("[PokeapiAdapter] No version group for #{game.name}: #{e.message}")
+    nil
+  end
+
+  # Species in every dex the version group lists, sub-dexes and DLC dexes included
+  def version_group_dex_species(version_group)
+    (@client.version_group(version_group)["pokedexes"] || []).each_with_object(Set.new) do |dex, ids|
+      entries = @client.pokedex(dex["name"])["pokemon_entries"] || []
+      entries.each { |entry| ids << species_id_from(entry.dig("pokemon_species", "url")) }
+    end
+  end
+
+  def national_species_ids
+    (@client.pokedex("national")["pokemon_entries"] || [])
+      .filter_map { |entry| species_id_from(entry.dig("pokemon_species", "url")) }
+  end
+
+  def learnset_version_groups(pokemon_data)
+    (pokemon_data["moves"] || []).each_with_object(Set.new) do |move, groups|
+      move["version_group_details"].each { |vd| groups << vd.dig("version_group", "name") }
+    end
+  end
+
+  # nil when the species payload is unavailable, so a known label is kept
+  def species_mythical(species_id)
+    @client.pokemon_species(species_id)["is_mythical"] == true
+  rescue PokeapiClient::NotFoundError
+    nil
+  end
 
   def english_entry(entries)
     (entries || []).find { |e| e.dig("language", "name") == "en" }
