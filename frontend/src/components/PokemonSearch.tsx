@@ -13,8 +13,12 @@ import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useSuggestions } from "../hooks/useSuggestions";
 import { formatName } from "../utils/formatters";
 
-const SearchWrapper = styled.div`
-  position: relative;
+// $expanded is the phone header's full-width search row. The wrapper drops
+// its positioning there so the dropdown and error anchor to the toolbar
+// (MUI's Toolbar is position: relative) and span its full width.
+const SearchWrapper = styled.div<{ $expanded: boolean }>`
+  position: ${({ $expanded }) => ($expanded ? "static" : "relative")};
+  ${({ $expanded }) => $expanded && "flex: 1; min-width: 0;"}
 `;
 
 const SearchBar = styled.div`
@@ -32,10 +36,10 @@ const SearchBar = styled.div`
   }
 `;
 
-const SearchInput = styled(InputBase)`
+const SearchInput = styled(InputBase)<{ $expanded: boolean }>`
   color: white !important;
   padding: 4px 8px !important;
-  width: 220px;
+  ${({ $expanded }) => ($expanded ? "flex: 1; min-width: 0;" : "width: 220px;")}
 
   .MuiInputBase-input::placeholder {
     color: rgba(255, 255, 255, 0.65) !important;
@@ -43,11 +47,12 @@ const SearchInput = styled(InputBase)`
   }
 `;
 
-const ResultsDropdown = styled(Paper)`
+const ResultsDropdown = styled(Paper)<{ $expanded: boolean }>`
   position: absolute !important;
-  top: calc(100% + 6px) !important;
-  left: 0 !important;
-  min-width: 260px !important;
+  ${({ $expanded }) =>
+    $expanded
+      ? "top: 100% !important; left: 0 !important; right: 0 !important;"
+      : "top: calc(100% + 6px) !important; left: 0 !important; min-width: 260px !important;"}
   max-height: 320px !important;
   overflow-y: auto !important;
   z-index: 1300 !important;
@@ -87,22 +92,32 @@ const ResultItem = styled.button<{ $active: boolean }>`
   }
 `;
 
-const ErrorBadge = styled.div`
+const ErrorBadge = styled.div<{ $expanded: boolean }>`
   position: absolute;
   top: calc(100% + 6px);
-  left: 0;
+  ${({ $expanded }) =>
+    $expanded ? "left: 16px; right: 16px;" : "left: 0; white-space: nowrap;"}
   background: ${({ theme }) => theme.palette.background.paper};
   border: 1px solid ${({ theme }) => theme.palette.error.main};
   color: ${({ theme }) => theme.palette.error.main};
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 0.875rem;
-  white-space: nowrap;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   z-index: 1300;
 `;
 
-export function PokemonSearch() {
+interface PokemonSearchProps {
+  /** Phone layout: fills the toolbar row, autofocuses, full-width dropdown. */
+  expanded?: boolean;
+  /** Called when the user is done searching: Escape, or opening a result. */
+  onClose?: () => void;
+}
+
+export function PokemonSearch({
+  expanded = false,
+  onClose,
+}: PokemonSearchProps) {
   const navigate = useNavigate();
   const { selectedGame } = useAppContext();
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -148,6 +163,7 @@ export function PokemonSearch() {
     navigate(detailPath(pokemon.name));
     dismiss();
     setQuery("");
+    onClose?.();
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -170,6 +186,7 @@ export function PokemonSearch() {
       if (exact && found[0]) {
         navigate(detailPath(found[0].name));
         setQuery("");
+        onClose?.();
       } else {
         setResults(found);
         if (found.length === 0) setError("No Pokémon found");
@@ -184,6 +201,7 @@ export function PokemonSearch() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       dismiss();
+      onClose?.();
       return;
     }
     if (shown.length === 0) return;
@@ -198,10 +216,16 @@ export function PokemonSearch() {
   };
 
   return (
-    <SearchWrapper ref={wrapperRef} onKeyDown={handleKeyDown}>
+    <SearchWrapper
+      ref={wrapperRef}
+      onKeyDown={handleKeyDown}
+      $expanded={expanded}
+    >
       <form onSubmit={handleSearch}>
         <SearchBar>
           <SearchInput
+            $expanded={expanded}
+            autoFocus={expanded}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -227,10 +251,10 @@ export function PokemonSearch() {
         </SearchBar>
       </form>
 
-      {error && <ErrorBadge>{error}</ErrorBadge>}
+      {error && <ErrorBadge $expanded={expanded}>{error}</ErrorBadge>}
 
       {shown.length > 0 && (
-        <ResultsDropdown elevation={3} role="listbox">
+        <ResultsDropdown elevation={3} role="listbox" $expanded={expanded}>
           {shown.map((pokemon, index) => (
             <ResultItem
               key={pokemon.id}
