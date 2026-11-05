@@ -13,6 +13,7 @@ ToneDex is a game-specific Pokémon dex: a React 19 + Vite SPA and a Rails 8 API
 - **Frontend server state lives in React Query hooks** (`src/hooks/`, ADR-007). Client state is `AppContext` (auth, selected game) and `UiContext` (toast, color mode). The URL is the source of truth for the selected game (ADR-005). Authenticated queries are `enabled: !!token`.
 - **`games.pokedex_name` is authoritative.** `PokeapiAdapter::GAME_TO_POKEDEX` is only a seed-time default, so adding a game is a database insert.
 - **Rails sends no Content Security Policy.** API-only apps leave out that middleware, so a CSP initializer does nothing. The SPA's CSP belongs on the static host.
+- **Deployment is Render, declared in Terraform under `infra/render/`** ([infra/render/README.md](infra/render/README.md), ADR-008). Agents may edit the `.tf` files and run `terraform fmt` and `terraform validate` (after `init -backend=false`), as CI does. `terraform plan` and `apply` are run by hand by the owner, never by agents, and agents never change Render resources outside Terraform (no deploys, env edits or dashboard changes).
 - **Internal names keep "pokedex"**: database names, localStorage keys and the `pokedex:*` rake tasks. The product is ToneDex (styled TONEDEX in the logo, ToneDex in prose).
 
 ## Development
