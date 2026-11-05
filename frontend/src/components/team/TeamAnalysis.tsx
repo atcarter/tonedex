@@ -136,12 +136,6 @@ const TierTypes = styled.ul`
   gap: 4px;
 `;
 
-const NoTiers = styled.p`
-  font-size: 0.85rem;
-  color: ${({ theme }) => theme.palette.text.secondary};
-  margin: 0;
-`;
-
 // Visible symbol plus spoken text, so screen readers don't read bare symbols
 const TIERS: Record<
   DefenseMultiplier,
@@ -170,7 +164,6 @@ function MemberDefense({ member }: { member: Pokemon }) {
         </SpriteBox>
         <MemberName>{formatName(member.name)}</MemberName>
       </MemberHeader>
-      {tiers.length === 0 && <NoTiers>Normal damage from every type.</NoTiers>}
       {tiers.map(({ multiplier, types }) => {
         const tier = TIERS[multiplier];
         return (
