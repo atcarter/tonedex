@@ -40,8 +40,8 @@ class PokeapiClient
     fetch("/move/#{name_or_id}")
   end
 
-  def version(name_or_id)
-    fetch("/version/#{name_or_id}")
+  def version(name_or_id, cache_only: false)
+    fetch("/version/#{name_or_id}", cache_only: cache_only)
   end
 
   def version_group(name_or_id)
@@ -68,14 +68,20 @@ class PokeapiClient
     fetch("/location/#{name_or_id}")
   end
 
+  def ability(name_or_id, cache_only: false)
+    fetch("/ability/#{name_or_id}", cache_only: cache_only)
+  end
+
   private
 
-  def fetch(endpoint)
+  # cache_only: a miss returns nil without a network call, for request-time reads
+  def fetch(endpoint, cache_only: false)
     cached = @cache.fetch(endpoint)
     if cached
       raise NotFoundError, "PokeAPI returned 404 for #{endpoint} (cached)" if cached == NOT_FOUND_SENTINEL
       return cached
     end
+    return if cache_only
 
     response = request_with_retries(endpoint)
 

@@ -20,6 +20,32 @@ const FLORAGATO = {
   pokedex_number: 2,
 };
 
+// The detail audit runs with an ability panel open
+const SPRIGATITO_WITH_ABILITIES = {
+  ...SPRIGATITO_DETAIL,
+  species: {
+    genus: "Grass Cat Pokémon",
+    flavor_text: "Its fluffy fur is similar in composition to plants.",
+    height: 4,
+    weight: 41,
+    abilities: [
+      {
+        name: "overgrow",
+        hidden: false,
+        description: "Powers up Grass-type moves when the Pokémon's HP is low.",
+        short_effect:
+          "Strengthens grass moves to inflict 1.5× damage at 1/3 max HP or less.",
+      },
+      {
+        name: "protean",
+        hidden: true,
+        description: null,
+        short_effect: null,
+      },
+    ],
+  },
+};
+
 const FLORAGATO_DETAIL = {
   ...SPRIGATITO_DETAIL,
   pokemon: { ...SPRIGATITO_DETAIL.pokemon, ...FLORAGATO },
@@ -48,7 +74,7 @@ function json(body: unknown) {
 async function mockPages(page: Page) {
   await mockPublicGameRoutes(page);
   await page.route(`${API}/api/v1/pokemon/sprigatito*`, (r) =>
-    r.fulfill(json(SPRIGATITO_DETAIL)),
+    r.fulfill(json(SPRIGATITO_WITH_ABILITIES)),
   );
   await page.route(`${API}/api/v1/pokemon/floragato*`, (r) =>
     r.fulfill(json(FLORAGATO_DETAIL)),
@@ -68,6 +94,10 @@ const ROUTES: Route[] = [
     path: "/game/1/pokemon/sprigatito",
     ready: async (page) => {
       await expect(page.getByText("Scratch")).toBeVisible();
+      await page.getByRole("button", { name: "Overgrow" }).click();
+      await expect(
+        page.getByRole("region", { name: "Overgrow ability" }),
+      ).toBeVisible();
     },
   },
   {

@@ -58,8 +58,21 @@ const DETAIL_WITH_MOVES = {
     height: 4,
     weight: 41,
     abilities: [
-      { name: "overgrow", hidden: false },
-      { name: "protean", hidden: true },
+      {
+        name: "overgrow",
+        hidden: false,
+        description: "Powers up Grass-type moves when the Pokémon's HP is low.",
+        short_effect:
+          "Strengthens grass moves to inflict 1.5× damage at 1/3 max HP or less.",
+      },
+      {
+        name: "protean",
+        hidden: true,
+        description:
+          "Changes the Pokémon's type to the type of the move it's about to use. This works only once each time the Pokémon enters battle.",
+        short_effect:
+          "Changes the Pokémon's type to the type of the move it's using.",
+      },
     ],
   },
 };
@@ -113,6 +126,21 @@ test.describe("Phone width: pages fit the viewport", () => {
     const firstRow = wrapper.getByRole("button").first();
     const box = await firstRow.boundingBox();
     expect(box?.height).toBeGreaterThanOrEqual(44);
+  });
+
+  test("a tapped ability opens a full-width panel with its hidden label", async ({
+    page,
+  }) => {
+    await page.goto("/game/1/pokemon/sprigatito");
+    const chip = page.getByRole("button", { name: "Protean" });
+    await chip.tap();
+
+    await expect(chip).toHaveAttribute("aria-expanded", "true");
+    const panel = page.getByRole("region", { name: "Protean ability" });
+    await expect(panel).toContainText("Hidden ability");
+    await expect(panel).toContainText("In battle:");
+    expect((await chip.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    expect(await pageScrollWidth(page)).toBe(PHONE_WIDTH);
   });
 
   test("detail header stacks the sprite above the name, centred", async ({

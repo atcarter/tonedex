@@ -96,6 +96,10 @@ export interface EvolutionDetail {
 export interface AbilityInfo {
   name: string;
   hidden: boolean;
+  // The selected game's flavor text (or a fallback); null until its payload is cached
+  description: string | null;
+  // PokeAPI's current mechanics summary
+  short_effect: string | null;
 }
 
 // Flavor/lore data from the PokeAPI species + pokemon payloads

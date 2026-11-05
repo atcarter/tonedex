@@ -432,6 +432,17 @@ RSpec.describe PokeapiAdapter do
       expect(game.game_pokemons.count).to eq(2)
     end
 
+    it "warms each Pokémon's ability payloads" do
+      game = create(:game, name: "scarlet", region: "paldea")
+      allow(client).to receive(:pokemon).with(100_906)
+        .and_return(sprigatito_data.merge("abilities" => [{"slot" => 1, "ability" => {"name" => "overgrow"}}]))
+      allow(client).to receive(:ability).with("overgrow").and_return({})
+
+      adapter.load_pokedex_for_game(game)
+
+      expect(client).to have_received(:ability).with("overgrow")
+    end
+
     it "skips an entry that raises PokeapiClient::ApiError and continues with the rest" do
       game = create(:game, name: "scarlet", region: "paldea")
       allow(client).to receive(:pokemon).with(100_906).and_raise(PokeapiClient::ApiError, "not found")
@@ -526,6 +537,16 @@ RSpec.describe PokeapiAdapter do
       expect(national_ids(game)).to contain_exactly(100_801, 100_802)
     end
 
+    it "warms the ability payloads of species it links" do
+      allow(client).to receive(:pokemon).with(100_801)
+        .and_return(payload(100_801, ["spec-swsh"]).merge("abilities" => [{"slot" => 1, "ability" => {"name" => "overgrow"}}]))
+      allow(client).to receive(:ability).with("overgrow").and_return({})
+
+      adapter.load_national_dexes([game])
+
+      expect(client).to have_received(:ability).with("overgrow")
+    end
+
     it "is idempotent" do
       adapter.load_national_dexes([game])
       expect { adapter.load_national_dexes([game]) }.not_to change(GamePokemon, :count)
@@ -586,6 +607,7 @@ RSpec.describe PokeapiAdapter do
           ]
         }
       )
+      allow(client).to receive(:ability).and_return(nil)
     end
 
     it "extracts English genus and whitespace-normalised flavor text" do
@@ -596,15 +618,169 @@ RSpec.describe PokeapiAdapter do
 
     it "returns abilities sorted by slot with the hidden flag" do
       info = adapter.species_info_for(pokemon)
-      expect(info[:abilities]).to eq([
+      expect(info[:abilities].map { |a| a.slice(:name, :hidden) }).to eq([
         {name: "static", hidden: false},
         {name: "lightning-rod", hidden: true}
       ])
     end
 
+    it "leaves the text null on an ability cache miss, reading the cache only" do
+      info = adapter.species_info_for(pokemon)
+
+      expect(info[:abilities].first).to include(description: nil, short_effect: nil)
+      expect(client).to have_received(:ability).with("static", cache_only: true)
+    end
+
     it "passes height and weight through unconverted" do
       info = adapter.species_info_for(pokemon)
       expect(info).to include(height: 4, weight: 60)
+    end
+  end
+
+  describe "#species_info_for abilities in a game" do
+    let(:pokemon) { create(:pokemon) }
+
+    def ability_entry(name, slot, hidden: false)
+      {"slot" => slot, "is_hidden" => hidden, "ability" => name && {"name" => name}}
+    end
+
+    def flavor(version_group, text, language: "en")
+      {"flavor_text" => text, "language" => {"name" => language}, "version_group" => {"name" => version_group}}
+    end
+
+    def ability_payload(flavors, short_effect: "Evades Ground moves.")
+      {
+        "effect_entries" => [{"short_effect" => short_effect, "language" => {"name" => "en"}}],
+        "flavor_text_entries" => flavors
+      }
+    end
+
+    def game_in(version_group, generation)
+      game = create(:game, name: "ability-spec-#{version_group}", generation: generation)
+      allow(client).to receive(:version).with(game.name, cache_only: true)
+        .and_return({"version_group" => {"name" => version_group}})
+      game
+    end
+
+    def abilities(game)
+      adapter.species_info_for(pokemon, game)[:abilities]
+    end
+
+    let(:pokemon_data) do
+      {
+        "abilities" => [ability_entry("cursed-body", 1), ability_entry("lightning-rod", 3, hidden: true)],
+        "past_abilities" => [
+          {"generation" => {"name" => "generation-vi"}, "abilities" => [ability_entry("levitate", 1)]},
+          {"generation" => {"name" => "generation-iv"}, "abilities" => [ability_entry(nil, 3, hidden: true)]}
+        ]
+      }
+    end
+
+    before do
+      allow(client).to receive(:pokemon).with(pokemon.pokeapi_id).and_return(pokemon_data)
+      allow(client).to receive(:pokemon_species).with(pokemon.pokeapi_id).and_return({})
+      allow(client).to receive(:ability).and_return(nil)
+    end
+
+    describe "past_abilities resolution" do
+      it "shows no abilities before Gen 3" do
+        expect(abilities(game_in("gold-silver", 2))).to eq([])
+      end
+
+      it "uses the past ability up to its generation and drops slots that were empty" do
+        expect(abilities(game_in("diamond-pearl", 4)).map { |a| a[:name] }).to eq(["levitate"])
+      end
+
+      it "keeps the past ability through its last generation" do
+        expect(abilities(game_in("x-y", 6)).map { |a| a[:name] }).to eq(["levitate", "lightning-rod"])
+      end
+
+      it "uses the current abilities in later games and with no game" do
+        expect(abilities(game_in("sun-moon", 7)).map { |a| a[:name] }).to eq(["cursed-body", "lightning-rod"])
+        expect(adapter.species_info_for(pokemon)[:abilities].map { |a| a[:name] }).to eq(["cursed-body", "lightning-rod"])
+      end
+    end
+
+    describe "description" do
+      let(:pokemon_data) { {"abilities" => [ability_entry("levitate", 1)]} }
+
+      def description(version_group, generation, flavors, **payload)
+        allow(client).to receive(:ability).with("levitate", cache_only: true)
+          .and_return(ability_payload(flavors, **payload))
+        abilities(game_in(version_group, generation)).first
+      end
+
+      it "uses the game's own flavor text and the cleaned short effect" do
+        result = description("platinum", 4, [flavor("ruby-sapphire", "Gives full immunity to all\nGROUND-type moves."), flavor("platinum", "Gives full immunity to\nall Ground-type moves.")],
+          short_effect: "  Evades  Ground moves. ")
+
+        expect(result).to include(description: "Gives full immunity to all Ground-type moves.", short_effect: "Evades Ground moves.")
+      end
+
+      it "drops soft hyphens and zero-width spaces and joins hyphenated wraps, keeping a space before and/or" do
+        flavors = [
+          flavor("diamond-pearl", "Powers down super\u00AD\neffective moves."),
+          flavor("platinum", "Ups resistance to Fire-\u200B\nand Ice-type and critical-\nhit moves.")
+        ]
+
+        expect(description("diamond-pearl", 4, flavors)[:description]).to eq("Powers down supereffective moves.")
+        expect(description("platinum", 4, flavors)[:description]).to eq("Ups resistance to Fire- and Ice-type and critical-hit moves.")
+      end
+
+      it "falls back along the chain for a game without its own text" do
+        flavors = [flavor("sword-shield", "SwSh text."), flavor("scarlet-violet", "SV text.", language: "fr"), flavor("the-teal-mask", "Teal Mask text.")]
+
+        expect(description("brilliant-diamond-shining-pearl", 8, flavors)[:description]).to eq("SwSh text.")
+        expect(description("scarlet-violet", 9, flavors)[:description]).to eq("Teal Mask text.")
+        expect(description("legends-za", 9, [flavor("champions", "Champions text.")])[:description]).to eq("Champions text.")
+      end
+
+      it "falls back to the newest English text, then the short effect" do
+        expect(description("ultra-sun-ultra-moon", 7, [flavor("ruby-sapphire", "Old."), flavor("x-y", "Newer.")])[:description]).to eq("Newer.")
+        expect(description("x-y", 6, [])[:description]).to eq("Evades Ground moves.")
+      end
+
+      it "leaves the text null for an ability PokeAPI 404s on" do
+        allow(client).to receive(:ability).and_raise(PokeapiClient::NotFoundError)
+
+        expect(abilities(game_in("x-y", 6)).first).to include(name: "levitate", description: nil)
+      end
+
+      it "uses the newest game's text outside a game, ahead of later DLC entries" do
+        allow(client).to receive(:ability).with("levitate", cache_only: true)
+          .and_return(ability_payload([flavor("scarlet-violet", "SV text."), flavor("the-teal-mask", "Mislabelled DLC text.")]))
+
+        expect(adapter.species_info_for(pokemon)[:abilities].first[:description]).to eq("SV text.")
+      end
+
+      it "still describes abilities when the game's version is not cached" do
+        game = create(:game, name: "ability-spec-uncached", generation: 9)
+        allow(client).to receive(:version).with(game.name, cache_only: true).and_return(nil)
+        allow(client).to receive(:ability).with("levitate", cache_only: true)
+          .and_return(ability_payload([flavor("x-y", "Newest.")]))
+
+        expect(abilities(game).first[:description]).to eq("Newest.")
+      end
+    end
+  end
+
+  describe "#warm_abilities" do
+    let(:pokemon_data) do
+      {
+        "abilities" => [{"slot" => 1, "ability" => {"name" => "cursed-body"}}],
+        "past_abilities" => [
+          {"abilities" => [{"slot" => 1, "ability" => {"name" => "levitate"}}, {"slot" => 3, "ability" => nil}]}
+        ]
+      }
+    end
+
+    it "fetches current and past abilities and skips ones that fail" do
+      allow(client).to receive(:ability).with("cursed-body").and_raise(PokeapiClient::ApiError, "503")
+      allow(client).to receive(:ability).with("levitate").and_return({})
+
+      adapter.warm_abilities(pokemon_data)
+
+      expect(client).to have_received(:ability).with("levitate")
     end
   end
 

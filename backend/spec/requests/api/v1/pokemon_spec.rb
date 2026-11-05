@@ -88,6 +88,12 @@ RSpec.describe "Pokemon API", type: :request do
         expect(response.parsed_body["pokemon"]["types"]).to eq(["normal"])
       end
 
+      it "builds species info for the selected game" do
+        get "/api/v1/pokemon/#{pokemon.id}", params: {game_id: game.id}
+
+        expect(adapter).to have_received(:species_info_for).with(pokemon, game)
+      end
+
       it "includes the game-local pokedex number" do
         GamePokemon.create!(game: game, pokemon: pokemon, pokedex_number: 4)
 

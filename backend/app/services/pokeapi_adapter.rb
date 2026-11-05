@@ -23,6 +23,22 @@ class PokeapiAdapter
     "legends-za" => "lumiose-city"
   }.freeze
 
+  # Abilities arrived in Gen 3; earlier games show none.
+  FIRST_ABILITY_GENERATION = 3
+
+  # Version groups with no or partial English ability flavor text borrow it, in order.
+  ABILITY_TEXT_FALLBACKS = {
+    "x-y" => %w[omega-ruby-alpha-sapphire],
+    "sun-moon" => %w[ultra-sun-ultra-moon],
+    "brilliant-diamond-shining-pearl" => %w[sword-shield],
+    "legends-arceus" => %w[sword-shield],
+    "scarlet-violet" => %w[the-teal-mask the-indigo-disk sword-shield],
+    "legends-za" => %w[scarlet-violet the-teal-mask the-indigo-disk champions]
+  }.freeze
+
+  # Outside a game (or with its version uncached), abilities use the newest game's text.
+  CURRENT_ABILITY_TEXT_GROUP = "legends-za"
+
   # Transforms PokeAPI payloads; persistence is delegated to PokemonImporter
   # so this class never touches ActiveRecord directly (SRP).
   def initialize(client: PokeapiClient.new, importer: PokemonImporter.new)
@@ -46,8 +62,10 @@ class PokeapiAdapter
 
       next unless species_id
 
-      pokemon = find_or_create_pokemon(species_id)
+      data = @client.pokemon(species_id)
+      pokemon = import_pokemon(data)
       @importer.link_pokemon_to_game(pokemon, game, pokedex_number)
+      warm_abilities(data)
       pokemon
     rescue PokeapiClient::ApiError => e
       Rails.logger.warn("[PokeapiAdapter] Skipping entry ##{pokedex_number}: #{e.message}")
@@ -76,6 +94,7 @@ class PokeapiAdapter
       mythical = species_mythical(species_id)
       @importer.mark_mythical(pokemon, mythical) unless mythical.nil?
       @importer.link_national_pokemon(pokemon, targets)
+      warm_abilities(data)
     rescue PokeapiClient::NotFoundError => e
       Rails.logger.warn("[PokeapiAdapter] Skipping species ##{species_id}: #{e.message}")
     end
@@ -159,12 +178,28 @@ class PokeapiAdapter
     parse_evolution_chain(chain_data["chain"])
   end
 
+  # Caches the /ability payloads the detail page reads, so the request path stays
+  # cache-only. Seeds call it per Pokémon; WarmAbilitiesJob backfills seeded ones.
+  def warm_abilities(pokemon_data)
+    ability_names(pokemon_data).each do |name|
+      @client.ability(name)
+    rescue PokeapiClient::ApiError => e
+      Rails.logger.warn("[PokeapiAdapter] No ability payload for #{name}: #{e.message}")
+    end
+  end
+
+  def warm_abilities_for(pokemon)
+    warm_abilities(@client.pokemon(pokemon.pokeapi_id))
+  end
+
   # Flavor/lore data for the detail page. Both payloads are already in the
   # cache for any seeded pokemon (fetched by find_or_create_pokemon and
   # evolution_chain_for), so this normally costs zero network calls.
-  def species_info_for(pokemon)
+  # Abilities match the game's generation; their text is read cache-only.
+  def species_info_for(pokemon, game = nil)
     pokemon_data = @client.pokemon(pokemon.pokeapi_id)
     species_data = @client.pokemon_species(pokemon.pokeapi_id)
+    version_group = game && cached_version_group(game)
 
     {
       genus: english_entry(species_data["genera"])&.fetch("genus", nil),
@@ -174,9 +209,8 @@ class PokeapiAdapter
         &.strip,
       height: pokemon_data["height"], # decimetres
       weight: pokemon_data["weight"], # hectograms
-      abilities: (pokemon_data["abilities"] || [])
-        .sort_by { |a| a["slot"] }
-        .map { |a| {name: a.dig("ability", "name"), hidden: a["is_hidden"]} }
+      abilities: abilities_for_generation(pokemon_data, game&.generation)
+        .map { |a| ability_info(a, version_group) }
     }
   end
 
@@ -190,6 +224,12 @@ class PokeapiAdapter
     @client.version(game.name).dig("version_group", "name")
   rescue PokeapiClient::NotFoundError => e
     Rails.logger.warn("[PokeapiAdapter] No version group for #{game.name}: #{e.message}")
+    nil
+  end
+
+  def cached_version_group(game)
+    @client.version(game.name, cache_only: true)&.dig("version_group", "name")
+  rescue PokeapiClient::NotFoundError
     nil
   end
 
@@ -217,6 +257,61 @@ class PokeapiAdapter
     @client.pokemon_species(species_id)["is_mythical"] == true
   rescue PokeapiClient::NotFoundError
     nil
+  end
+
+  # Current and past ability names, so a game-accurate list is always warm.
+  def ability_names(pokemon_data)
+    past = (pokemon_data["past_abilities"] || []).flat_map { |entry| entry["abilities"] }
+    ((pokemon_data["abilities"] || []) + past).filter_map { |a| a.dig("ability", "name") }.uniq
+  end
+
+  # Each past_abilities entry lists the slots that applied up to and including its
+  # generation; a null ability means the slot was empty then.
+  # No generation (no game) keeps the current abilities.
+  def abilities_for_generation(pokemon_data, generation)
+    generation = generation.to_i
+    return [] if generation.between?(1, FIRST_ABILITY_GENERATION - 1)
+
+    slots = (pokemon_data["abilities"] || []).to_h { |a| [a["slot"], a] }
+    (pokemon_data["past_abilities"] || [])
+      .map { |past| [Generation.number_for(past.dig("generation", "name")), past] }
+      .select { |number, _| generation.positive? && number >= generation }
+      .sort_by { |number, _| -number }
+      .each { |_, past| past["abilities"].each { |a| slots[a["slot"]] = a } }
+
+    slots.sort.filter_map do |_, a|
+      {name: a.dig("ability", "name"), hidden: a["is_hidden"]} if a["ability"]
+    end
+  end
+
+  # A cache miss leaves the text null; the request path never calls PokeAPI.
+  def ability_info(ability, version_group)
+    data = @client.ability(ability[:name], cache_only: true)
+    return ability.merge(description: nil, short_effect: nil) unless data
+
+    short_effect = clean_ability_text(english_entry(data["effect_entries"])&.dig("short_effect"))
+    ability.merge(description: ability_flavor_text(data, version_group) || short_effect, short_effect: short_effect)
+  rescue PokeapiClient::NotFoundError
+    ability.merge(description: nil, short_effect: nil)
+  end
+
+  # The game's own wording, then its fallbacks, then the newest English entry.
+  def ability_flavor_text(data, version_group)
+    version_group ||= CURRENT_ABILITY_TEXT_GROUP
+    entries = (data["flavor_text_entries"] || []).select { |e| e.dig("language", "name") == "en" }
+    entry = [version_group, *ABILITY_TEXT_FALLBACKS[version_group]].lazy
+      .filter_map { |vg| entries.find { |e| e.dig("version_group", "name") == vg } }
+      .first || entries.last
+    clean_ability_text(entry&.dig("flavor_text"))
+  end
+
+  # Drops soft hyphens, zero-width spaces and textbox line breaks; a wrap before and/or keeps its space.
+  def clean_ability_text(text)
+    return if text.blank?
+
+    text.gsub("\u00AD\n", "").delete("\u00AD\u200B")
+      .gsub(/-\n(?=(?:and|or)\b)/, "- ").gsub("-\n", "-")
+      .gsub(/\s+/, " ").strip
   end
 
   def english_entry(entries)
