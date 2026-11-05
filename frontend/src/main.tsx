@@ -15,6 +15,8 @@ Sentry.init({
   environment: import.meta.env.MODE,
   tracesSampleRate: 0.2,
   enabled: import.meta.env.PROD,
+  // v11 infers IP by default; keep v10's no-IP behaviour
+  dataCollection: { userInfo: false },
 });
 
 createRoot(document.getElementById("root")!).render(

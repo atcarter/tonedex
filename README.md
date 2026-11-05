@@ -29,6 +29,7 @@ A dex for the game you're actually playing. Pick a Pokémon game and browse its 
 
 - **Backend:** Ruby 3.3, Ruby on Rails 8.1 (API-only), Puma behind Thruster, Sidekiq, PostgreSQL 15, Redis 7
 - **Frontend:** React 19, TypeScript, Vite 8, TanStack Query, MUI with styled-components, React Router
+- **Error tracking:** Sentry in production only (sentry-ruby 7, `@sentry/react` 11)
 - **Testing:** RSpec, Vitest, Playwright (mocked end-to-end tests, plus a read-only smoke suite against production)
 - **CI:** GitHub Actions running linters, all three test suites, Brakeman and bundler-audit, a boot check of the production backend image, and Terraform fmt and validate; the production smoke suite runs weekly
 - **Dev environment:** Docker Compose
