@@ -99,27 +99,23 @@ const NeutralCount = styled.span`
 
 // ── Coverage ─────────────────────────────────────────────────────────────────
 
+const CoverageLine = styled.p`
+  font-size: 0.85rem;
+  color: ${({ theme }) => theme.palette.text.secondary};
+  margin: 0 0 8px;
+`;
+
 const BadgeRow = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 12px;
 `;
 
-const CoverageLabel = styled.span`
-  display: block;
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: ${({ theme }) => theme.palette.text.secondary};
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 6px;
-`;
-
-const AllCovered = styled.span`
+const AllCovered = styled.p`
   font-size: 0.85rem;
   font-weight: 700;
-  color: ${({ theme }) => theme.palette.success.main};
+  margin: 0;
+  color: ${({ theme }) => readable(theme, "success")};
 `;
 
 interface TeamAnalysisProps {
@@ -166,17 +162,13 @@ export function TeamAnalysis({ team }: TeamAnalysisProps) {
 
       <SectionPaper elevation={1}>
         <SectionTitle>Offensive Coverage</SectionTitle>
-        <Hint>
-          Assuming each member attacks with its own types (STAB), these
-          defending types are never hit super-effectively:
-        </Hint>
         {uncovered.length === 0 ? (
           <AllCovered>
-            Full coverage — every type can be hit super-effectively.
+            Your team's types hit every type super-effectively.
           </AllCovered>
         ) : (
           <div>
-            <CoverageLabel>No super-effective answer to</CoverageLabel>
+            <CoverageLine>No strong attack against:</CoverageLine>
             <BadgeRow>
               {uncovered.map((type) => (
                 <TypeBadge key={type} type={type} />
