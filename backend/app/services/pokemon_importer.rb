@@ -42,9 +42,35 @@ class PokemonImporter
     end
   end
 
+  # A regional link; it promotes a row the national pass created first.
   def link_pokemon_to_game(pokemon, game, pokedex_number)
+    link = find_or_create_link(pokemon, game, pokedex_number: pokedex_number)
+    link.update!(regional: true, pokedex_number: pokedex_number) unless link.regional?
+    link
+  end
+
+  # One insert per species for the national pass; ON CONFLICT DO NOTHING keeps
+  # existing rows, so a nil number never overwrites a regional one.
+  def link_national_pokemon(pokemon, games)
+    return if games.empty?
+
+    rows = games.map { |game| {game_id: game.id, pokemon_id: pokemon.id, pokedex_number: nil, regional: false} }
+    GamePokemon.insert_all(rows, unique_by: [:game_id, :pokemon_id])
+  end
+
+  def mark_mythical(pokemon, mythical)
+    pokemon.update_columns(mythical: mythical) unless pokemon.mythical == mythical
+  end
+
+  def mark_national_seeded(game, at)
+    game.update_columns(national_seeded_at: at)
+  end
+
+  private
+
+  def find_or_create_link(pokemon, game, **attributes)
     GamePokemon.find_or_create_by!(pokemon: pokemon, game: game) do |gp|
-      gp.pokedex_number = pokedex_number
+      gp.assign_attributes(attributes)
     end
   rescue ActiveRecord::RecordNotUnique
     # Another concurrent seed job beat us to it — find the existing row

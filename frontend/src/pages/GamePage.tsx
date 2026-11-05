@@ -10,11 +10,14 @@ import { useAppContext } from "../hooks/useAppContext";
 import { useGames } from "../hooks/useGames";
 import { useGame, PAGE_SIZE } from "../hooks/useGame";
 import { useCaughtPokemons } from "../hooks/useCaughtPokemons";
+import { useDexView, dexSearch } from "../hooks/useDexView";
 import { PokemonCard } from "../components/PokemonCard";
-import { dexSections } from "../utils/dexSections";
+import { DexToggle } from "../components/DexToggle";
+import { dexSections, type DexSection } from "../utils/dexSections";
 import {
   PageWrapper,
   FilterBar,
+  DexToggleSlot,
   Grid,
   Sentinel,
   LoadingContainer,
@@ -39,6 +42,7 @@ export function GamePage() {
   const { data: games = [] } = useGames();
 
   const numericGameId = Number(gameId);
+  const [dex, setDex] = useDexView();
 
   const {
     data,
@@ -48,12 +52,13 @@ export function GamePage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useGame(numericGameId);
+  } = useGame(numericGameId, dex);
 
   const { data: caught = [] } = useCaughtPokemons(numericGameId);
 
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [prevGameId, setPrevGameId] = useState(numericGameId);
+  const viewKey = `${numericGameId}:${dex}`;
+  const [prevViewKey, setPrevViewKey] = useState(viewKey);
   const sentinelRef = useRef<HTMLDivElement>(null);
   // Depth to restore on back/refresh, captured from ?loaded= before we start
   // rewriting it below. State rather than a ref because render reads it.
@@ -61,9 +66,9 @@ export function GamePage() {
     () => Number(searchParams.get("loaded")) || 0,
   );
 
-  // Reset per-game state when the game changes (during render, not in an effect)
-  if (prevGameId !== numericGameId) {
-    setPrevGameId(numericGameId);
+  // Reset per-list state when the game or dex view changes (during render, not in an effect)
+  if (prevViewKey !== viewKey) {
+    setPrevViewKey(viewKey);
     setSelectedTypes([]);
     setRestoreTarget(Number(searchParams.get("loaded")) || 0);
   }
@@ -109,9 +114,9 @@ export function GamePage() {
     : 0;
 
   // Dex-section quick-jump: load through the target's page, then scroll to it
-  const [jumpTarget, setJumpTarget] = useState<number | null>(null);
+  const [jumpTarget, setJumpTarget] = useState<DexSection | null>(null);
   const jumpOffsetNeeded = jumpTarget
-    ? Math.floor((jumpTarget - 1) / PAGE_SIZE) * PAGE_SIZE
+    ? Math.floor(jumpTarget.index / PAGE_SIZE) * PAGE_SIZE
     : 0;
 
   // Refetch pages up to whichever depth is demanded — the ?loaded= restore
@@ -138,7 +143,7 @@ export function GamePage() {
   // Once the jump target's card exists, scroll to it
   useEffect(() => {
     if (jumpTarget == null) return;
-    const el = document.querySelector(`[data-dex="${jumpTarget}"]`);
+    const el = document.querySelector(`[data-dex="${jumpTarget.start}"]`);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
       // Clearing the target depends on the DOM (has the card rendered yet?),
@@ -171,6 +176,13 @@ export function GamePage() {
   }, [loadedOffset, setSearchParams]);
 
   const availableTypes: string[] = data?.pages[0]?.available_types ?? [];
+  // Caught entries count only when the Pokémon is in the list being shown
+  const caughtInView = useMemo(() => {
+    const ids = new Set(data?.pages[0]?.pokemon_ids ?? []);
+    return caught.filter(
+      (c) => c.game_id === numericGameId && ids.has(c.pokemon_id),
+    ).length;
+  }, [data, caught, numericGameId]);
   const pagination = data?.pages[data.pages.length - 1]?.pagination ?? null;
 
   const toggleType = useCallback((type: string) => {
@@ -192,8 +204,7 @@ export function GamePage() {
 
   // Only large dexes get quick-jump sections; hidden while type-filtering
   // (filtered results don't align with dex-number sections)
-  const total = pagination?.total ?? 0;
-  const sections = dexSections(total);
+  const sections = dexSections(data?.pages[0]?.dex_numbers ?? []);
 
   if (isLoading) {
     return (
@@ -223,12 +234,16 @@ export function GamePage() {
             size={16}
             sx={{ color: "text.secondary", flexShrink: 0 }}
           />
-          Pokémon data is being loaded in the background for the first time. The
-          dex will appear here automatically in a minute.
+          {dex === "national"
+            ? "The national dex is being built in the background for the first time. It will appear here automatically in a few minutes."
+            : "Pokémon data is being loaded in the background for the first time. The dex will appear here automatically in a minute."}
         </SeedingBanner>
       )}
 
       <FilterBar>
+        <DexToggleSlot>
+          <DexToggle value={dex} onChange={setDex} />
+        </DexToggleSlot>
         {pagination && pagination.total > 0 && (
           <CountText>
             {filtered.length} / {pagination.total}
@@ -238,14 +253,13 @@ export function GamePage() {
         {currentUser && pagination && pagination.total > 0 && (
           <CaughtCounter>
             <CaughtDot>●</CaughtDot>
-            {caught.filter((c) => c.game_id === numericGameId).length} /{" "}
-            {pagination.total} caught
+            {caughtInView} / {pagination.total} caught
           </CaughtCounter>
         )}
         <Button
           size="small"
           component={Link}
-          to={`/game/${numericGameId}/team`}
+          to={`/game/${numericGameId}/team${dexSearch(dex)}`}
           sx={{ ml: "auto", fontWeight: 700, flexShrink: 0 }}
         >
           Team builder
@@ -313,13 +327,13 @@ export function GamePage() {
       {sections.length > 0 && !filterActive && (
         <JumpRow>
           <JumpLabel>Jump to</JumpLabel>
-          {sections.map(({ start, end }) => (
+          {sections.map((section) => (
             <JumpChip
-              key={start}
+              key={section.start}
               type="button"
-              onClick={() => setJumpTarget(start)}
+              onClick={() => setJumpTarget(section)}
             >
-              {start}–{end}
+              {section.start}–{section.end}
             </JumpChip>
           ))}
         </JumpRow>
@@ -328,7 +342,7 @@ export function GamePage() {
       <Grid>
         {filtered.map((pokemon) => (
           <div key={pokemon.id} data-dex={pokemon.pokedex_number}>
-            <PokemonCard pokemon={pokemon} gameId={numericGameId} />
+            <PokemonCard pokemon={pokemon} gameId={numericGameId} dex={dex} />
           </div>
         ))}
       </Grid>

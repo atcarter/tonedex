@@ -41,6 +41,8 @@ export const GAME_PAGE_RESPONSE = {
   game: GAME,
   pokemons: [SPRIGATITO],
   available_types: ["grass"],
+  pokemon_ids: [SPRIGATITO.id],
+  dex_numbers: [SPRIGATITO.pokedex_number],
   pagination: {
     total: 1,
     limit: 40,

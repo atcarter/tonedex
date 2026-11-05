@@ -44,6 +44,7 @@ Browser
         │
         └── Background jobs (Sidekiq, Redis db 0)
               ├── SeedGamePokemonJob    — triggered on first game load (lazy seeding)
+              ├── SeedNationalDexJob    — fills every game's national view in one pass
               ├── SeedAllPokemonJob     — seeds all Pokémon base data
               └── MirrorSpriteJob       — mirrors a new Pokémon's sprites
 
@@ -77,8 +78,8 @@ See ADR-007 for the full rationale.
 
 ```
 ["games"]                     — games list
-["game", gameId]              — single game + paginated pokémon (infinite query)
-["pokemon", name, gameId?]    — pokémon detail
+["game", gameId, dex]         — single game + paginated pokémon (infinite query); dex is "regional" | "national"
+["pokemon", name, gameId?, dex] — pokémon detail; dex picks the number shown
 ["move", name]                — move detail (fetched lazily when a row expands)
 ["suggestions", query]        — as-you-type search suggestions (staleTime: 5 min)
 ["favorites"]                 — user's favorites (auth-gated, staleTime: 0)
@@ -89,7 +90,17 @@ See ADR-007 for the full rationale.
 
 ## Data Flow: Lazy Seeding
 
-Pokémon data is seeded by Sidekiq jobs, never inside a request (ADR-002). `rails pokedex:seed` seeds every game up front; otherwise a game seeds on its first visit. When `GET /api/v1/games/:id` finds a game with no Pokémon yet (`game.game_pokemons.empty?`), it enqueues `SeedGamePokemonJob` (once, behind a Redis lock) and returns `pagination.seeding: true` with an empty list; `useGame` polls every 5s until the dex fills in. Subsequent requests read from the database.
+Pokémon data is seeded by Sidekiq jobs, never inside a request (ADR-002). `rails pokedex:seed` seeds every game up front; otherwise a game seeds on its first visit. When `GET /api/v1/games/:id` finds a game with no regional rows yet, it enqueues `SeedGamePokemonJob` (once, behind a Redis lock) and returns `pagination.seeding: true` with an empty list; `useGame` polls every 5s until the dex fills in. Subsequent requests read from the database.
+
+## Data Flow: Regional and National Views
+
+Each game page has two views (ADR-009), chosen by `?dex=national` in the SPA URL and passed through as `GET /api/v1/games/:id?dex=regional|national` (regional by default).
+
+- **Regional** is the game's main in-game dex, `games.pokedex_name`, seeded by `SeedGamePokemonJob`. Rows have `game_pokemons.regional = true` and `pokedex_number` set to the regional number.
+- **National** is every species in the game's data: the species whose `/pokemon/{id}` learnsets name the game's version group, plus every species in all of the version group's dexes (sub-dexes and DLC dexes too). It is always a superset of regional. Rows the regional dex lacks have `regional = false` and a null `pokedex_number`; the national number is `pokemons.pokeapi_id`.
+- `SeedNationalDexJob` fills every game whose `games.national_seeded_at` is null in one pass over the national dex's species, one cached payload at a time, and then stamps that column. The first `?dex=national` request for such a game enqueues it once (one Redis lock for the whole pass), and the view returns an empty list with `seeding: true` until the stamp is set. `rails pokedex:seed_national` enqueues it by hand (`FORCE=1` reseeds every game). A regional link promotes a national-only row; a national link never changes an existing row.
+- `pokemons.mythical` (from `/pokemon-species/{id}` → `is_mythical`) labels mostly event-only species in both views.
+- Page one of either view also carries `pokemon_ids` and `dex_numbers` for the whole view. The caught counter counts only caught Pokémon in `pokemon_ids`, and the dex-section jumps bucket `dex_numbers`, which are sparse nationally. The team builder's picker and the detail page's number (`GET /api/v1/pokemon/:id?game_id=&dex=`) follow the same `?dex=` parameter.
 
 ---
 
@@ -182,3 +193,4 @@ The api, worker, database and Key Value all run in region ohio; the database and
 | 006 | Google OAuth for user accounts |
 | 007 | TanStack Query for server state management |
 | 008 | Render via Terraform for production hosting |
+| 009 | A per-game national view built from learnsets and every version-group dex |

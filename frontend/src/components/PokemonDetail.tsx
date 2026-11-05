@@ -13,6 +13,8 @@ import type { IconButtonProps } from "@mui/material/IconButton";
 import type { Game } from "../types";
 import { useAppContext } from "../hooks/useAppContext";
 import { usePokemon } from "../hooks/usePokemon";
+import { useDexView, dexSearch } from "../hooks/useDexView";
+import { MythicalTag } from "./MythicalTag";
 import { useCaughtMutations } from "../hooks/useCaughtMutations";
 import { useCaughtPokemons } from "../hooks/useCaughtPokemons";
 import { StatBars } from "./pokemon/StatBars";
@@ -189,6 +191,15 @@ const PokemonName = styled.h2`
   overflow-wrap: anywhere;
 `;
 
+const HeaderTag = styled(MythicalTag)`
+  align-self: flex-start;
+  margin-bottom: 8px;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    align-self: center;
+  }
+`;
+
 const Genus = styled.span`
   font-size: 0.85rem;
   color: ${({ theme }) => theme.palette.text.secondary};
@@ -308,8 +319,14 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
   const { currentUser } = useAppContext();
 
   const numericGameId = gameId ? Number(gameId) : undefined;
+  // Regional or national number, as on the game page this came from
+  const [dex] = useDexView();
 
-  const { data, isLoading, isError, error } = usePokemon(pokemonName, game?.id);
+  const { data, isLoading, isError, error } = usePokemon(
+    pokemonName,
+    game?.id,
+    dex,
+  );
   const { data: caught = [] } = useCaughtPokemons(numericGameId ?? 0);
   const { catch_, uncatch } = useCaughtMutations(numericGameId ?? 0);
 
@@ -324,7 +341,11 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
 
   const handleEvoClick = (name: string) => {
     if (name === pokemonName) return;
-    navigate(gameId ? `/game/${gameId}/pokemon/${name}` : `/pokemon/${name}`);
+    navigate(
+      gameId
+        ? `/game/${gameId}/pokemon/${name}${dexSearch(dex)}`
+        : `/pokemon/${name}`,
+    );
   };
 
   if (isLoading)
@@ -389,6 +410,7 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
           )}
           <PokemonName>{formatName(details.name)}</PokemonName>
           {species?.genus && <Genus>{species.genus}</Genus>}
+          {details.mythical && <HeaderTag />}
           <TypeList>
             {details.types.map((type) => (
               <TypeBadge key={type} type={type} />

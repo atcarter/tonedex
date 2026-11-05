@@ -7,6 +7,9 @@
 > the contrast was with fetching inside the request, not with seeding a game on its first visit.) A game with no Pokémon is seeded on its first visit
 > (one job, behind a Redis lock), not on deploy. Two request paths do reach PokeAPI at runtime, always cache-first: search for a
 > name not yet in the database (throttled to 15/min) and move details. Writes go through `PokemonImporter`.
+>
+> **Status note (2026-11-05):** the first-visit trigger now counts regional rows only. A game's national view is filled by a
+> separate job, `SeedNationalDexJob`, on its first `?dex=national` visit (ADR-009).
 
 ## Context
 

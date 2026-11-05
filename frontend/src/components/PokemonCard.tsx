@@ -8,18 +8,22 @@ import Brightness1Icon from "@mui/icons-material/Brightness1";
 import PanoramaFishEyeIcon from "@mui/icons-material/PanoramaFishEye";
 import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 import { useNavigate } from "react-router-dom";
-import type { Pokemon } from "../types";
+import type { DexView, Pokemon } from "../types";
 import { useAppContext } from "../hooks/useAppContext";
+import { dexSearch } from "../hooks/useDexView";
 import { useFavorites } from "../hooks/useFavorites";
 import { useFavoriteMutations } from "../hooks/useFavoriteMutations";
 import { useCaughtPokemons } from "../hooks/useCaughtPokemons";
 import { useCaughtMutations } from "../hooks/useCaughtMutations";
 import { TypeBadge } from "./TypeBadge";
+import { MythicalTag } from "./MythicalTag";
 import { formatName } from "../utils/formatters";
 
 interface PokemonCardProps {
   pokemon: Pokemon;
   gameId?: number;
+  // The game page's view, carried onto the detail link
+  dex?: DexView;
   showFavoriteButton?: boolean;
 }
 
@@ -36,6 +40,9 @@ const Card = styled.div<{ $caught: boolean }>`
   cursor: pointer;
   transition: all 0.15s ease;
   position: relative;
+  /* Fill the grid cell, so a tagged card doesn't stand taller than its row */
+  height: 100%;
+  box-sizing: border-box;
 
   &:hover {
     border-color: ${({ theme }) => theme.palette.primary.main};
@@ -70,6 +77,14 @@ const PokedexNum = styled.span`
 
   ${({ theme }) => theme.breakpoints.down("sm")} {
     line-height: 1;
+  }
+`;
+
+const CardTag = styled(MythicalTag)`
+  margin: -4px 0 6px;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    margin: 0 0 3px;
   }
 `;
 
@@ -152,6 +167,7 @@ const TopRight = styled.div`
 export function PokemonCard({
   pokemon,
   gameId,
+  dex = "regional",
   showFavoriteButton = true,
 }: PokemonCardProps) {
   const navigate = useNavigate();
@@ -170,7 +186,7 @@ export function PokemonCard({
   const handleClick = () => {
     navigate(
       gameId
-        ? `/game/${gameId}/pokemon/${pokemon.name}`
+        ? `/game/${gameId}/pokemon/${pokemon.name}${dexSearch(dex)}`
         : `/pokemon/${pokemon.name}`,
     );
   };
@@ -284,6 +300,7 @@ export function PokemonCard({
         />
       )}
       <PokemonName>{formatName(pokemon.name)}</PokemonName>
+      {pokemon.mythical && <CardTag />}
       <TypesRow>
         {pokemon.types.map((type) => (
           <TypeBadge key={type} type={type} size="small" />

@@ -8,6 +8,21 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ### Backend
 - **Fix:** Legends: Z-A lists the Lumiose City dex (232 species) in region kalos, not Scarlet/Violet's Paldea dex. `GAME_TO_POKEDEX` maps `legends-za` to `lumiose-city`, game seeding takes the region from the dex when the version group names none, and the `FixLegendsZaPokedex` data migration repoints an existing row and deletes its Paldea `game_pokemons` so it reseeds on the next visit. Sprites for Xerneas and Yveltal are mirrored.
+- **New:** a national view per game (ADR-009). `GET /api/v1/games/:id?dex=national` lists every species in the game's data: the species whose learnsets name the game's version group, plus every species in all of its dexes (X/Y Coastal and Mountain, the Sword/Shield and Scarlet/Violet DLC dexes, Z-A's Hyperspace), plus the regional rows. Sword/Shield goes from 400 to 664, Scarlet/Violet from 400 to 733, X/Y from 153 to 721, and Mew appears in 34 of 36 games. The default regional view lists the same Pokémon as before.
+- **New:** `SeedNationalDexJob` fills every game's national view in one background pass over species, enqueued once by the first national request (or `rails pokedex:seed_national`, `FORCE=1` to redo all), and the view reports `seeding: true` until it finishes. Migration: `game_pokemons.regional`, `games.national_seeded_at` and `pokemons.mythical` (from `is_mythical`). National-only rows have no regional number and never overwrite one; the regional seed promotes them.
+- **New:** page one of either view carries the whole view's `pokemon_ids` and `dex_numbers`; list rows and the detail page carry `mythical`; `GET /api/v1/pokemon/:id?game_id=&dex=national` returns the national number.
+- **Refactor:** the seed jobs share an `EnqueueOnce` concern for their Redis lock. The regional trigger and `SeedAllPokemonJob` look at regional rows only.
+- **Sprites:** the 29 species no game had listed before (Xerneas, Yveltal, Meltan, Melmetal, Kubfu through Calyrex, Walking Wake through Pecharunt) are mirrored and committed.
+
+### Frontend
+- **New:** a Regional/National toggle on the game page and the team builder, kept in the URL as `?dex=national` and carried onto detail links and game switches. The query key is `["game", gameId, dex]`.
+- **New:** a Mythical label on cards and the detail header.
+- **Fix:** the caught counter counts only caught Pokémon in the list shown, so national-only catches don't inflate the regional total. Dex-section jumps bucket the numbers actually present, which are sparse in the national view.
+
+### Docs
+- ADR-009, a status note on ADR-002, and ARCHITECTURE's regional and national data flow, columns and query keys.
+
+---
 
 ## 2026-11-04
 

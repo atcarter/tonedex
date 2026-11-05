@@ -12,6 +12,8 @@ import { alpha } from "@mui/material/styles";
 import type { Pokemon } from "../types";
 import { useGames } from "../hooks/useGames";
 import { useGame } from "../hooks/useGame";
+import { useDexView } from "../hooks/useDexView";
+import { DexToggle } from "../components/DexToggle";
 import { useTeam, MAX_TEAM_SIZE } from "../hooks/useTeam";
 import { TeamAnalysis } from "../components/team/TeamAnalysis";
 import { TypeBadge } from "../components/TypeBadge";
@@ -248,8 +250,10 @@ export function TeamBuilderPage() {
   const { data: games = [] } = useGames();
   const game = games.find((g) => g.id === numericGameId) ?? null;
 
+  // The picker offers the view chosen on the game page
+  const [dex, setDex] = useDexView();
   const { data, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } =
-    useGame(numericGameId);
+    useGame(numericGameId, dex);
   const { team, addMember, removeMember, clearTeam, hasMember, isFull } =
     useTeam(numericGameId);
 
@@ -301,6 +305,7 @@ export function TeamBuilderPage() {
       <HeaderRow>
         <Title>Team Builder</Title>
         {game && <GameName>{formatName(game.name)}</GameName>}
+        <DexToggle value={dex} onChange={setDex} />
         {team.length > 0 && (
           <Button
             size="small"

@@ -441,6 +441,105 @@ RSpec.describe PokeapiAdapter do
   end
 
   # ---------------------------------------------------------------------------
+  # load_national_dexes
+  # ---------------------------------------------------------------------------
+
+  describe "#load_national_dexes" do
+    # Fake species: 100_801 is in the main dex, 100_802 only in a DLC dex,
+    # 100_803 only in the learnsets, 100_804 in neither.
+    def species_entry(id)
+      {"entry_number" => id, "pokemon_species" => {"url" => "https://pokeapi.co/api/v2/pokemon-species/#{id}/"}}
+    end
+
+    def payload(id, version_groups)
+      pikachu_data.merge(
+        "id" => id,
+        "name" => "national-spec-#{id}",
+        "moves" => [{"version_group_details" => version_groups.map { |vg| {"version_group" => {"name" => vg}} }}]
+      )
+    end
+
+    let(:game) { create(:game, name: "national-spec-sword") }
+    let(:other_game) { create(:game, name: "national-spec-red") }
+
+    before do
+      allow(client).to receive(:version).with(game.name).and_return({"version_group" => {"name" => "spec-swsh"}})
+      allow(client).to receive(:version).with(other_game.name).and_return({"version_group" => {"name" => "spec-rb"}})
+      allow(client).to receive(:version_group).with("spec-swsh").and_return(
+        {"pokedexes" => [{"name" => "spec-galar"}, {"name" => "spec-crown-tundra"}]}
+      )
+      allow(client).to receive(:version_group).with("spec-rb").and_return({"pokedexes" => [{"name" => "spec-kanto"}]})
+      allow(client).to receive(:pokedex).with("spec-galar").and_return({"pokemon_entries" => [species_entry(100_801)]})
+      allow(client).to receive(:pokedex).with("spec-crown-tundra").and_return({"pokemon_entries" => [species_entry(100_802)]})
+      allow(client).to receive(:pokedex).with("spec-kanto").and_return({"pokemon_entries" => []})
+      allow(client).to receive(:pokedex).with("national").and_return(
+        {"pokemon_entries" => [100_801, 100_802, 100_803, 100_804].map { |id| species_entry(id) }}
+      )
+      allow(client).to receive(:pokemon).with(100_801).and_return(payload(100_801, ["spec-swsh"]))
+      allow(client).to receive(:pokemon).with(100_802).and_return(payload(100_802, []))
+      allow(client).to receive(:pokemon).with(100_803).and_return(payload(100_803, ["spec-swsh", "spec-rb"]))
+      allow(client).to receive(:pokemon).with(100_804).and_return(payload(100_804, ["spec-other"]))
+      allow(client).to receive(:pokemon_species).and_return({"is_mythical" => false})
+      allow(client).to receive(:pokemon_species).with(100_803).and_return({"is_mythical" => true})
+    end
+
+    def national_ids(for_game)
+      for_game.pokemons.pluck(:pokeapi_id)
+    end
+
+    it "unions the learnset species with every dex in the version group" do
+      adapter.load_national_dexes([game, other_game])
+
+      expect(national_ids(game)).to contain_exactly(100_801, 100_802, 100_803)
+      expect(national_ids(other_game)).to contain_exactly(100_803)
+      expect(Pokemon.where(pokeapi_id: 100_804)).to be_empty
+    end
+
+    it "stores national-only rows as non-regional with no number" do
+      adapter.load_national_dexes([game])
+
+      expect(game.game_pokemons.pluck(:regional, :pokedex_number).uniq).to eq([[false, nil]])
+    end
+
+    it "keeps an existing regional row and its number" do
+      regional = create(:pokemon, pokeapi_id: 100_801)
+      GamePokemon.create!(game: game, pokemon: regional, pokedex_number: 7)
+
+      adapter.load_national_dexes([game])
+
+      expect(game.game_pokemons.find_by(pokemon: regional)).to have_attributes(regional: true, pokedex_number: 7)
+    end
+
+    it "labels mythical species" do
+      adapter.load_national_dexes([game])
+
+      expect(Pokemon.find_by!(pokeapi_id: 100_803).mythical).to be(true)
+      expect(Pokemon.find_by!(pokeapi_id: 100_801).mythical).to be(false)
+    end
+
+    it "falls back to the version group's dexes when no learnset names the game" do
+      allow(client).to receive(:pokemon).with(100_801).and_return(payload(100_801, []))
+      allow(client).to receive(:pokemon).with(100_803).and_return(payload(100_803, ["spec-rb"]))
+
+      adapter.load_national_dexes([game])
+
+      expect(national_ids(game)).to contain_exactly(100_801, 100_802)
+    end
+
+    it "is idempotent" do
+      adapter.load_national_dexes([game])
+      expect { adapter.load_national_dexes([game]) }.not_to change(GamePokemon, :count)
+    end
+
+    it "leaves out a game whose version group can't be fetched" do
+      allow(client).to receive(:version).with(other_game.name).and_raise(PokeapiClient::NotFoundError, "404")
+
+      expect(adapter.load_national_dexes([game, other_game])).to eq([game])
+      expect(other_game.game_pokemons).to be_empty
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # evolution_chain_for
   # ---------------------------------------------------------------------------
 

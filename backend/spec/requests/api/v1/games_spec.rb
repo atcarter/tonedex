@@ -103,6 +103,90 @@ RSpec.describe "Games API", type: :request do
       end
     end
 
+    context "with ?dex=national" do
+      def lock_keys
+        [SeedGamePokemonJob.lock_key(game.id), SeedNationalDexJob.lock_key]
+      end
+
+      before { Sidekiq.redis { |r| r.del(*lock_keys) } }
+      after { Sidekiq.redis { |r| r.del(*lock_keys) } }
+
+      let!(:regional) do
+        [2, 1].map do |number|
+          create(:pokemon, types: ["fire"]).tap do |pokemon|
+            GamePokemon.create!(game: game, pokemon: pokemon, pokedex_number: number)
+          end
+        end
+      end
+      let!(:national_only) do
+        create(:pokemon, types: ["ghost"], mythical: true).tap do |pokemon|
+          GamePokemon.create!(game: game, pokemon: pokemon, regional: false)
+        end
+      end
+
+      context "before the national pass has run" do
+        it "enqueues the pass once and reports seeding with no rows" do
+          expect {
+            get "/api/v1/games/#{game.id}", params: {dex: "national"}
+            get "/api/v1/games/#{game.id}", params: {dex: "national"}
+          }.to have_enqueued_job(SeedNationalDexJob).exactly(:once)
+
+          json = response.parsed_body
+          expect(json["pokemons"]).to eq([])
+          expect(json["pagination"]["seeding"]).to be(true)
+        end
+
+        it "leaves the regional view alone" do
+          expect {
+            get "/api/v1/games/#{game.id}"
+          }.not_to have_enqueued_job(SeedNationalDexJob)
+        end
+      end
+
+      context "after the national pass" do
+        before { game.update!(national_seeded_at: Time.current) }
+
+        it "lists every row by national number" do
+          get "/api/v1/games/#{game.id}", params: {dex: "national"}
+
+          json = response.parsed_body
+          expected = [*regional, national_only].sort_by(&:pokeapi_id)
+          expect(json["pokemons"].map { |p| p["id"] }).to eq(expected.map(&:id))
+          expect(json["pokemons"].map { |p| p["pokedex_number"] }).to eq(expected.map(&:pokeapi_id))
+          expect(json["pokemons"].find { |p| p["id"] == national_only.id }["mythical"]).to be(true)
+          expect(json["pokemon_ids"]).to eq(expected.map(&:id))
+          expect(json["dex_numbers"]).to eq(expected.map(&:pokeapi_id))
+          expect(json["available_types"]).to eq(%w[fire ghost])
+          expect(json["pagination"]).to include("total" => 3, "seeding" => false)
+        end
+
+        it "does not enqueue another pass" do
+          expect {
+            get "/api/v1/games/#{game.id}", params: {dex: "national"}
+          }.not_to have_enqueued_job(SeedNationalDexJob)
+        end
+      end
+
+      it "keeps national-only rows out of the regional view" do
+        get "/api/v1/games/#{game.id}"
+
+        json = response.parsed_body
+        expect(json["pokemons"].map { |p| p["pokedex_number"] }).to eq([1, 2])
+        expect(json["pokemon_ids"]).to eq(regional.reverse.map(&:id))
+        expect(json["dex_numbers"]).to eq([1, 2])
+        expect(json["available_types"]).to eq(["fire"])
+        expect(json["pagination"]).to include("total" => 2, "seeding" => false)
+      end
+
+      it "seeds the regional dex of a game that only has national rows" do
+        GamePokemon.where(game: game, regional: true).delete_all
+
+        expect {
+          get "/api/v1/games/#{game.id}"
+        }.to have_enqueued_job(SeedGamePokemonJob).with(game.id)
+      end
+    end
+
     it "returns 404 for an unknown game" do
       get "/api/v1/games/999999"
 

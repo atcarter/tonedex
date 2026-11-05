@@ -1,15 +1,15 @@
 // src/hooks/useGame.ts
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { getGame } from "../services/api";
-import type { GameResponse } from "../types";
+import type { DexView, GameResponse } from "../types";
 
 export const PAGE_SIZE = 40;
 
-export function useGame(gameId: number) {
+export function useGame(gameId: number, dex: DexView = "regional") {
   return useInfiniteQuery<GameResponse>({
-    queryKey: ["game", gameId],
+    queryKey: ["game", gameId, dex],
     queryFn: ({ pageParam }) =>
-      getGame(gameId, { limit: PAGE_SIZE, offset: pageParam as number }),
+      getGame(gameId, { limit: PAGE_SIZE, offset: pageParam as number, dex }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
       lastPage.pagination.has_more

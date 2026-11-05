@@ -1,5 +1,6 @@
 import type {
   CaughtEntry,
+  DexView,
   Game,
   GameResponse,
   MoveDetails,
@@ -113,6 +114,7 @@ export async function getGames(): Promise<Game[]> {
 export interface GetGameOptions {
   limit?: number;
   offset?: number;
+  dex?: DexView;
 }
 
 export async function getGame(
@@ -122,6 +124,7 @@ export async function getGame(
   const params = new URLSearchParams();
   if (options.limit) params.set("limit", String(options.limit));
   if (options.offset) params.set("offset", String(options.offset));
+  if (options.dex === "national") params.set("dex", "national");
 
   const queryString = params.toString();
   const url = `/api/v1/games/${id}${queryString ? `?${queryString}` : ""}`;
@@ -131,9 +134,15 @@ export async function getGame(
 export async function getPokemon(
   nameOrId: string | number,
   gameId?: number,
+  dex: DexView = "regional",
 ): Promise<PokemonResponse> {
-  const params = gameId ? `?game_id=${gameId}` : "";
-  return fetchJson<PokemonResponse>(`/api/v1/pokemon/${nameOrId}${params}`);
+  const params = new URLSearchParams();
+  if (gameId) params.set("game_id", String(gameId));
+  if (gameId && dex === "national") params.set("dex", "national");
+  const queryString = params.toString();
+  return fetchJson<PokemonResponse>(
+    `/api/v1/pokemon/${nameOrId}${queryString ? `?${queryString}` : ""}`,
+  );
 }
 
 export async function searchPokemon(query: string): Promise<SearchResponse> {

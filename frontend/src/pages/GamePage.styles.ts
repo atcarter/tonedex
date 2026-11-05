@@ -16,8 +16,25 @@ export const PageWrapper = styled.div`
 export const FilterBar = styled.div`
   margin-bottom: 20px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
+`;
+
+// Phones: the toggle takes its own row, split evenly
+export const DexToggleSlot = styled.div`
+  display: flex;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    flex-basis: 100%;
+
+    > .MuiToggleButtonGroup-root {
+      flex: 1;
+    }
+    .MuiToggleButton-root {
+      flex: 1;
+    }
+  }
 `;
 
 export const Grid = styled.div`
