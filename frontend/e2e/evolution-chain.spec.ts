@@ -12,7 +12,7 @@ const step = (
   evolution_details: unknown[] = [],
 ) => ({ name, evolves_from, evolution_details });
 
-// One chain per shape: single, two and three stage, branching, and branching past the base
+// One chain per shape: single, two and three stage, and branching at the base, past it and with nested stages
 const CHAINS: Record<string, ReturnType<typeof step>[]> = {
   tauros: [step("tauros")],
   wingull: [step("wingull"), step("pelipper", "wingull", lv(25))],
@@ -38,8 +38,49 @@ const CHAINS: Record<string, ReturnType<typeof step>[]> = {
     step("vileplume", "gloom", stone("leaf-stone")),
     step("bellossom", "gloom", stone("sun-stone")),
   ],
+  wurmple: [
+    step("wurmple"),
+    step("silcoon", "wurmple", lv(7)),
+    step("beautifly", "silcoon", lv(10)),
+    step("cascoon", "wurmple", lv(7)),
+    step("dustox", "cascoon", lv(10)),
+  ],
+  charcadet: [
+    step("charcadet"),
+    step("armarouge", "charcadet", stone("auspicious-armor")),
+    step("ceruledge", "charcadet", stone("malicious-armor")),
+  ],
 };
 const LINEAR = ["tauros", "wingull", "sprigatito"];
+
+// PokeAPI's trees: the stage each branch splits from, and the branch column
+// (named by its first evolution) every later stage belongs to
+const EEVEELUTIONS = CHAINS.eevee.slice(1).map((s) => s.name);
+const TREES: Record<string, Record<string, [string, string] | null>> = {
+  eevee: {
+    eevee: null,
+    ...Object.fromEntries(EEVEELUTIONS.map((n) => [n, ["eevee", n]])),
+  },
+  oddish: {
+    oddish: null,
+    gloom: null,
+    vileplume: ["gloom", "vileplume"],
+    bellossom: ["gloom", "bellossom"],
+  },
+  wurmple: {
+    wurmple: null,
+    silcoon: ["wurmple", "silcoon"],
+    beautifly: ["wurmple", "silcoon"],
+    cascoon: ["wurmple", "cascoon"],
+    dustox: ["wurmple", "cascoon"],
+  },
+  charcadet: {
+    charcadet: null,
+    armarouge: ["charcadet", "armarouge"],
+    ceruledge: ["charcadet", "ceruledge"],
+  },
+};
+const BRANCHING = Object.keys(TREES);
 
 async function mockChain(page: Page, name: string) {
   await mockPublicGameRoutes(page);
@@ -87,35 +128,66 @@ async function measure(page: Page) {
       stages: [
         ...chain.querySelectorAll('[data-testid="evolution-stage"]'),
       ].map(box),
-      // Each arrow with the stage it points to and whether one card holds both
+      // Each arrow with the element after it and the column holding it
       arrows: [
         ...chain.querySelectorAll('[data-testid="evolution-arrow"]'),
       ].map((arrow) => {
-        const stages = [
-          ...chain.querySelectorAll('[data-testid="evolution-stage"]'),
-        ];
-        const target = stages.find(
-          (s) =>
-            arrow.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING,
-        )!;
-        const card = arrow.closest('[data-testid="evolution-branch"]');
+        const target = arrow.nextElementSibling!;
         const a = arrow.getBoundingClientRect();
         const t = target.getBoundingClientRect();
         return {
-          sameCard: !!card && card.contains(target),
+          targetIsStage:
+            target.getAttribute("data-testid") === "evolution-stage",
+          sameColumn:
+            arrow.closest('[data-testid="evolution-branch"]') ===
+            target.closest('[data-testid="evolution-branch"]'),
           center: (a.left + a.right) / 2,
           bottom: a.bottom,
           target: { left: t.left, right: t.right, top: t.top },
         };
       }),
+      // Where each stage sits in the tree, and the box of its card
+      tree: Object.fromEntries(
+        [...chain.querySelectorAll('[data-testid="evolution-stage"]')].map(
+          (stage) => {
+            const column = stage.closest<HTMLElement>(
+              '[data-testid="evolution-branch"]',
+            );
+            const group = column?.closest<HTMLElement>(
+              '[data-testid="evolution-branches"]',
+            );
+            return [
+              stage.textContent!.toLowerCase(),
+              {
+                place: column
+                  ? [group!.dataset.parent!, column.dataset.species!]
+                  : null,
+                ...box(stage),
+              },
+            ];
+          },
+        ),
+      ),
+      groups: [
+        ...chain.querySelectorAll<HTMLElement>(
+          '[data-testid="evolution-branches"]',
+        ),
+      ].map((group) => ({ parent: group.dataset.parent!, ...box(group) })),
       branches: [
         ...chain.querySelectorAll('[data-testid="evolution-branch"]'),
-      ].map((card) => {
-        const kids = [...card.children].map((k) => k.getBoundingClientRect());
-        const { height } = card.getBoundingClientRect();
-        // Blank space a card holds below its arrow and stage
-        const slack = height - (kids.at(-1)!.bottom - kids[0].top);
-        return { ...box(card), slack };
+      ].map((column) => {
+        const kids = [...column.children].map((k) => k.getBoundingClientRect());
+        const style = getComputedStyle(column);
+        const { height } = column.getBoundingClientRect();
+        // Blank space a column holds beyond its stages and padding
+        const slack =
+          height -
+          (kids.at(-1)!.bottom - kids[0].top) -
+          parseFloat(style.paddingTop) -
+          parseFloat(style.paddingBottom) -
+          parseFloat(style.borderTopWidth) -
+          parseFloat(style.borderBottomWidth);
+        return { ...box(column), slack };
       }),
       pageWidth: document.documentElement.scrollWidth,
     };
@@ -132,26 +204,25 @@ function expectInsideSection(m: Measured) {
   }
 }
 
-// Eevee: the base stage, then a grid of cards that each hold an arrow and its target
-function expectBranchGrid(m: Measured) {
-  const [base, ...targets] = m.stages;
-  expect(m.branches).toHaveLength(targets.length);
-  expect(m.arrows).toHaveLength(targets.length);
+// Every stage sits in the branch column of its real parent, below that parent,
+// and every arrow shares its column with the stage right after it
+function expectTree(m: Measured, name: string) {
+  const tree = TREES[name];
+  expect(Object.keys(m.tree).sort()).toEqual(Object.keys(tree).sort());
+  for (const [species, place] of Object.entries(tree)) {
+    expect(m.tree[species].place, species).toEqual(place);
+  }
+  for (const group of m.groups) {
+    expect(m.tree[group.parent].top).toBeLessThan(group.top);
+  }
   for (const arrow of m.arrows) {
-    expect(arrow.sameCard).toBe(true);
+    expect(arrow.targetIsStage).toBe(true);
+    expect(arrow.sameColumn).toBe(true);
     expect(arrow.target.top).toBeGreaterThanOrEqual(arrow.bottom);
     expect(arrow.center).toBeGreaterThan(arrow.target.left);
     expect(arrow.center).toBeLessThan(arrow.target.right);
   }
-  // The grid wraps, and every row starts at the section's left edge
-  const tops = [...new Set(m.branches.map((b) => Math.round(b.top)))];
-  expect(tops.length).toBeGreaterThan(1);
-  for (const top of tops) {
-    const row = m.branches.filter((b) => Math.round(b.top) === top);
-    expect(Math.min(...row.map((b) => b.left))).toBeCloseTo(m.content.left, 0);
-  }
-  expect(Math.min(...m.branches.map((b) => b.top))).toBeGreaterThan(base.top);
-  // Rows hug their cards, with no blank band between one row and the next
+  // Columns hug their stages, with no blank band below them
   for (const branch of m.branches) expect(branch.slack).toBeLessThan(1);
 }
 
@@ -176,16 +247,18 @@ test.describe("Evolution chain at phone width", () => {
     });
   }
 
-  test("eevee lays its branches out as cards inside the section", async ({
-    page,
-  }) => {
-    await openChain(page, "eevee");
-    const m = await measure(page);
+  for (const name of BRANCHING) {
+    test(`${name} shows its branches under the stage they evolve from`, async ({
+      page,
+    }) => {
+      await openChain(page, name);
+      const m = await measure(page);
 
-    expect(m.pageWidth).toBe(375);
-    expectInsideSection(m);
-    expectBranchGrid(m);
-  });
+      expect(m.pageWidth).toBe(375);
+      expectInsideSection(m);
+      expectTree(m, name);
+    });
+  }
 });
 
 test.describe("Evolution chain at desktop width", () => {
@@ -201,25 +274,14 @@ test.describe("Evolution chain at desktop width", () => {
     });
   }
 
-  test("eevee wraps its branches as cards, never a bare arrow", async ({
-    page,
-  }) => {
-    await openChain(page, "eevee");
-    expectBranchGrid(await measure(page));
-  });
-
-  test("a branch from a later stage names its parent", async ({ page }) => {
-    const chain = await openChain(page, "oddish");
-    const arrowOf = (name: string) =>
-      chain
-        .getByTestId("evolution-branch")
-        .filter({ has: page.getByText(name, { exact: true }) })
-        .getByTestId("evolution-arrow");
-
-    await expect(arrowOf("Gloom")).toHaveText("→Lv. 21");
-    await expect(arrowOf("Vileplume")).toHaveText("→Leaf Stone (from Gloom)");
-    await expect(arrowOf("Bellossom")).toHaveText("→Sun Stone (from Gloom)");
-  });
+  for (const name of BRANCHING) {
+    test(`${name} shows its branches under the stage they evolve from`, async ({
+      page,
+    }) => {
+      await openChain(page, name);
+      expectTree(await measure(page), name);
+    });
+  }
 
   test("a three-stage chain stays on one row", async ({ page }) => {
     await openChain(page, "sprigatito");

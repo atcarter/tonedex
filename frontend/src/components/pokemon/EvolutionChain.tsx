@@ -1,29 +1,19 @@
+import type { ReactNode } from "react";
 import styled, { css } from "styled-components";
 import { alpha } from "@mui/material/styles";
 import type { EvolutionStep } from "../../types";
 import { formatName, formatEvolutionDetails } from "../../utils/formatters";
 
-const Chain = styled.div<{ $branching?: boolean }>`
+const Chain = styled.div`
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
 
-  ${({ $branching }) =>
-    $branching &&
-    css`
-      /* A grid, not a column flexbox: flex sizes the branch grid's height
-         at one column, which stretches every row with blank space */
-      display: grid;
-      justify-items: start;
-      gap: 8px;
-    `}
-
   /* Phones stack stages so a wrapped row never starts with an arrow */
   ${({ theme }) => theme.breakpoints.down("sm")} {
     flex-direction: column;
     align-items: stretch;
-    justify-items: stretch;
   }
 `;
 
@@ -38,18 +28,39 @@ const Step = styled.div`
   }
 `;
 
-/* Branching chains: each card keeps its arrow with the evolution it leads to */
+/* Branching chains: a column of stages, splitting into a grid of branch
+   columns wherever a stage has several evolutions. Grids, not column
+   flexboxes, so a wrapped branch grid's rows hug their cards. */
+const treeColumn = css`
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    justify-items: stretch;
+  }
+`;
+
+const Tree = styled.div`
+  ${treeColumn}
+`;
+
 const Branches = styled.div`
   justify-self: stretch;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
+  align-items: start;
   gap: 8px;
+  margin-top: 4px;
 `;
 
+/* Outlined, so a wrapped row's arrows don't read as evolving from the row above */
 const Branch = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  ${treeColumn}
+  padding: 8px;
+  border: 1px solid ${({ theme }) => theme.palette.divider};
+  border-radius: 12px;
 `;
 
 const Pokemon = styled.div<{ $isCurrent: boolean; $clickable: boolean }>`
@@ -129,10 +140,17 @@ interface EvolutionChainProps {
   onSelect: (name: string) => void;
 }
 
-// Branching when some stage evolves into two or more others (Eevee)
-function isBranching(chain: EvolutionStep[]) {
-  const parents = chain.flatMap((step) => step.evolves_from ?? []);
-  return new Set(parents).size < parents.length;
+// Each stage's evolutions, by parent name
+function childrenByParent(chain: EvolutionStep[]) {
+  const children = new Map<string, EvolutionStep[]>();
+  for (const step of chain) {
+    if (!step.evolves_from) continue;
+    children.set(step.evolves_from, [
+      ...(children.get(step.evolves_from) ?? []),
+      step,
+    ]);
+  }
+  return children;
 }
 
 export function EvolutionChain({
@@ -154,34 +172,44 @@ export function EvolutionChain({
     );
   };
 
-  const arrow = (step: EvolutionStep, down: boolean, from?: string | null) => (
+  const arrow = (step: EvolutionStep, down: boolean) => (
     <Arrow data-testid="evolution-arrow" $down={down}>
       <span className="arrow">→</span>
-      <span>
-        {formatEvolutionDetails(step.evolution_details[0])}
-        {from && ` (from ${formatName(from)})`}
-      </span>
+      <span>{formatEvolutionDetails(step.evolution_details[0])}</span>
     </Arrow>
   );
 
-  if (isBranching(chain)) {
-    const [base, ...rest] = chain;
+  const children = childrenByParent(chain);
+  const branching = [...children.values()].some((kids) => kids.length > 1);
+
+  // A stage, then its single evolution below it or a column per branch
+  const subtree = (step: EvolutionStep, withArrow: boolean): ReactNode => {
+    const kids = children.get(step.name) ?? [];
     return (
-      <Chain data-testid="evolution-chain" $branching>
-        {stage(base)}
-        <Branches>
-          {rest.map((step) => (
-            <Branch key={step.name} data-testid="evolution-branch">
-              {arrow(
-                step,
-                true,
-                step.evolves_from !== base.name ? step.evolves_from : null,
-              )}
-              {stage(step)}
-            </Branch>
-          ))}
-        </Branches>
-      </Chain>
+      <>
+        {withArrow && arrow(step, true)}
+        {stage(step)}
+        {kids.length === 1 && subtree(kids[0], true)}
+        {kids.length > 1 && (
+          <Branches data-testid="evolution-branches" data-parent={step.name}>
+            {kids.map((kid) => (
+              <Branch
+                key={kid.name}
+                data-testid="evolution-branch"
+                data-species={kid.name}
+              >
+                {subtree(kid, true)}
+              </Branch>
+            ))}
+          </Branches>
+        )}
+      </>
+    );
+  };
+
+  if (branching) {
+    return (
+      <Tree data-testid="evolution-chain">{subtree(chain[0], false)}</Tree>
     );
   }
 

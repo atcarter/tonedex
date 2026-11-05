@@ -9,13 +9,13 @@ import { useAppContext } from "../hooks/useAppContext";
 import { useGames } from "../hooks/useGames";
 
 const PageWrapper = styled.div`
+  /* A centred flex item shrinks to its content; fill up to the max instead */
+  width: 100%;
   max-width: 900px;
   margin: 0 auto;
   padding: 24px;
 
   ${({ theme }) => theme.breakpoints.down("sm")} {
-    /* A centred flex item shrinks to its content; phones fill the screen */
-    width: 100%;
     padding: 16px max(16px, env(safe-area-inset-right))
       max(16px, env(safe-area-inset-bottom))
       max(16px, env(safe-area-inset-left));
