@@ -1,5 +1,7 @@
 version: 2
 
+# minor-and-patch takes every non-major update; named groups take only majors.
+
 updates:
   # Ruby gems (backend)
   - package-ecosystem: "bundler"
@@ -12,6 +14,12 @@ updates:
       - "dependencies"
       - "backend"
     groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
       dev-tools:
         patterns:
           - "brakeman"
@@ -20,6 +28,8 @@ updates:
           - "rspec*"
           - "factory_bot*"
           - "faker"
+        update-types:
+          - "major"
 
   # npm packages (frontend)
   - package-ecosystem: "npm"
@@ -32,13 +42,23 @@ updates:
       - "dependencies"
       - "frontend"
     groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
       mui:
         patterns:
           - "@mui/*"
           - "@emotion/*"
+        update-types:
+          - "major"
       react-query:
         patterns:
           - "@tanstack/*"
+        update-types:
+          - "major"
       dev-tools:
         patterns:
           - "vite"
@@ -50,6 +70,8 @@ updates:
           - "prettier"
           - "playwright"
           - "@playwright/*"
+        update-types:
+          - "major"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -60,3 +82,27 @@ updates:
     labels:
       - "dependencies"
       - "ci"
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Docker base image (backend); bump backend/.ruby-version in the same PR
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "backend"
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
