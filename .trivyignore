@@ -2,3 +2,13 @@
 
 # frontend/Dockerfile runs as root: dev-only image; production serves the SPA as a static site.
 DS-0002
+
+# Thruster 0.1.27 (backend/Gemfile.lock) is built with Go 1.27.1; fixed on thruster main, not released yet.
+# Go crypto/x509 untrusted intermediates, fixed in Go 1.27.3.
+CVE-2026-111943
+# Go net/http Range header DoS, fixed in Go 1.27.2.
+CVE-2026-78667
+# Go and x/net 0.59.0 HTTP/2 SETTINGS DoS, fixed in Go 1.27.2 and x/net 0.60.0.
+CVE-2026-78669
+# Go crypto/tls ECH extension DoS, fixed in Go 1.27.2.
+CVE-2026-97031
