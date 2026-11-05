@@ -77,7 +77,6 @@ Production runs on [Render](https://render.com) in the ohio region. Every resour
 
 - Frontend: https://tonedex-web.onrender.com
 - API: https://tonedex-api.onrender.com
-- Sidekiq UI: https://tonedex-api.onrender.com/sidekiq (Google sign-in, one allowed account)
 
 ```mermaid
 flowchart LR
