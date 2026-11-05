@@ -1,14 +1,13 @@
 require "rails_helper"
 
-# Production sets OmniAuth.config.allowed_hosts from ALLOWED_HOSTS (config/initializers/omniauth.rb).
-# The test env has no Rails host check, so these pin down OmniAuth's own guard.
+# Configures OmniAuth as production does with ALLOWED_HOSTS set. The test env has no Rails host check.
 RSpec.describe "OmniAuth callback hosts", type: :request do
   let(:allowed_host) { "api.tonedex.test" }
   let(:forged_host) { "evil.example" }
 
   around do |example|
     original_hosts, original_logger = OmniAuth.config.allowed_hosts, OmniAuth.config.logger
-    OmniAuth.config.allowed_hosts = [allowed_host]
+    OmniAuth.config.allowed_hosts = OmniauthAllowedHosts.from(ActiveSupport::EnvironmentInquirer.new("production"), [allowed_host])
     OmniAuth.config.logger = Logger.new(IO::NULL)
     example.run
   ensure
