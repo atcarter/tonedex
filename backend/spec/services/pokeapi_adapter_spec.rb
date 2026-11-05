@@ -204,6 +204,40 @@ RSpec.describe PokeapiAdapter do
   end
 
   # ---------------------------------------------------------------------------
+  # find_or_create_game
+  # ---------------------------------------------------------------------------
+
+  describe "#find_or_create_game" do
+    def stub_version(name, pokeapi_id:, regions:)
+      allow(client).to receive(:version).with(name).and_return(
+        "id" => pokeapi_id, "name" => name, "version_group" => {"name" => "#{name}-vg"}
+      )
+      allow(client).to receive(:version_group).with("#{name}-vg").and_return(
+        "generation" => {"name" => "generation-ix"},
+        "regions" => regions.map { |r| {"name" => r} }
+      )
+    end
+
+    it "maps Legends: Z-A to the Lumiose City dex and takes its region from that dex" do
+      stub_version("legends-za", pokeapi_id: 100_047, regions: [])
+      allow(client).to receive(:pokedex).with("lumiose-city").and_return("region" => {"name" => "kalos"})
+
+      game = adapter.find_or_create_game("legends-za")
+
+      expect(game).to have_attributes(pokedex_name: "lumiose-city", region: "kalos", generation: 9)
+    end
+
+    it "uses the version group's region without fetching the dex" do
+      stub_version("scarlet", pokeapi_id: 100_040, regions: ["paldea"])
+      expect(client).not_to receive(:pokedex)
+
+      game = adapter.find_or_create_game("scarlet")
+
+      expect(game).to have_attributes(pokedex_name: "paldea", region: "paldea")
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # find_or_create_move
   # ---------------------------------------------------------------------------
 

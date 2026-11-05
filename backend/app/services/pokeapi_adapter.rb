@@ -20,7 +20,7 @@ class PokeapiAdapter
     "brilliant-diamond" => "original-sinnoh", "shining-pearl" => "original-sinnoh",
     "legends-arceus" => "hisui",
     "scarlet" => "paldea", "violet" => "paldea",
-    "legends-za" => "paldea"
+    "legends-za" => "lumiose-city"
   }.freeze
 
   # Transforms PokeAPI payloads; persistence is delegated to PokemonImporter
@@ -95,14 +95,15 @@ class PokeapiAdapter
   def find_or_create_game(name_or_id)
     data = @client.version(name_or_id)
     version_group = @client.version_group(data.dig("version_group", "name"))
+    pokedex_name = GAME_TO_POKEDEX[data["name"]]
 
     @importer.upsert_game(
       pokeapi_id: data["id"],
       attributes: {
         name: data["name"],
         generation: extract_generation_number(version_group),
-        region: extract_region(version_group),
-        pokedex_name: GAME_TO_POKEDEX[data["name"]]
+        region: extract_region(version_group) || pokedex_region(pokedex_name),
+        pokedex_name: pokedex_name
       }
     )
   end
@@ -209,6 +210,11 @@ class PokeapiAdapter
 
   def extract_region(version_group_data)
     version_group_data.dig("regions", 0, "name")
+  end
+
+  # Some version groups (legends-za) list no region; their dex still names one.
+  def pokedex_region(pokedex_name)
+    @client.pokedex(pokedex_name).dig("region", "name") if pokedex_name
   end
 
   def game_matches_version_group?(game, version_group_name)
