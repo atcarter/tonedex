@@ -8,11 +8,23 @@ const Chain = styled.div`
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
+
+  /* Phones stack stages so a wrapped row never starts with an arrow */
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
 const Step = styled.div`
   display: flex;
   align-items: center;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
 `;
 
 const Pokemon = styled.div<{ $isCurrent: boolean; $clickable: boolean }>`
@@ -32,6 +44,11 @@ const Pokemon = styled.div<{ $isCurrent: boolean; $clickable: boolean }>`
   min-width: 80px;
   cursor: ${(props) => (props.$clickable ? "pointer" : "default")};
   transition: all 0.15s ease;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    justify-content: center;
+    min-height: 44px;
+  }
 
   &:hover {
     background: ${({ theme, $clickable, $isCurrent }) =>
@@ -56,6 +73,16 @@ const Arrow = styled.div`
     color: ${({ theme }) => theme.palette.text.disabled};
     line-height: 1;
   }
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    flex-direction: row;
+    justify-content: center;
+    gap: 6px;
+
+    .arrow {
+      transform: rotate(90deg);
+    }
+  }
 `;
 
 const Name = styled.span<{ $isCurrent: boolean }>`
@@ -77,7 +104,7 @@ export function EvolutionChain({
   onSelect,
 }: EvolutionChainProps) {
   return (
-    <Chain>
+    <Chain data-testid="evolution-chain">
       {chain.map((step, index) => {
         const isCurrent = step.name === currentName;
         return (
@@ -89,6 +116,7 @@ export function EvolutionChain({
               </Arrow>
             )}
             <Pokemon
+              data-testid="evolution-stage"
               $isCurrent={isCurrent}
               $clickable={!isCurrent}
               onClick={() => onSelect(step.name)}

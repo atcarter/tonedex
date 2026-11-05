@@ -14,6 +14,8 @@ const PageWrapper = styled.div`
   padding: 24px;
 
   ${({ theme }) => theme.breakpoints.down("sm")} {
+    /* A centred flex item shrinks to its content; phones fill the screen */
+    width: 100%;
     padding: 16px max(16px, env(safe-area-inset-right))
       max(16px, env(safe-area-inset-bottom))
       max(16px, env(safe-area-inset-left));
