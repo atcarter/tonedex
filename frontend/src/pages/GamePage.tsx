@@ -11,6 +11,7 @@ import { useGames } from "../hooks/useGames";
 import { useGame, PAGE_SIZE } from "../hooks/useGame";
 import { useCaughtPokemons } from "../hooks/useCaughtPokemons";
 import { PokemonCard } from "../components/PokemonCard";
+import { dexSections } from "../utils/dexSections";
 import {
   PageWrapper,
   FilterBar,
@@ -192,14 +193,7 @@ export function GamePage() {
   // Only large dexes get quick-jump sections; hidden while type-filtering
   // (filtered results don't align with dex-number sections)
   const total = pagination?.total ?? 0;
-  const sections = useMemo(() => {
-    if (total < 100) return [];
-    const out: { start: number; end: number }[] = [];
-    for (let start = 1; start <= total; start += 50) {
-      out.push({ start, end: Math.min(start + 49, total) });
-    }
-    return out;
-  }, [total]);
+  const sections = dexSections(total);
 
   if (isLoading) {
     return (
@@ -268,6 +262,24 @@ export function GamePage() {
 
       {availableTypes.length > 0 && (
         <TypeFilters>
+          {/* First, so it's reachable without scrolling */}
+          {selectedTypes.length > 0 && (
+            <Chip
+              label="clear"
+              size="small"
+              onClick={() => setSelectedTypes([])}
+              sx={{
+                height: "22px",
+                fontSize: "0.7rem",
+                cursor: "pointer",
+                bgcolor: "transparent",
+                color: "text.secondary",
+                border: "2px solid",
+                borderColor: "divider",
+                "& .MuiChip-label": { px: "8px" },
+              }}
+            />
+          )}
           {availableTypes.map((type) => {
             const c = TYPE_COLORS[type] ?? { bg: "#999", color: "#fff" };
             const selected = selectedTypes.includes(type);
@@ -295,23 +307,6 @@ export function GamePage() {
               />
             );
           })}
-          {selectedTypes.length > 0 && (
-            <Chip
-              label="clear"
-              size="small"
-              onClick={() => setSelectedTypes([])}
-              sx={{
-                height: "22px",
-                fontSize: "0.7rem",
-                cursor: "pointer",
-                bgcolor: "transparent",
-                color: "text.secondary",
-                border: "2px solid",
-                borderColor: "divider",
-                "& .MuiChip-label": { px: "8px" },
-              }}
-            />
-          )}
         </TypeFilters>
       )}
 

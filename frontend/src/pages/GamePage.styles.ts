@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 import IconButton from "@mui/material/IconButton";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -6,6 +6,11 @@ export const PageWrapper = styled.div`
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px 16px;
+
+  /* Auto margins shrink-wrap this, so a nowrap chip row would widen the page */
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    width: 100%;
+  }
 `;
 
 export const FilterBar = styled.div`
@@ -19,6 +24,16 @@ export const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 12px;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+
+    /* Stop a long name widening its column */
+    > * {
+      min-width: 0;
+    }
+  }
 `;
 
 export const Sentinel = styled.div`
@@ -75,11 +90,43 @@ export const CaughtDot = styled.span`
   line-height: 1;
 `;
 
+// Negative margin cancels PageWrapper's padding so the row reaches the edge.
+const scrollingChipRow = css`
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 16px;
+    scrollbar-width: none;
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    > * {
+      flex-shrink: 0;
+      scroll-snap-align: start;
+    }
+  }
+`;
+
 export const TypeFilters = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 16px;
+  ${scrollingChipRow}
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    .MuiChip-root {
+      height: 32px;
+    }
+  }
 `;
 
 // Dex-section quick-jump (generation tabs don't fit regional dexes — their
@@ -90,6 +137,7 @@ export const JumpRow = styled.div`
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 16px;
+  ${scrollingChipRow}
 `;
 
 export const JumpLabel = styled.span`
@@ -98,6 +146,7 @@ export const JumpLabel = styled.span`
   color: ${({ theme }) => theme.palette.text.secondary};
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  white-space: nowrap;
 `;
 
 export const JumpChip = styled.button`
@@ -111,6 +160,11 @@ export const JumpChip = styled.button`
   font-family: inherit;
   cursor: pointer;
 
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    min-height: 32px;
+    border-radius: 16px;
+  }
+
   &:hover {
     border-color: ${({ theme }) => theme.palette.primary.main};
     color: ${({ theme }) => theme.palette.primary.main};
@@ -119,7 +173,8 @@ export const JumpChip = styled.button`
 
 export const BackToTop = styled(IconButton)<{ $visible: boolean }>`
   position: fixed !important;
-  bottom: 20px !important;
+  /* Clear the home indicator on notched phones */
+  bottom: calc(20px + env(safe-area-inset-bottom)) !important;
   right: 20px !important;
   z-index: 1200 !important;
   background: ${({ theme }) => theme.palette.primary.main} !important;

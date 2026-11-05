@@ -169,6 +169,43 @@ describe("GamePage filtering", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("renders the clear chip first and clears the filter with it", () => {
+    setup();
+    expect(screen.queryByText("clear")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("water"));
+
+    const chips = screen.getAllByRole("button", {
+      name: /^(clear|grass|fire|water|fighting|electric)$/,
+    });
+    expect(chips[0]).toHaveTextContent("clear");
+
+    fireEvent.click(screen.getByText("clear"));
+    expect(cardNames()).toEqual(["sprigatito", "fuecoco", "quaquaval"]);
+    expect(screen.queryByText("clear")).not.toBeInTheDocument();
+  });
+
+  it("folds a short final section into the one before it", () => {
+    setup({
+      pages: [
+        gamePage(POKEMONS, {
+          pagination: {
+            total: 151,
+            limit: 40,
+            offset: 0,
+            has_more: false,
+            seeding: false,
+          },
+        }),
+      ],
+    });
+
+    const jumps = screen
+      .getAllByRole("button", { name: /^\d+–\d+$/ })
+      .map((b) => b.textContent);
+    expect(jumps).toEqual(["1–50", "51–100", "101–151"]);
+  });
+
   it("restores loaded depth from the ?loaded= URL param", async () => {
     // Page one is loaded (offset 0); ?loaded=80 asks for two more pages
     const { fetchNextPage } = setup({

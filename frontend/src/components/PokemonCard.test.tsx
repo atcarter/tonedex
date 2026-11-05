@@ -141,6 +141,18 @@ describe("PokemonCard", () => {
     expect(m2.remove.mutate).toHaveBeenCalledWith(9);
   });
 
+  it("gives both toggles a 44px tap target around their icons", () => {
+    setup();
+    renderCard(<PokemonCard pokemon={PIKACHU} gameId={1} />);
+
+    // 44 = 14 + 2×15 = 16 + 2×14
+    const { caughtBtn, favoriteBtn } = getButtons();
+    expect(caughtBtn).toHaveStyle({ padding: "15px" });
+    expect(favoriteBtn).toHaveStyle({ padding: "14px" });
+    expect(caughtBtn.querySelector("svg")).toHaveStyle({ fontSize: "14px" });
+    expect(favoriteBtn.querySelector("svg")).toHaveStyle({ fontSize: "16px" });
+  });
+
   it("disables both toggles when signed out", () => {
     setup({ user: null as unknown as User });
     renderCard(<PokemonCard pokemon={PIKACHU} gameId={1} />);
