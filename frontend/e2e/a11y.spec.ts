@@ -29,9 +29,9 @@ const TEAM = [
   SPRIGATITO,
   FLORAGATO,
   { id: 909, name: "fuecoco", types: ["fire"], sprite_url: "" },
-  // 4× and 0× marks/rows in the defensive overview
+  // 4× and 0× tiers in the defensive overview
   { id: 130, name: "gyarados", types: ["water", "flying"], sprite_url: "" },
-  // ¼× mark (fire and water vs water/dragon)
+  // ¼× tier (fire and water vs water/dragon)
   { id: 230, name: "kingdra", types: ["water", "dragon"], sprite_url: "" },
 ];
 
