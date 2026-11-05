@@ -192,9 +192,9 @@ class PokeapiAdapter
     warm_abilities(@client.pokemon(pokemon.pokeapi_id))
   end
 
-  # Flavor/lore data for the detail page. Both payloads are already in the
-  # cache for any seeded pokemon (fetched by find_or_create_pokemon and
-  # evolution_chain_for), so this normally costs zero network calls.
+  # Flavor/lore data for the detail page. The seed jobs (load_pokedex_for_game /
+  # load_national_dexes) warm the /pokemon and /ability payloads and
+  # evolution_chain_for the species, so this normally costs zero network calls.
   # Abilities match the game's generation; their text is read cache-only.
   def species_info_for(pokemon, game = nil)
     pokemon_data = @client.pokemon(pokemon.pokeapi_id)
@@ -295,13 +295,13 @@ class PokeapiAdapter
     ability.merge(description: nil, short_effect: nil)
   end
 
-  # The game's own wording, then its fallbacks, then the newest English entry.
+  # The game's own wording, then its fallbacks; nil leaves short_effect as the description.
   def ability_flavor_text(data, version_group)
     version_group ||= CURRENT_ABILITY_TEXT_GROUP
     entries = (data["flavor_text_entries"] || []).select { |e| e.dig("language", "name") == "en" }
     entry = [version_group, *ABILITY_TEXT_FALLBACKS[version_group]].lazy
       .filter_map { |vg| entries.find { |e| e.dig("version_group", "name") == vg } }
-      .first || entries.last
+      .first
     clean_ability_text(entry&.dig("flavor_text"))
   end
 

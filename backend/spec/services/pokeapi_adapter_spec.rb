@@ -735,8 +735,8 @@ RSpec.describe PokeapiAdapter do
         expect(description("legends-za", 9, [flavor("champions", "Champions text.")])[:description]).to eq("Champions text.")
       end
 
-      it "falls back to the newest English text, then the short effect" do
-        expect(description("ultra-sun-ultra-moon", 7, [flavor("ruby-sapphire", "Old."), flavor("x-y", "Newer.")])[:description]).to eq("Newer.")
+      it "uses the short effect when the game's chain has no English text" do
+        expect(description("ultra-sun-ultra-moon", 7, [flavor("ruby-sapphire", "Old."), flavor("x-y", "Newer.")])[:description]).to eq("Evades Ground moves.")
         expect(description("x-y", 6, [])[:description]).to eq("Evades Ground moves.")
       end
 
@@ -757,9 +757,9 @@ RSpec.describe PokeapiAdapter do
         game = create(:game, name: "ability-spec-uncached", generation: 9)
         allow(client).to receive(:version).with(game.name, cache_only: true).and_return(nil)
         allow(client).to receive(:ability).with("levitate", cache_only: true)
-          .and_return(ability_payload([flavor("x-y", "Newest.")]))
+          .and_return(ability_payload([flavor("x-y", "X/Y text."), flavor("scarlet-violet", "SV text.")]))
 
-        expect(abilities(game).first[:description]).to eq("Newest.")
+        expect(abilities(game).first[:description]).to eq("SV text.")
       end
     end
   end
