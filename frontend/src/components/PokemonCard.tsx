@@ -51,6 +51,8 @@ const Card = styled.div<{ $caught: boolean }>`
   }
 
   ${({ theme }) => theme.breakpoints.down("sm")} {
+    /* Fill the grid cell so the cards in a row match */
+    height: 100%;
     padding: 4px 2px;
 
     img {
@@ -121,6 +123,9 @@ const TypesRow = styled.div`
 
   ${({ theme }) => theme.breakpoints.down("sm")} {
     row-gap: 2px;
+    /* Room for two 20px badge lines, so a wrapping pair adds no height */
+    min-height: 42px;
+    align-content: flex-start;
   }
 `;
 

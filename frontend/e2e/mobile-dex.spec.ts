@@ -31,7 +31,14 @@ const TYPES = [
   "fairy",
 ];
 
-// Dual types wrap their badges onto a second line: the tallest card.
+// Some dual types wrap their badges onto a second line; others fit on one.
+const NAMED: Record<number, { name: string; types: string[] }> = {
+  0: { name: "annihilape", types: ["fighting", "ghost"] },
+  1: { name: "meditite", types: ["fighting", "psychic"] },
+  2: { name: "medicham", types: ["fighting", "psychic"] },
+  3: { name: "squawkabilly-green-plumage", types: ["normal", "flying"] },
+};
+
 const POKEMONS = Array.from({ length: 40 }, (_, i) => ({
   id: 100_000 + i,
   name: i % 3 === 0 ? `crabominable-${i}` : `mon-${i}`,
@@ -41,7 +48,10 @@ const POKEMONS = Array.from({ length: 40 }, (_, i) => ({
       : [TYPES[i % TYPES.length]],
   sprite_url: "",
   pokedex_number: i + 1,
+  ...NAMED[i],
 }));
+
+const LONGEST_NAME = "Squawkabilly Green Plumage";
 
 const GAME_PAGE_RESPONSE = {
   game: GAME,
@@ -99,6 +109,59 @@ test.describe("Phone dex", () => {
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBe(375);
+  });
+
+  test("sizes every card the same whatever its name or types", async ({
+    page,
+  }) => {
+    const boxes = await page.locator("[data-dex] > *").evaluateAll((els) =>
+      els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { width: r.width, height: r.height };
+      }),
+    );
+    expect(boxes).toHaveLength(40);
+    for (const box of boxes) {
+      expect(Math.abs(box.width - boxes[0].width)).toBeLessThanOrEqual(1);
+      expect(Math.abs(box.height - boxes[0].height)).toBeLessThanOrEqual(1);
+    }
+
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBe(375);
+  });
+
+  test("truncates a long name and keeps both type badges inside the card", async ({
+    page,
+  }) => {
+    // The full name stays in the DOM for assistive tech; only the paint is cut.
+    const name = page.getByText(LONGEST_NAME, { exact: true });
+    expect(await name.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(
+      true,
+    );
+
+    const badgesOutside = await page
+      .locator("[data-dex] > *")
+      .evaluateAll((cards) =>
+        cards.flatMap((card) => {
+          const c = card.getBoundingClientRect();
+          return [...card.querySelectorAll(".MuiChip-root")]
+            .map((badge) => badge.getBoundingClientRect())
+            .filter(
+              (b) =>
+                b.width === 0 ||
+                b.left < c.left ||
+                b.right > c.right ||
+                b.top < c.top ||
+                b.bottom > c.bottom,
+            );
+        }),
+      );
+    expect(badgesOutside).toHaveLength(0);
+    await expect(page.locator('[data-dex="1"] .MuiChip-root')).toHaveText([
+      "fighting",
+      "ghost",
+    ]);
   });
 
   test("keeps the type filter on one line that scrolls sideways", async ({
