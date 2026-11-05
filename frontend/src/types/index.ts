@@ -78,6 +78,7 @@ export type Move = BasicMove & Partial<Omit<MoveDetails, "name">>;
 
 export interface EvolutionStep {
   name: string;
+  evolves_from?: string | null;
   evolution_details: EvolutionDetail[];
 }
 
