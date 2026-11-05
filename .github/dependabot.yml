@@ -1,11 +1,6 @@
 version: 2
 
-# Grouping: every ecosystem has a `minor-and-patch` group, so all non-major
-# updates arrive as one PR per ecosystem per week. The named groups take only
-# major updates, so a major bump of a package family (all of @mui/*, say)
-# still lands as one PR. A major update matching no named group gets its own PR.
-# Groups whose update-types don't overlap are complementary in Dependabot: each
-# claims the dependencies whose available update falls in its update-types.
+# minor-and-patch takes every non-major update; named groups take only majors.
 
 updates:
   # Ruby gems (backend)
@@ -95,9 +90,7 @@ updates:
           - "minor"
           - "patch"
 
-  # Docker base image (backend). A Ruby image bump must also update
-  # backend/.ruby-version in the same PR, so CI tests the same Ruby that
-  # production runs.
+  # Docker base image (backend); bump backend/.ruby-version in the same PR
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:

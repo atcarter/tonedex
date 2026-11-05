@@ -1,15 +1,12 @@
 # syntax=docker/dockerfile:1
 # check=error=true
 
-# A literal tag so Dependabot can track it (it doesn't resolve ARG in FROM).
-# A Ruby image bump must also update backend/.ruby-version in the same PR, so
-# CI tests the same Ruby that production runs.
+# Literal tag: Dependabot can't read ARG. Bump backend/.ruby-version with it.
 FROM docker.io/library/ruby:3.3.13-slim AS base
 
 WORKDIR /rails
 
-# Install base packages (shared by dev and prod). The upgrade pulls in Debian
-# security fixes released after the ruby base image was built.
+# Install base packages (shared by dev and prod) plus pending Debian security fixes
 RUN apt-get update -qq && \
     apt-get upgrade -y && \
     apt-get install --no-install-recommends -y curl libjemalloc2 postgresql-client && \
