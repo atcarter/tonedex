@@ -62,7 +62,7 @@ const Card = styled.div<{ $caught: boolean }>`
 
 const PokedexNum = styled.span`
   font-size: 0.68rem;
-  color: ${({ theme }) => theme.palette.text.disabled};
+  color: ${({ theme }) => theme.palette.text.secondary};
   font-weight: 700;
   letter-spacing: 0.04em;
 
@@ -211,6 +211,8 @@ export function PokemonCard({
                 size="small"
                 onClick={handleCaughtClick}
                 disabled={!currentUser}
+                aria-label={`mark ${pokemon.name} caught`}
+                aria-pressed={isCaught}
                 sx={{ p: `${caughtPad}px` }}
               >
                 {isCaught ? (
@@ -240,6 +242,8 @@ export function PokemonCard({
                 size="small"
                 onClick={handleFavoriteClick}
                 disabled={!currentUser}
+                aria-label={`favorite ${pokemon.name}`}
+                aria-pressed={isFavorite}
                 sx={{ p: `${favoritePad}px` }}
               >
                 {isFavorite ? (

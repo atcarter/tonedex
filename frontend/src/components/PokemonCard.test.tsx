@@ -87,10 +87,11 @@ function setup({
   return m;
 }
 
-// Buttons are icon-only: caught toggle is the first, favorite the second
 function getButtons() {
-  const buttons = screen.getAllByRole("button");
-  return { caughtBtn: buttons[0], favoriteBtn: buttons[1] };
+  return {
+    caughtBtn: screen.getByRole("button", { name: "mark pikachu caught" }),
+    favoriteBtn: screen.getByRole("button", { name: "favorite pikachu" }),
+  };
 }
 
 describe("PokemonCard", () => {
@@ -151,6 +152,18 @@ describe("PokemonCard", () => {
     expect(favoriteBtn).toHaveStyle({ padding: "14px" });
     expect(caughtBtn.querySelector("svg")).toHaveStyle({ fontSize: "14px" });
     expect(favoriteBtn.querySelector("svg")).toHaveStyle({ fontSize: "16px" });
+  });
+
+  it("names both icon toggles and reports their pressed state", () => {
+    setup({
+      caught: [{ id: 77, pokemon_id: 25, game_id: 1 }],
+      favorites: [{ ...PIKACHU, favorite_id: 9 }],
+    });
+    renderCard(<PokemonCard pokemon={PIKACHU} gameId={1} />);
+
+    const { caughtBtn, favoriteBtn } = getButtons();
+    expect(caughtBtn).toHaveAttribute("aria-pressed", "true");
+    expect(favoriteBtn).toHaveAttribute("aria-pressed", "true");
   });
 
   it("disables both toggles when signed out", () => {
