@@ -87,6 +87,8 @@ export function usePointerReorder<T>(
     const ours = (ev: PointerEvent) => ev.pointerId === e.pointerId;
     const move = (ev: PointerEvent) => {
       if (!ours(ev)) return;
+      // A mouse released where pointerup never reached us (menu, focus loss)
+      if (ev.pointerType === "mouse" && ev.buttons === 0) return end(false);
       s.x = ev.clientX;
       s.y = ev.clientY;
       if (!s.active) {
@@ -99,6 +101,8 @@ export function usePointerReorder<T>(
     };
     const up = (ev: PointerEvent) => ours(ev) && end(true);
     const cancel = (ev: PointerEvent) => ours(ev) && end(false);
+    const abort = () => end(false);
+    const menu = () => e.pointerType === "mouse" && end(false);
 
     // Window listeners, so events still arrive while React moves the item
     const end = (commit: boolean) => {
@@ -106,11 +110,14 @@ export function usePointerReorder<T>(
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("blur", abort);
+      window.removeEventListener("contextmenu", menu);
       if (endSession.current === end) endSession.current = null;
       if (!s.active) return;
       setDragIndex(null);
       if (commit) {
-        callbacks.current.onDrop(s.order);
+        const moved = s.order.some((item, i) => item !== items[i]);
+        if (moved) callbacks.current.onDrop(s.order);
         suppressNextClick();
       } else {
         callbacks.current.onMove(items);
@@ -120,6 +127,8 @@ export function usePointerReorder<T>(
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", cancel);
+    window.addEventListener("blur", abort);
+    window.addEventListener("contextmenu", menu);
     endSession.current = end;
   };
 
