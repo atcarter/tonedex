@@ -7,8 +7,7 @@ RSpec.describe SeedAllPokemonJob do
     Sidekiq.redis { |r| game_ids.each { |id| r.del(seed_job.lock_key(id)) } }
   end
 
-  # The fan-out walks every game in the test database, including rows left by
-  # earlier runs, and takes a lock for each one it enqueues, so clear them all.
+  # The fan-out locks every game in the test DB, including rows left by earlier runs.
   after { clear_seed_locks(Game.ids) }
 
   context "with games that have no Pokémon" do
