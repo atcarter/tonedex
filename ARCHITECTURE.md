@@ -147,7 +147,7 @@ Pool size = concurrency per process. In production, web and worker run as separa
 - **Rate limiting**: `Rack::Attack` — 300 req/5min (general API), 10 req/min (auth), 15 req/min (search, which can reach PokeAPI). Throttle counters are stored in Redis. There's deliberately no games throttle: `SeedGamePokemonJob.enqueue_once` prevents duplicate seeding instead.
 - **Secrets**: `master.key`, `credentials.yml.enc` and the real env files (`.env.local`, `.env.production`) are gitignored. Production secrets live in the `tonedex-backend` env group, set from Terraform variables, and in the local Terraform state, which holds them in plain text and is gitignored too.
 - **Transport and headers**: production forces SSL (HSTS, secure cookies) and checks Host headers against `ALLOWED_HOSTS` when it's set. Rails sends no Content Security Policy: API-only apps leave out that middleware. The Sidekiq UI, the only HTML it serves, sets its own. The SPA's headers, including an enforcing CSP, come from the static site (see Deployment).
-- **Scanning**: CI runs Brakeman and bundler-audit. GitHub secret scanning is on for the repository, and Dependabot opens weekly update pull requests for the gems, npm packages, GitHub Actions and the backend's Ruby base image.
+- **Scanning**: CI runs Brakeman (Rails code), bundler-audit (gems), gitleaks (git history) and Trivy (production image and infrastructure config). GitHub secret scanning is on for the repository, and Dependabot opens weekly update pull requests for the gems, npm packages, GitHub Actions and the backend's Ruby base image.
 
 ---
 

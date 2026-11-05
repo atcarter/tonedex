@@ -1,0 +1,64 @@
+name: Security
+
+# No path filter: a required check that skips never reports.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "41 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      # Full history for gitleaks.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Scan for leaked secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  trivy-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Weekly run skips the cache so apt-get upgrade picks up new fixes.
+      - name: Build production image
+        run: |
+          args=()
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            args+=(--pull --no-cache)
+          fi
+          docker build "${args[@]}" --target production -t tonedex-backend:ci backend
+
+      # trivy-action has no major tag yet (0.x), so pin its latest release.
+      - name: Scan image for vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0 # Trivy v0.70.0
+        with:
+          image-ref: tonedex-backend:ci
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+  trivy-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Scan config for misconfigurations
+        uses: aquasecurity/trivy-action@v0.36.0 # Trivy v0.70.0
+        with:
+          scan-type: config
+          scan-ref: .
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"
