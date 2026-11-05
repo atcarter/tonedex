@@ -64,6 +64,10 @@ const SectionPaper = styled(Paper)`
   padding: 20px 24px !important;
   margin-bottom: 16px !important;
   border-radius: 12px !important;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    padding: 16px !important;
+  }
 `;
 
 const SectionTitle = styled.div`
@@ -98,6 +102,13 @@ const PokemonHeader = styled.div`
   margin-bottom: 16px;
   border-left: 5px solid ${({ theme }) => theme.palette.primary.main};
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px 16px;
+    text-align: center;
+  }
 `;
 
 const SpriteWrapper = styled.div`
@@ -154,6 +165,11 @@ const ShinyButton = styled(IconButton)<IconButtonProps & { $active: boolean }>`
 const HeaderInfo = styled.div`
   display: flex;
   flex-direction: column;
+  min-width: 0;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    align-items: center;
+  }
 `;
 
 const DexNumber = styled.span`
@@ -170,6 +186,7 @@ const PokemonName = styled.h2`
   color: ${({ theme }) => theme.palette.text.primary};
   line-height: 1.1;
   margin: 0 0 12px;
+  overflow-wrap: anywhere;
 `;
 
 const Genus = styled.span`
@@ -182,6 +199,10 @@ const TypeList = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    justify-content: center;
+  }
 `;
 
 // ── About section ────────────────────────────────────────────────────────────
@@ -254,6 +275,11 @@ const CaughtBadge = styled.button<{ $caught: boolean }>`
   cursor: pointer;
   transition: all 0.15s ease;
   align-self: flex-start;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    align-self: center;
+    min-height: 44px;
+  }
 
   &:hover {
     border-color: ${({ theme }) => theme.palette.primary.main};

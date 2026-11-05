@@ -10,7 +10,8 @@ const Wrapper = styled.div`
   justify-content: center;
   gap: 12px;
   text-align: center;
-  padding: 0 24px;
+  padding: 0 max(24px, env(safe-area-inset-right)) 0
+    max(24px, env(safe-area-inset-left));
 `;
 
 const BigIcon = styled(CatchingPokemonIcon)`

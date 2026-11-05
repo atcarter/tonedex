@@ -20,10 +20,17 @@ const PageWrapper = styled.div`
   margin: 0 auto;
   padding: 24px 16px;
   width: 100%;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    padding: 16px max(16px, env(safe-area-inset-right))
+      max(24px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+  }
 `;
 
 const HeaderRow = styled.div`
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 12px;
   margin-bottom: 16px;
@@ -45,7 +52,7 @@ const GameName = styled.span`
 
 const SlotsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr));
   gap: 10px;
   margin-bottom: 20px;
 `;
@@ -76,7 +83,7 @@ const EmptySlot = styled.div`
   min-height: 130px;
   border-radius: 12px;
   border: 2px dashed ${({ theme }) => theme.palette.divider};
-  color: ${({ theme }) => theme.palette.text.disabled};
+  color: ${({ theme }) => theme.palette.text.secondary};
   font-size: 0.75rem;
 `;
 
@@ -102,7 +109,14 @@ const RemoveButton = styled(IconButton)`
 
   svg {
     font-size: 14px;
-    color: ${({ theme }) => theme.palette.text.disabled};
+    color: ${({ theme }) => theme.palette.text.secondary};
+  }
+
+  /* Finger-sized target */
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    top: 0 !important;
+    right: 0 !important;
+    padding: 9px !important;
   }
 `;
 
@@ -117,6 +131,20 @@ const PickerBar = styled.div`
   align-items: center;
   gap: 12px;
   margin-bottom: 10px;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+`;
+
+const PickerField = styled(TextField)`
+  width: 240px;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    width: 100%;
+  }
 `;
 
 const PickerHint = styled.span`
@@ -126,7 +154,7 @@ const PickerHint = styled.span`
 
 const PickerGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr));
   gap: 8px;
   max-height: 320px;
   overflow-y: auto;
@@ -220,7 +248,14 @@ export function TeamBuilderPage() {
             size="small"
             color="error"
             onClick={clearTeam}
-            sx={{ ml: "auto" }}
+            // error.main fails 4.5:1 on the light page background
+            sx={(theme) => ({
+              ml: "auto",
+              color:
+                theme.palette.mode === "dark"
+                  ? theme.palette.error.light
+                  : theme.palette.error.dark,
+            })}
           >
             Clear team
           </Button>
@@ -252,12 +287,12 @@ export function TeamBuilderPage() {
 
       <PickerSection>
         <PickerBar>
-          <TextField
+          <PickerField
             size="small"
             placeholder="Add a Pokémon..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            sx={{ width: 240 }}
+            slotProps={{ htmlInput: { "aria-label": "Add a Pokémon" } }}
           />
           <PickerHint>
             {isFull

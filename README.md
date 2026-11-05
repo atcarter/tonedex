@@ -69,7 +69,7 @@ cd frontend && npm run test:e2e                 # Playwright (API calls are mock
 
 Playwright starts the Vite dev server itself (or reuses one already on :5173); it needs `npm ci` and `npx playwright install chromium` in `frontend/` first.
 
-The backend suite has about 130 RSpec examples, the frontend about 55 Vitest tests, and the end-to-end suite about 20 Playwright tests.
+The backend suite has about 130 RSpec examples, the frontend about 55 Vitest tests, and the end-to-end suite about 40 Playwright tests.
 
 ## Deployment
 
