@@ -7,9 +7,9 @@ class SeedGamePokemonJob < ApplicationJob
   LOCK_TTL = 15.minutes
 
   # Enqueue unless a seed for this game was enqueued in the last LOCK_TTL.
-  # Guards against concurrent visitors to an unseeded game stacking duplicate
-  # full-dex crawls. The jobs are idempotent, so a lost lock is only wasteful,
-  # never incorrect.
+  # Guards against concurrent visitors to an unseeded game, and SeedAllPokemonJob's
+  # fan-out, stacking duplicate full-dex crawls. The jobs are idempotent, so a
+  # lost lock is only wasteful, never incorrect.
   def self.enqueue_once(game_id)
     acquired = Sidekiq.redis do |redis|
       redis.set(lock_key(game_id), "1", nx: true, ex: LOCK_TTL.to_i)
