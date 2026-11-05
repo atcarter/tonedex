@@ -11,6 +11,9 @@ Rails.application.config.middleware.use ActionDispatch::Session::CookieStore,
   same_site: :lax,
   expire_after: 30.minutes
 
+# Build callback URLs only for the hosts production.rb parsed from ALLOWED_HOSTS; unset keeps OmniAuth's default.
+OmniAuth.config.allowed_hosts = Rails.application.config.hosts.presence if Rails.env.production?
+
 Rails.application.config.middleware.use OmniAuth::Builder do
   provider :google_oauth2,
     ENV.fetch("GOOGLE_CLIENT_ID"),

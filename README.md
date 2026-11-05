@@ -116,7 +116,7 @@ Render deploys a commit on `main` only after its GitHub checks pass (`ci.yml` an
 
 - **Authentication:** the SPA exchanges a Google ID token for a 30-day JWT, sent as a bearer token on authenticated calls. The Sidekiq UI uses a separate OmniAuth session restricted to one Google account.
 - **CORS allowlist:** the API accepts cross-origin requests only from `CORS_ORIGINS` (the frontend URL in production), and production refuses to boot without it.
-- **Host authorization:** production checks the `Host` header against `ALLOWED_HOSTS` and forces SSL with HSTS.
+- **Host authorization:** production checks the `Host` header against `ALLOWED_HOSTS`, OmniAuth builds the Sidekiq sign-in's callback URLs only for those hosts, and SSL is forced with HSTS.
 - **Rate limiting:** Rack::Attack throttles the API, auth and search routes per IP.
 - **Static-site headers:** `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and an enforcing Content Security Policy that blocks anything it doesn't allow. [infra/render/README.md](infra/render/README.md#content-security-policy) explains each source.
 - **Private data stores:** Postgres and Key Value accept connections only from Render's private network.
