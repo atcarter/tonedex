@@ -2,8 +2,8 @@ import styled from "styled-components";
 import Paper from "@mui/material/Paper";
 import type { Theme } from "@mui/material/styles";
 import type { Pokemon } from "../../types";
-import { defenseSummary, offensiveCoverage } from "../../utils/teamAnalysis";
-import type { DefenseRow, MemberHit } from "../../utils/teamAnalysis";
+import { memberDefense, offensiveCoverage } from "../../utils/teamAnalysis";
+import type { DefenseMultiplier } from "../../utils/teamAnalysis";
 import { formatName } from "../../utils/formatters";
 import { TypeBadge } from "../TypeBadge";
 
@@ -17,8 +17,10 @@ const SectionPaper = styled(Paper)`
   }
 `;
 
+type TierColor = "error" | "success" | "info";
+
 // The mode's stronger shade keeps text above 4.5:1 on the paper
-const readable = (theme: Theme, color: "error" | "success") =>
+const readable = (theme: Theme, color: TierColor) =>
   theme.palette.mode === "dark"
     ? theme.palette[color].light
     : theme.palette[color].dark;
@@ -61,40 +63,36 @@ const Note = styled.p`
   margin: 0;
 `;
 
-// ── Defense rows ─────────────────────────────────────────────────────────────
+// ── Defense by member ────────────────────────────────────────────────────────
 
-const DefenseGroup = styled.div`
-  min-width: 0;
-  margin-bottom: 16px;
-`;
-
-const EntryList = styled.ul`
+const MemberList = styled.ul`
   list-style: none;
-  margin: 0;
+  margin: 0 0 16px;
   padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 12px;
 `;
 
-// A type badge and the sprites of the members it affects
-const Entry = styled.li`
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 2px;
-  max-width: 100%;
-  padding: 2px 6px 2px 2px;
-  border-radius: 16px;
+const MemberEntry = styled.li`
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
   border: 1px solid ${({ theme }) => theme.palette.divider};
 `;
 
-// Block + overflow keep a missing sprite's alt text inside the box
+const MemberHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+`;
+
+// Block + overflow keep a broken sprite inside its box
 const SpriteBox = styled.span`
-  position: relative;
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
 
   img {
     display: block;
@@ -105,85 +103,92 @@ const SpriteBox = styled.span`
   }
 `;
 
-const Mark = styled.span<{ $color: "error" | "success" }>`
-  position: absolute;
-  right: -3px;
-  bottom: -2px;
-  padding: 0 3px;
-  border-radius: 6px;
-  font-size: 0.55rem;
-  font-weight: 800;
-  line-height: 1.4;
-  color: ${({ theme, $color }) => theme.palette[$color].contrastText};
-  background: ${({ theme, $color }) => theme.palette[$color].dark};
+const MemberName = styled.span`
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
 `;
 
-const None = styled.span`
+const TierRow = styled.div`
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+
+  & + & {
+    margin-top: 6px;
+  }
+`;
+
+const TierLabel = styled.span<{ $color: TierColor }>`
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 20px;
+  color: ${({ theme, $color }) => readable(theme, $color)};
+`;
+
+const TierTypes = styled.ul`
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+`;
+
+const NoTiers = styled.p`
   font-size: 0.85rem;
   color: ${({ theme }) => theme.palette.text.secondary};
+  margin: 0;
 `;
 
-// Only the extreme multipliers get a mark on the sprite
-const MARKS: Record<number, { label: string; color: "error" | "success" }> = {
-  4: { label: "4×", color: "error" },
-  0.25: { label: "¼×", color: "success" },
+// Visible symbol plus spoken text, so screen readers don't read bare symbols
+const TIERS: Record<
+  DefenseMultiplier,
+  { symbol: string; label: string; color: TierColor }
+> = {
+  4: { symbol: "4×", label: "4 times damage from", color: "error" },
+  2: { symbol: "2×", label: "2 times damage from", color: "error" },
+  0.5: { symbol: "½×", label: "Half damage from", color: "success" },
+  0.25: { symbol: "¼×", label: "Quarter damage from", color: "success" },
+  0: { symbol: "0×", label: "Immune to", color: "info" },
 };
 
-const GROUPS: { key: "weak" | "resist" | "immune"; label: string }[] = [
-  { key: "weak", label: "Weak (2× or 4×)" },
-  { key: "resist", label: "Resists (½× or ¼×)" },
-  { key: "immune", label: "Immune (0×)" },
-];
-
-function MemberSprite({ member, multiplier }: MemberHit) {
-  const mark = MARKS[multiplier];
-  const name = formatName(member.name);
+function MemberDefense({ member }: { member: Pokemon }) {
+  const tiers = memberDefense(member);
   return (
-    <SpriteBox>
-      <img
-        src={member.sprite_url}
-        alt={mark ? `${name} (${mark.label})` : name}
-        width={28}
-        height={28}
-        loading="lazy"
-      />
-      {mark && (
-        <Mark $color={mark.color} aria-hidden="true">
-          {mark.label}
-        </Mark>
-      )}
-    </SpriteBox>
-  );
-}
-
-function DefenseRowGroup({
-  label,
-  rows,
-  group,
-}: {
-  label: string;
-  rows: DefenseRow[];
-  group: (typeof GROUPS)[number]["key"];
-}) {
-  const entries = rows.filter((row) => row[group].length > 0);
-  return (
-    <DefenseGroup data-testid="defense-row">
-      <RowLabel>{label}</RowLabel>
-      {entries.length === 0 ? (
-        <None>None</None>
-      ) : (
-        <EntryList aria-label={label}>
-          {entries.map((row) => (
-            <Entry key={row.type}>
-              <TypeBadge type={row.type} size="small" />
-              {row[group].map((hit, i) => (
-                <MemberSprite key={i} {...hit} />
+    <MemberEntry data-testid="defense-member">
+      <MemberHeader>
+        <SpriteBox>
+          <img
+            src={member.sprite_url}
+            alt=""
+            width={36}
+            height={36}
+            loading="lazy"
+          />
+        </SpriteBox>
+        <MemberName>{formatName(member.name)}</MemberName>
+      </MemberHeader>
+      {tiers.length === 0 && <NoTiers>Normal damage from every type.</NoTiers>}
+      {tiers.map(({ multiplier, types }) => {
+        const tier = TIERS[multiplier];
+        return (
+          <TierRow key={multiplier}>
+            <TierLabel $color={tier.color} aria-hidden="true">
+              {tier.symbol}
+            </TierLabel>
+            <TierTypes aria-label={tier.label}>
+              {types.map((type) => (
+                <li key={type}>
+                  <TypeBadge type={type} size="small" />
+                </li>
               ))}
-            </Entry>
-          ))}
-        </EntryList>
-      )}
-    </DefenseGroup>
+            </TierTypes>
+          </TierRow>
+        );
+      })}
+    </MemberEntry>
   );
 }
 
@@ -201,17 +206,21 @@ interface TeamAnalysisProps {
 }
 
 export function TeamAnalysis({ team }: TeamAnalysisProps) {
-  const defense = defenseSummary(team);
   const { uncovered } = offensiveCoverage(team);
 
   return (
     <>
       <SectionPaper elevation={1}>
         <SectionTitle>Defensive Overview</SectionTitle>
-        {GROUPS.map(({ key, label }) => (
-          <DefenseRowGroup key={key} label={label} rows={defense} group={key} />
-        ))}
-        <Note>Types and Pokémon not shown take normal 1× damage.</Note>
+        <MemberList aria-label="Damage each team member takes">
+          {team.map((member, i) => (
+            <MemberDefense key={`${member.id}-${i}`} member={member} />
+          ))}
+        </MemberList>
+        <Note>
+          Types not listed hit that Pokémon for normal 1× damage. 0× means
+          immune.
+        </Note>
       </SectionPaper>
 
       <SectionPaper elevation={1}>

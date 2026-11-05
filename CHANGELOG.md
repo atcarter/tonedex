@@ -17,6 +17,7 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 - **Chore:** the Ruby base image moves from 3.3.3-slim to 3.3.13-slim (Debian 13), the base stage runs `apt-get upgrade`, and `backend/.ruby-version` matches. Every outdated gem is updated, including Puma 8, sentry-ruby 7, redis 6 and Sidekiq 8.1.7. Dependabot watches the Dockerfile and groups minor and patch updates into one weekly PR per ecosystem.
 
 ### Frontend
+- **New:** the team builder's defensive overview lists each member instead of each attacking type: the member's sprite and name, then the types that hit it under separate 4×, 2×, ½×, ¼× and 0× (immune) tiers, with empty tiers left out and unlisted types noted as 1×. Screen readers hear each tier as text ("4 times damage from", "Immune to") rather than the symbol. `memberDefense` replaces the type-grouped `defenseSummary`; offensive coverage is unchanged.
 - **New:** a Regional/National toggle on the game page and the team builder, kept in the URL as `?dex=national` and carried onto detail links and game switches. The query key is `["game", gameId, dex]`.
 - **New:** a Mythical label on cards and the detail header.
 - **Fix:** the caught counter counts only caught Pokémon in the list shown, so national-only catches don't inflate the regional total. Dex-section jumps bucket the numbers actually present, which are sparse in the national view.

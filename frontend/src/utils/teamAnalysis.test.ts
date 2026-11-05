@@ -3,7 +3,7 @@ import {
   TYPE_CHART,
   effectivenessAgainst,
 } from "../constants/typeChart";
-import { defenseSummary, offensiveCoverage } from "./teamAnalysis";
+import { memberDefense, offensiveCoverage } from "./teamAnalysis";
 import type { Pokemon } from "../types";
 
 function mon(name: string, types: string[]): Pokemon {
@@ -45,82 +45,43 @@ describe("effectivenessAgainst", () => {
   });
 });
 
-describe("defenseSummary", () => {
-  // Dragapult: dragon/ghost — weak to ghost, dark, ice, dragon, fairy;
-  // immune to normal and fighting; resists fire/water/electric/grass/poison/bug
-  const dragapult = mon("dragapult", ["dragon", "ghost"]);
+describe("memberDefense", () => {
+  const types = (tiers: ReturnType<typeof memberDefense>) =>
+    Object.fromEntries(tiers.map((tier) => [tier.multiplier, tier.types]));
 
-  function row(rows: ReturnType<typeof defenseSummary>, type: string) {
-    return rows.find((r) => r.type === type)!;
-  }
+  it("splits a dual type into all five tiers (Bastiodon, rock/steel)", () => {
+    const tiers = memberDefense(mon("bastiodon", ["rock", "steel"]));
 
-  const names = (hits: { member: Pokemon }[]) =>
-    hits.map((hit) => hit.member.name);
+    expect(tiers.map((tier) => tier.multiplier)).toEqual([4, 2, 0.5, 0.25, 0]);
+    expect(types(tiers)).toEqual({
+      4: ["fighting", "ground"],
+      2: ["water"],
+      0.5: ["ice", "psychic", "bug", "rock", "dragon", "fairy"],
+      0.25: ["normal", "flying"],
+      // immunity is its own tier, not a resistance
+      0: ["poison"],
+    });
+  });
 
-  it("groups a single member's weaknesses, resists, and immunities", () => {
-    const rows = defenseSummary([dragapult]);
+  it("omits empty tiers and neutral types (Blastoise, water)", () => {
+    const tiers = memberDefense(mon("blastoise", ["water"]));
 
-    for (const weakTo of ["ghost", "dark", "ice", "dragon", "fairy"]) {
-      expect(names(row(rows, weakTo).weak), weakTo).toEqual(["dragapult"]);
+    expect(types(tiers)).toEqual({
+      2: ["electric", "grass"],
+      0.5: ["fire", "water", "ice", "steel"],
+    });
+  });
+
+  it("matches the type chart for every listed type", () => {
+    const member = mon("gyarados", ["water", "flying"]);
+    for (const { multiplier, types } of memberDefense(member)) {
+      for (const type of types) {
+        expect(effectivenessAgainst(type, member.types), type).toBe(multiplier);
+      }
     }
-    for (const immuneTo of ["normal", "fighting"]) {
-      expect(names(row(rows, immuneTo).immune), immuneTo).toEqual([
-        "dragapult",
-      ]);
-      // immunities are kept apart from resists
-      expect(row(rows, immuneTo).resist, immuneTo).toEqual([]);
-    }
-    expect(row(rows, "water").resist).toEqual([
-      { member: dragapult, multiplier: 0.5 },
-    ]);
-    expect(row(rows, "water").weak).toEqual([]);
-  });
-
-  it("records each member's multiplier, including 4×, ¼× and immunity", () => {
-    const gyarados = mon("gyarados", ["water", "flying"]);
-    const lapras = mon("lapras", ["water", "ice"]);
-    const zekrom = mon("zekrom", ["dragon", "electric"]);
-    const garchomp = mon("garchomp", ["dragon", "ground"]);
-    const electric = row(
-      defenseSummary([
-        gyarados,
-        lapras,
-        mon("snorlax", ["normal"]), // 1×, left out
-        dragapult,
-        zekrom,
-        garchomp,
-      ]),
-      "electric",
-    );
-
-    expect(electric.weak).toEqual([
-      { member: gyarados, multiplier: 4 },
-      { member: lapras, multiplier: 2 },
-    ]);
-    expect(electric.resist).toEqual([
-      { member: dragapult, multiplier: 0.5 },
-      { member: zekrom, multiplier: 0.25 },
-    ]);
-    expect(electric.immune).toEqual([{ member: garchomp, multiplier: 0 }]);
-  });
-
-  it("aggregates across members in team order", () => {
-    // Two ice-weak members and one ice-resisting member
-    const rows = defenseSummary([
-      dragapult,
-      mon("garchomp", ["dragon", "ground"]),
-      mon("lapras", ["water", "ice"]),
-    ]);
-
-    const ice = row(rows, "ice");
-    expect(names(ice.weak)).toEqual(["dragapult", "garchomp"]);
-    expect(ice.weak.map((hit) => hit.multiplier)).toEqual([2, 4]);
-    expect(names(ice.resist)).toEqual(["lapras"]);
-  });
-
-  it("returns empty groups for an empty team", () => {
-    for (const r of defenseSummary([])) {
-      expect([...r.weak, ...r.resist, ...r.immune]).toEqual([]);
+    const listed = memberDefense(member).flatMap((tier) => tier.types);
+    for (const type of ALL_TYPES.filter((t) => !listed.includes(t))) {
+      expect(effectivenessAgainst(type, member.types), type).toBe(1);
     }
   });
 });

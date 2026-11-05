@@ -7,7 +7,7 @@ import {
   mockPublicGameRoutes,
 } from "./fixtures";
 
-// Picker collapse, slot links and the defense grid, desktop and phone.
+// Picker collapse, slot links and the defense entries, desktop and phone.
 
 const API = "http://localhost:3000";
 
@@ -143,15 +143,15 @@ for (const viewport of VIEWPORTS) {
       await expect(page.getByText("Scratch")).toBeVisible();
     });
 
-    test("no defensive overview row overflows", async ({ page }) => {
+    test("no defensive overview entry overflows", async ({ page }) => {
       await openTeamBuilder(page, DEX.slice(0, 6));
       await expect(page.getByText("Defensive Overview")).toBeVisible();
 
-      const rows = page.locator("[data-testid=defense-row]");
-      await expect(rows).toHaveCount(3);
-      const overflowing = await rows.evaluateAll((els) =>
+      const entries = page.getByTestId("defense-member");
+      await expect(entries).toHaveCount(6);
+      const overflowing = await entries.evaluateAll((els) =>
         els
-          .flatMap((row) => [row, ...Array.from(row.querySelectorAll("li"))])
+          .flatMap((el) => [el, ...Array.from(el.querySelectorAll("li"))])
           .filter((el) => el.scrollWidth > el.clientWidth)
           .map((el) => el.textContent),
       );

@@ -1,22 +1,17 @@
 import { test, expect } from "@playwright/test";
 import { GAME, mockPublicGameRoutes } from "./fixtures";
 
-// The defensive rows wrap badges and sprites instead of overflowing.
+// The per-member defense entries wrap type badges instead of overflowing.
 
-// Six members weak to electric make its weak entry as wide as it gets
+// Steel types fill the longest tiers; Crabominable is a long name
 const TEAM = [
-  "gyarados",
-  "pelipper",
-  "mantine",
-  "wingull",
-  "swanna",
-  "ducklett",
-].map((name, i) => ({
-  id: 100_000 + i,
-  name,
-  types: ["water", "flying"],
-  sprite_url: "",
-}));
+  { name: "bastiodon", types: ["rock", "steel"] },
+  { name: "corviknight", types: ["flying", "steel"] },
+  { name: "empoleon", types: ["water", "steel"] },
+  { name: "crabominable", types: ["fighting", "ice"] },
+  { name: "gyarados", types: ["water", "flying"] },
+  { name: "dragapult", types: ["dragon", "ghost"] },
+].map((p, i) => ({ id: 100_000 + i, sprite_url: "", ...p }));
 
 const VIEWPORTS = [
   { label: "desktop", use: {} },
@@ -34,20 +29,22 @@ for (const viewport of VIEWPORTS) {
   test.describe(`team analysis (${viewport.label})`, () => {
     test.use(viewport.use);
 
-    test("no defensive overview row overflows", async ({ page }) => {
+    test("no defensive overview entry overflows", async ({ page }) => {
       await mockPublicGameRoutes(page);
       await page.addInitScript((team) => {
         localStorage.setItem("pokedex_team_1", team);
       }, JSON.stringify(TEAM));
       await page.goto(`/game/${GAME.id}/team`);
 
-      const rows = page.getByTestId("defense-row");
-      await expect(rows).toHaveCount(3);
+      const entries = page.getByTestId("defense-member");
+      await expect(entries).toHaveCount(6);
       await expect(
-        page.getByRole("img", { name: "Gyarados (4×)" }).first(),
+        entries
+          .filter({ hasText: "Bastiodon" })
+          .getByRole("list", { name: "4 times damage from" }),
       ).toBeAttached();
 
-      const overflowing = await rows.evaluateAll((els) =>
+      const overflowing = await entries.evaluateAll((els) =>
         els
           .flatMap((el) => [el, ...el.querySelectorAll("li")])
           .filter((el) => {

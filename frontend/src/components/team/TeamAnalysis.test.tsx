@@ -21,56 +21,70 @@ function renderAnalysis(team: Pokemon[]) {
   );
 }
 
-// Against electric: gyarados 4×, lapras 2×, dragapult ½×, zekrom ¼×, garchomp 0×
-const TEAM = [
-  mon("gyarados", ["water", "flying"]),
-  mon("lapras", ["water", "ice"]),
-  mon("snorlax", ["normal"]),
-  mon("dragapult", ["dragon", "ghost"]),
-  mon("zekrom", ["dragon", "electric"]),
-  mon("garchomp", ["dragon", "ground"]),
-];
-
-// Alt texts of the sprites after one type's badge in a group
-function sprites(group: string, type: string) {
-  const entry = within(screen.getByRole("list", { name: group }))
-    .getAllByRole("listitem")
-    .find((li) => within(li).queryByText(type));
-  return entry
-    ? within(entry)
-        .getAllByRole("img")
-        .map((img) => img.getAttribute("alt"))
-    : [];
+// The attacking types under each tier label in one member's entry
+function tiers(name: string) {
+  const entry = screen
+    .getAllByTestId("defense-member")
+    .find((li) => within(li).queryByText(name))!;
+  return Object.fromEntries(
+    within(entry)
+      .queryAllByRole("list")
+      .map((list) => [
+        list.getAttribute("aria-label"),
+        within(list)
+          .getAllByRole("listitem")
+          .map((li) => li.textContent),
+      ]),
+  );
 }
 
 describe("TeamAnalysis defensive overview", () => {
-  it("lists affected members per group, marking only 4× and ¼×", () => {
-    renderAnalysis(TEAM);
+  it("gives every member an entry with its sprite and name", () => {
+    renderAnalysis([
+      mon("bastiodon", ["rock", "steel"]),
+      mon("snorlax", ["normal"]),
+    ]);
 
-    expect(sprites("Weak (2× or 4×)", "electric")).toEqual([
-      "Gyarados (4×)",
-      "Lapras",
+    const entries = screen.getAllByTestId("defense-member");
+    expect(entries.map((li) => li.textContent)).toEqual([
+      expect.stringContaining("Bastiodon"),
+      expect.stringContaining("Snorlax"),
     ]);
-    expect(sprites("Resists (½× or ¼×)", "electric")).toEqual([
-      "Dragapult",
-      "Zekrom (¼×)",
-    ]);
-    expect(sprites("Immune (0×)", "electric")).toEqual(["Garchomp"]);
-    // A type can appear in more than one row; 1× members are left out
-    expect(sprites("Weak (2× or 4×)", "electric")).not.toContain("Snorlax");
+    for (const entry of entries) {
+      expect(entry.querySelector("img")).toBeTruthy();
+    }
   });
 
-  it("says None for an empty group and explains what is not shown", () => {
+  it("lists 4×, 2×, ½×, ¼× and 0× separately for a dual type", () => {
+    renderAnalysis([mon("bastiodon", ["rock", "steel"])]);
+
+    expect(tiers("Bastiodon")).toEqual({
+      "4 times damage from": ["fighting", "ground"],
+      "2 times damage from": ["water"],
+      "Half damage from": ["ice", "psychic", "bug", "rock", "dragon", "fairy"],
+      "Quarter damage from": ["normal", "flying"],
+      "Immune to": ["poison"],
+    });
+    // Symbols are visible but hidden from screen readers
+    for (const symbol of ["4×", "2×", "½×", "¼×", "0×"]) {
+      expect(screen.getByText(symbol).getAttribute("aria-hidden")).toBe("true");
+    }
+  });
+
+  it("omits empty tiers and says unlisted types are neutral", () => {
     renderAnalysis([mon("blastoise", ["water"])]);
 
-    const immune = screen
-      .getAllByTestId("defense-row")
-      .find((el) => within(el).queryByText("Immune (0×)"))!;
-    expect(within(immune).getByText("None")).toBeTruthy();
+    expect(tiers("Blastoise")).toEqual({
+      "2 times damage from": ["electric", "grass"],
+      "Half damage from": ["fire", "water", "ice", "steel"],
+    });
+    expect(screen.queryByText("4×")).toBeNull();
+    expect(screen.queryByText("0×")).toBeNull();
     expect(
-      screen.getByText("Types and Pokémon not shown take normal 1× damage."),
+      screen.getByText(
+        /Types not listed hit that Pokémon for normal 1× damage/,
+      ),
     ).toBeTruthy();
-    expect(screen.queryByText(/net weakness/i)).toBeNull();
   });
 });
 
