@@ -4,6 +4,11 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ---
 
+## 2026-11-05
+
+### Backend
+- **Fix:** Legends: Z-A lists the Lumiose City dex (232 species) in region kalos, not Scarlet/Violet's Paldea dex. `GAME_TO_POKEDEX` maps `legends-za` to `lumiose-city`, game seeding takes the region from the dex when the version group names none, and the `FixLegendsZaPokedex` data migration repoints an existing row and deletes its Paldea `game_pokemons` so it reseeds on the next visit. Sprites for Xerneas and Yveltal are mirrored.
+
 ## 2026-11-04
 
 ### Infrastructure
