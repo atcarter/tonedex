@@ -55,6 +55,18 @@ describe("TeamAnalysis defensive overview", () => {
     }
   });
 
+  it("shows each member's own types beside its name, in type order", () => {
+    renderAnalysis([
+      mon("bastiodon", ["rock", "steel"]),
+      mon("snorlax", ["normal"]),
+    ]);
+
+    const badges = screen
+      .getAllByTestId("member-types")
+      .map((types) => Array.from(types.children, (badge) => badge.textContent));
+    expect(badges).toEqual([["rock", "steel"], ["normal"]]);
+  });
+
   it("lists 4×, 2×, ½×, ¼× and 0× separately for a dual type", () => {
     renderAnalysis([mon("bastiodon", ["rock", "steel"])]);
 
