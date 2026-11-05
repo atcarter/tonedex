@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Full history for gitleaks.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -28,7 +28,7 @@ jobs:
   trivy-image:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Weekly run skips the cache so apt-get upgrade picks up new fixes.
       - name: Build production image
@@ -52,7 +52,7 @@ jobs:
   trivy-config:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Scan config for misconfigurations
         uses: aquasecurity/trivy-action@v0.36.0 # Trivy v0.70.0
