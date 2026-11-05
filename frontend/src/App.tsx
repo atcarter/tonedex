@@ -1,23 +1,10 @@
 import { useEffect, useRef } from "react";
 import styled from "styled-components";
 import { Routes, Route, useLocation } from "react-router-dom";
-import AppBar from "@mui/material/AppBar";
-import Toolbar from "@mui/material/Toolbar";
-import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
-import FavoriteIcon from "@mui/icons-material/Favorite";
-import DarkModeIcon from "@mui/icons-material/DarkMode";
-import LightModeIcon from "@mui/icons-material/LightMode";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
-import { useNavigate } from "react-router-dom";
-import { useAppContext } from "./hooks/useAppContext";
 import { useUi } from "./hooks/useUi";
-import { GameSelector } from "./components/GameSelector";
-import { PokemonSearch } from "./components/PokemonSearch";
-import { AuthButton } from "./components/AuthButton";
+import { AppHeader } from "./components/AppHeader";
 import { GamePage } from "./pages/GamePage";
 import { PokemonDetailPage } from "./pages/PokemonDetailPage";
 import { TeamBuilderPage } from "./pages/TeamBuilderPage";
@@ -30,6 +17,8 @@ const Layout = styled.div`
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  /* Phone browsers' collapsing address bar: track the dynamic viewport */
+  min-height: 100dvh;
 `;
 
 // The AppBar is position: sticky (in normal flow), so content below is always
@@ -55,68 +44,6 @@ const EmptyState = styled.div`
   font-size: 1.1rem;
 `;
 
-function AppBarContent() {
-  const navigate = useNavigate();
-  const { selectedGame } = useAppContext();
-  const { colorMode, toggleColorMode } = useUi();
-
-  return (
-    <AppBar position="sticky" sx={{ bgcolor: "primary.main", zIndex: 1201 }}>
-      <Toolbar sx={{ gap: 2, flexWrap: "wrap", minHeight: "64px" }}>
-        <Typography
-          variant="h6"
-          fontWeight={800}
-          sx={{
-            letterSpacing: 2,
-            flexShrink: 0,
-            fontSize: "1.1rem",
-            cursor: "pointer",
-            // Styled as TONEDEX, but the text stays "ToneDex" so screen
-            // readers say the name instead of spelling out capitals.
-            textTransform: "uppercase",
-          }}
-          onClick={() =>
-            selectedGame ? navigate(`/game/${selectedGame.id}`) : navigate("/")
-          }
-        >
-          ◆ ToneDex
-        </Typography>
-        <Box sx={{ flexShrink: 0 }}>
-          <GameSelector />
-        </Box>
-        <Box sx={{ flexShrink: 0 }}>
-          <PokemonSearch />
-        </Box>
-        <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 1 }}>
-          <IconButton
-            onClick={() => navigate("/favorites")}
-            sx={{ color: "white" }}
-            aria-label="favorites"
-          >
-            <FavoriteIcon />
-          </IconButton>
-          <Tooltip
-            title={
-              colorMode === "dark"
-                ? "Switch to light mode"
-                : "Switch to dark mode"
-            }
-          >
-            <IconButton
-              onClick={toggleColorMode}
-              sx={{ color: "white" }}
-              aria-label="toggle color mode"
-            >
-              {colorMode === "dark" ? <LightModeIcon /> : <DarkModeIcon />}
-            </IconButton>
-          </Tooltip>
-          <AuthButton />
-        </Box>
-      </Toolbar>
-    </AppBar>
-  );
-}
-
 function App() {
   const { toast, clearToast } = useUi();
   const { pathname } = useLocation();
@@ -136,7 +63,7 @@ function App() {
 
   return (
     <Layout>
-      <AppBarContent />
+      <AppHeader />
       <MainContent ref={mainRef} tabIndex={-1}>
         <ErrorBoundary>
           <Routes>
