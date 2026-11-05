@@ -3,8 +3,8 @@ import { defineConfig, devices } from "@playwright/test";
 
 // Every API call is mocked with page.route (see e2e/fixtures.ts), so the suite
 // needs only the Vite dev server. Each run starts its own on a free port and
-// never reuses one, so copies of the repo can run e2e side by side. E2E_PORT
-// pins the port; E2E_BASE_URL targets a dev server you already started.
+// never reuses one, so copies of the repo can run e2e side by side.
+// E2E_BASE_URL targets a dev server you already started.
 // No backend, no Docker.
 //
 //   npm run test:e2e
@@ -23,7 +23,7 @@ function freePort(): Promise<number> {
   });
 }
 
-const existingServer = process.env.E2E_BASE_URL;
+const existingServer = process.env.E2E_BASE_URL || undefined;
 // Workers reload this config; the env they inherit carries the main process's port.
 if (!existingServer) process.env.E2E_PORT ||= String(await freePort());
 const port = process.env.E2E_PORT;

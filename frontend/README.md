@@ -40,4 +40,4 @@ the host after `npm install`.
   route mocks (`e2e/fixtures.ts`), so the runner needs only the Vite dev
   server, which `playwright.config.ts` starts itself on a free port and never
   reuses, so copies of the repo can run e2e side by side. `E2E_BASE_URL`
-  targets a dev server you already started instead; `E2E_PORT` pins the port.
+  targets a dev server you already started instead.
