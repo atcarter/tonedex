@@ -1,40 +1,25 @@
 import { ALL_TYPES, effectivenessAgainst } from "../constants/typeChart";
 import type { Pokemon } from "../types";
 
-// A team member and the damage multiplier it takes from one attacking type.
-export interface MemberHit {
-  member: Pokemon;
-  multiplier: number;
+// Defensive tiers in display order; 1× is left out.
+export const DEFENSE_TIERS = [4, 2, 0.5, 0.25, 0] as const;
+export type DefenseMultiplier = (typeof DEFENSE_TIERS)[number];
+
+// The attacking types that hit a member for one multiplier.
+export interface DefenseTier {
+  multiplier: DefenseMultiplier;
+  types: string[]; // chart order
 }
 
-// Which members one attacking type hits harder, softer, or not at all.
-export interface DefenseRow {
-  type: string; // the attacking type
-  weak: MemberHit[]; // 2× or 4×
-  resist: MemberHit[]; // ½× or ¼×
-  immune: MemberHit[]; // 0×
-}
-
-// One row per attacking type, in chart order; members keep team order.
-export function defenseSummary(team: Pokemon[]): DefenseRow[] {
-  return ALL_TYPES.map((attackType) => {
-    const row: DefenseRow = {
-      type: attackType,
-      weak: [],
-      resist: [],
-      immune: [],
-    };
-
-    for (const member of team) {
-      const multiplier = effectivenessAgainst(attackType, member.types);
-      const hit = { member, multiplier };
-      if (multiplier > 1) row.weak.push(hit);
-      else if (multiplier === 0) row.immune.push(hit);
-      else if (multiplier < 1) row.resist.push(hit);
-    }
-
-    return row;
-  });
+// One member's non-neutral matchups, empty tiers omitted.
+export function memberDefense(member: Pokemon): DefenseTier[] {
+  return DEFENSE_TIERS.map((multiplier) => ({
+    multiplier,
+    types: ALL_TYPES.filter(
+      (attackType) =>
+        effectivenessAgainst(attackType, member.types) === multiplier,
+    ),
+  })).filter((tier) => tier.types.length > 0);
 }
 
 // Which defending types the team can hit super-effectively with STAB
