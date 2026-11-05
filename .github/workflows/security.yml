@@ -1,8 +1,6 @@
 name: Security
 
-# No path filter on purpose: this is meant to become a required check, and a
-# required check that skips never reports. The weekly run catches new CVEs in
-# an unchanged image.
+# No path filter: a required check that skips never reports.
 on:
   push:
     branches: [main]
@@ -15,10 +13,9 @@ permissions:
 
 jobs:
   gitleaks:
-    name: Secrets (gitleaks)
     runs-on: ubuntu-latest
     steps:
-      # Full history so gitleaks can scan every commit in the push or PR range.
+      # Full history for gitleaks.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -29,14 +26,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   trivy-image:
-    name: Production image (Trivy)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Same build as ci.yml's backend-image job. The weekly run pulls a fresh
-      # base image and skips the layer cache, so the base stage's package
-      # upgrade runs again and picks up new Debian fixes.
+      # Weekly run skips the cache so apt-get upgrade picks up new fixes.
       - name: Build production image
         run: |
           args=()
@@ -45,10 +39,9 @@ jobs:
           fi
           docker build "${args[@]}" --target production -t tonedex-backend:ci backend
 
-      # trivy-action has no major tag (it is still 0.x), so it is pinned to its
-      # latest release. v0.36.0 installs Trivy v0.70.0.
+      # trivy-action has no major tag yet (0.x), so pin its latest release.
       - name: Scan image for vulnerabilities
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0 # Trivy v0.70.0
         with:
           image-ref: tonedex-backend:ci
           format: table
@@ -57,15 +50,12 @@ jobs:
           exit-code: "1"
 
   trivy-config:
-    name: Infrastructure config (Trivy)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Misconfiguration scan of the Dockerfiles and the Terraform in infra/.
-      # v0.36.0 installs Trivy v0.70.0.
       - name: Scan config for misconfigurations
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0 # Trivy v0.70.0
         with:
           scan-type: config
           scan-ref: .

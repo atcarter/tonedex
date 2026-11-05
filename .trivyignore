@@ -1,4 +1,4 @@
-# Each entry needs a one-line reason. Remove an entry once its cause is fixed.
+# One-line reason per entry; delete the entry once its cause is fixed.
 
-# frontend/Dockerfile runs as root: it builds only the local development image (Vite dev server); production serves the SPA as a static site.
+# frontend/Dockerfile runs as root: dev-only image; production serves the SPA as a static site.
 DS-0002
