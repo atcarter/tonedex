@@ -12,8 +12,8 @@ locals {
     : "https://${regex("^https://[^@/]+@([^/]+)/", var.vite_sentry_dsn)[0]}"
   )
 
-  # Report-only for now; infra/render/README.md explains each source and how
-  # to switch to an enforcing Content-Security-Policy.
+  # Sent as an enforcing Content-Security-Policy. infra/render/README.md
+  # explains each source; run frontend/e2e-smoke/csp.spec.ts before changing it.
   content_security_policy = join("; ", [
     "default-src 'self'",
     "script-src 'self' https://accounts.google.com",
@@ -203,6 +203,6 @@ resource "render_static_site" "web" {
     { path = "/*", name = "X-Frame-Options", value = "DENY" },
     { path = "/*", name = "X-Content-Type-Options", value = "nosniff" },
     { path = "/*", name = "Referrer-Policy", value = "strict-origin-when-cross-origin" },
-    { path = "/*", name = "Content-Security-Policy-Report-Only", value = local.content_security_policy },
+    { path = "/*", name = "Content-Security-Policy", value = local.content_security_policy },
   ]
 }
