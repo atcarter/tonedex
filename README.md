@@ -12,7 +12,7 @@ A dex for the game you're actually playing. Pick a Pokémon game and browse its 
 - **Compare:** two Pokémon side by side, with a shareable URL.
 - **Team builder:** pick up to six Pokémon from the game's regional or national dex. The picker collapses once the team is full, and each slot links to that Pokémon's detail page. The defensive overview gives each member an entry with its sprite, name and type badges, then the attacking types that hit it under separate 4×, 2×, ½×, ¼× and 0× (immune) tiers, with unlisted types doing normal damage. The offensive check names the types that none of the members' own types hit super-effectively.
 - **Game switching keeps your place:** switching games on the team builder stays on the team builder, and on a detail page stays on that Pokémon when the new game has it.
-- **Accounts:** sign in with Google to keep favorites (reorderable by drag or keyboard) and a caught tracker across devices.
+- **Accounts:** sign in with Google to keep favorites (reorderable by mouse or touch drag, or by keyboard) and a caught tracker across devices.
 - **Phone layouts:** every page fits a 375px screen, and the header collapses to one row that hides while scrolling down.
 - **Dark mode** and accessibility work: AA contrast, keyboard-operable controls, focus management on navigation, and an axe audit of the detail, compare, team, favorites and 404 pages at desktop and phone widths in the end-to-end suite.
 
