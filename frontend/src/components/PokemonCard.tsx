@@ -124,9 +124,7 @@ const TypesRow = styled.div`
   }
 `;
 
-// Each corner button is a 44x44 tap target: the padding grows the hit area
-// around a 14px or 16px icon, and the corner offsets go negative by the same
-// amount so the icons stay 8px inside the card's border, where they always sat.
+// Padding makes 44px tap targets; negative offsets keep icons where they were.
 const CAUGHT_ICON = 14;
 const FAVORITE_ICON = 16;
 const TAP_TARGET = 44;

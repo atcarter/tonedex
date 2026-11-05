@@ -1,7 +1,6 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
 
-// The phone dex layout: three columns of compact cards, one-line chip rows
-// that scroll sideways, and 44px tap targets on each card's corner buttons.
+// Phone layout: three-column grid, sideways chip rows, 44px card buttons.
 test.use({
   viewport: { width: 375, height: 812 },
   isMobile: true,
@@ -32,8 +31,7 @@ const TYPES = [
   "fairy",
 ];
 
-// Long names and dual types are the cards most likely to grow, so every other
-// entry has two (and so wraps its type badges onto a second line).
+// Dual types wrap their badges onto a second line: the tallest card.
 const POKEMONS = Array.from({ length: 40 }, (_, i) => ({
   id: 100_000 + i,
   name: i % 3 === 0 ? `crabominable-${i}` : `mon-${i}`,

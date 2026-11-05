@@ -4,10 +4,8 @@ export interface DexSection {
 }
 
 const SECTION_SIZE = 50;
-// Dexes smaller than this scroll comfortably without quick-jump sections
 const MIN_TOTAL = 100;
-// A trailing bucket smaller than this folds into the one before it, so a
-// 151-entry dex ends at 101–151 rather than a lone 151–151
+// So a 151-entry dex ends at 101–151, not a lone 151–151
 const MIN_LAST_SECTION = 10;
 
 /** Dex-number quick-jump buckets for a dex of `total` entries. */

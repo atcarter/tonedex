@@ -145,7 +145,7 @@ describe("PokemonCard", () => {
     setup();
     renderCard(<PokemonCard pokemon={PIKACHU} gameId={1} />);
 
-    // Padding, not icon size, makes the hit area: 14 + 2×15 and 16 + 2×14
+    // 44 = 14 + 2×15 = 16 + 2×14
     const { caughtBtn, favoriteBtn } = getButtons();
     expect(caughtBtn).toHaveStyle({ padding: "15px" });
     expect(favoriteBtn).toHaveStyle({ padding: "14px" });

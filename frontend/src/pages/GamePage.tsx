@@ -262,7 +262,7 @@ export function GamePage() {
 
       {availableTypes.length > 0 && (
         <TypeFilters>
-          {/* First, so it's reachable on phones without scrolling the row */}
+          {/* First, so it's reachable without scrolling */}
           {selectedTypes.length > 0 && (
             <Chip
               label="clear"

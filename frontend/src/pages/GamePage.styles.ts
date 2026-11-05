@@ -7,8 +7,7 @@ export const PageWrapper = styled.div`
   margin: 0 auto;
   padding: 24px 16px;
 
-  /* The auto margins make this shrink-to-fit inside the app's flex column, so
-     without a definite width a one-line chip row below would widen the page */
+  /* Auto margins shrink-wrap this, so a nowrap chip row would widen the page */
   ${({ theme }) => theme.breakpoints.down("sm")} {
     width: 100%;
   }
@@ -30,7 +29,7 @@ export const Grid = styled.div`
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
 
-    /* Keep a long name (the card truncates it) from widening its column */
+    /* Stop a long name widening its column */
     > * {
       min-width: 0;
     }
@@ -91,9 +90,7 @@ export const CaughtDot = styled.span`
   line-height: 1;
 `;
 
-// Below sm a chip row is one line that scrolls sideways. The negative margin
-// matches PageWrapper's 16px padding so the row bleeds to the viewport edge
-// without widening the page.
+// Negative margin cancels PageWrapper's padding so the row reaches the edge.
 const scrollingChipRow = css`
   ${({ theme }) => theme.breakpoints.down("sm")} {
     flex-wrap: nowrap;
@@ -176,7 +173,7 @@ export const JumpChip = styled.button`
 
 export const BackToTop = styled(IconButton)<{ $visible: boolean }>`
   position: fixed !important;
-  /* Clears the home indicator on notched phones (0 without viewport-fit=cover) */
+  /* Clear the home indicator on notched phones */
   bottom: calc(20px + env(safe-area-inset-bottom)) !important;
   right: 20px !important;
   z-index: 1200 !important;
