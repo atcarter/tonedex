@@ -15,7 +15,8 @@ React 19 + TypeScript SPA built with Vite. Talks to the Rails API at
 - **Routing:** React Router v7; the URL is the source of truth for the
   selected game
 - **Auth:** `@react-oauth/google` → JWT from the API, kept in `localStorage`
-- **Errors:** Sentry (production only), plus a route-level `ErrorBoundary`
+- **Errors:** Sentry v11 (`@sentry/react`, production only, no IP
+  inference), plus a route-level `ErrorBoundary`
 
 ## Scripts
 
