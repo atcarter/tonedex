@@ -1,5 +1,12 @@
 version: 2
 
+# Grouping: every ecosystem has a `minor-and-patch` group, so all non-major
+# updates arrive as one PR per ecosystem per week. The named groups take only
+# major updates, so a major bump of a package family (all of @mui/*, say)
+# still lands as one PR. A major update matching no named group gets its own PR.
+# Groups whose update-types don't overlap are complementary in Dependabot: each
+# claims the dependencies whose available update falls in its update-types.
+
 updates:
   # Ruby gems (backend)
   - package-ecosystem: "bundler"
@@ -12,6 +19,12 @@ updates:
       - "dependencies"
       - "backend"
     groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
       dev-tools:
         patterns:
           - "brakeman"
@@ -20,6 +33,8 @@ updates:
           - "rspec*"
           - "factory_bot*"
           - "faker"
+        update-types:
+          - "major"
 
   # npm packages (frontend)
   - package-ecosystem: "npm"
@@ -32,13 +47,23 @@ updates:
       - "dependencies"
       - "frontend"
     groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
       mui:
         patterns:
           - "@mui/*"
           - "@emotion/*"
+        update-types:
+          - "major"
       react-query:
         patterns:
           - "@tanstack/*"
+        update-types:
+          - "major"
       dev-tools:
         patterns:
           - "vite"
@@ -50,6 +75,8 @@ updates:
           - "prettier"
           - "playwright"
           - "@playwright/*"
+        update-types:
+          - "major"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -60,3 +87,27 @@ updates:
     labels:
       - "dependencies"
       - "ci"
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Docker base image (backend)
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "backend"
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
