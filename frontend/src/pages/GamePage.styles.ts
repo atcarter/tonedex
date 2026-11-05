@@ -27,6 +27,8 @@ export const Grid = styled.div`
 
   ${({ theme }) => theme.breakpoints.down("sm")} {
     grid-template-columns: repeat(3, 1fr);
+    /* Every row as tall as the tallest, so all cards share one size */
+    grid-auto-rows: 1fr;
     gap: 8px;
 
     /* Stop a long name widening its column */
