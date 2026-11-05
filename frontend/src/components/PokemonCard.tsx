@@ -49,6 +49,15 @@ const Card = styled.div<{ $caught: boolean }>`
     object-fit: contain;
     image-rendering: pixelated;
   }
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    padding: 4px 2px;
+
+    img {
+      width: 64px;
+      height: 64px;
+    }
+  }
 `;
 
 const PokedexNum = styled.span`
@@ -56,6 +65,10 @@ const PokedexNum = styled.span`
   color: ${({ theme }) => theme.palette.text.disabled};
   font-weight: 700;
   letter-spacing: 0.04em;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    line-height: 1;
+  }
 `;
 
 // Shown when the sprite fails to load (e.g. upstream throttling) — same
@@ -71,6 +84,15 @@ const SpriteFallback = styled.div`
     font-size: 40px;
     color: ${({ theme }) => theme.palette.action.disabled};
   }
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    width: 64px;
+    height: 64px;
+
+    svg {
+      font-size: 32px;
+    }
+  }
 `;
 
 const PokemonName = styled.span`
@@ -79,6 +101,16 @@ const PokemonName = styled.span`
   color: ${({ theme }) => theme.palette.text.primary};
   text-align: center;
   margin: 6px 0 8px;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    font-size: 0.75rem;
+    line-height: 1.2;
+    margin: 2px 0 3px;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 `;
 
 const TypesRow = styled.div`
@@ -86,18 +118,32 @@ const TypesRow = styled.div`
   gap: 4px;
   flex-wrap: wrap;
   justify-content: center;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    row-gap: 2px;
+  }
 `;
+
+// Each corner button is a 44x44 tap target: the padding grows the hit area
+// around a 14px or 16px icon, and the corner offsets go negative by the same
+// amount so the icons stay 8px inside the card's border, where they always sat.
+const CAUGHT_ICON = 14;
+const FAVORITE_ICON = 16;
+const TAP_TARGET = 44;
+const ICON_INSET = 8;
+const caughtPad = (TAP_TARGET - CAUGHT_ICON) / 2;
+const favoritePad = (TAP_TARGET - FAVORITE_ICON) / 2;
 
 const TopLeft = styled.div`
   position: absolute;
-  top: 4px;
-  left: 4px;
+  top: ${ICON_INSET - caughtPad}px;
+  left: ${ICON_INSET - caughtPad}px;
 `;
 
 const TopRight = styled.div`
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: ${ICON_INSET - favoritePad}px;
+  right: ${ICON_INSET - favoritePad}px;
 `;
 
 export function PokemonCard({
@@ -167,15 +213,15 @@ export function PokemonCard({
                 size="small"
                 onClick={handleCaughtClick}
                 disabled={!currentUser}
-                sx={{ p: "4px" }}
+                sx={{ p: `${caughtPad}px` }}
               >
                 {isCaught ? (
                   <Brightness1Icon
-                    sx={{ fontSize: 14, color: "primary.main" }}
+                    sx={{ fontSize: CAUGHT_ICON, color: "primary.main" }}
                   />
                 ) : (
                   <PanoramaFishEyeIcon
-                    sx={{ fontSize: 14, color: "action.disabled" }}
+                    sx={{ fontSize: CAUGHT_ICON, color: "action.disabled" }}
                   />
                 )}
               </IconButton>
@@ -196,13 +242,15 @@ export function PokemonCard({
                 size="small"
                 onClick={handleFavoriteClick}
                 disabled={!currentUser}
-                sx={{ p: "4px" }}
+                sx={{ p: `${favoritePad}px` }}
               >
                 {isFavorite ? (
-                  <FavoriteIcon sx={{ fontSize: 16, color: "primary.main" }} />
+                  <FavoriteIcon
+                    sx={{ fontSize: FAVORITE_ICON, color: "primary.main" }}
+                  />
                 ) : (
                   <FavoriteBorderIcon
-                    sx={{ fontSize: 16, color: "action.disabled" }}
+                    sx={{ fontSize: FAVORITE_ICON, color: "action.disabled" }}
                   />
                 )}
               </IconButton>
