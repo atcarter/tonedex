@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 
 // Vitest launches Node with --localstorage-file (no valid path), which makes
 // Node's experimental webstorage shadow jsdom's working Storage — its methods
