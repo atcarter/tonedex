@@ -12,8 +12,10 @@ const Chain = styled.div<{ $branching?: boolean }>`
   ${({ $branching }) =>
     $branching &&
     css`
-      flex-direction: column;
-      align-items: flex-start;
+      /* A grid, not a column flexbox: flex sizes the branch grid's height
+         at one column, which stretches every row with blank space */
+      display: grid;
+      justify-items: start;
       gap: 8px;
     `}
 
@@ -21,6 +23,7 @@ const Chain = styled.div<{ $branching?: boolean }>`
   ${({ theme }) => theme.breakpoints.down("sm")} {
     flex-direction: column;
     align-items: stretch;
+    justify-items: stretch;
   }
 `;
 
@@ -37,7 +40,7 @@ const Step = styled.div`
 
 /* Branching chains: each card keeps its arrow with the evolution it leads to */
 const Branches = styled.div`
-  align-self: stretch;
+  justify-self: stretch;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 8px;

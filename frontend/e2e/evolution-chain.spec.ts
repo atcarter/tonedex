@@ -110,7 +110,13 @@ async function measure(page: Page) {
       }),
       branches: [
         ...chain.querySelectorAll('[data-testid="evolution-branch"]'),
-      ].map(box),
+      ].map((card) => {
+        const kids = [...card.children].map((k) => k.getBoundingClientRect());
+        const { height } = card.getBoundingClientRect();
+        // Blank space a card holds below its arrow and stage
+        const slack = height - (kids.at(-1)!.bottom - kids[0].top);
+        return { ...box(card), slack };
+      }),
       pageWidth: document.documentElement.scrollWidth,
     };
   });
@@ -145,6 +151,8 @@ function expectBranchGrid(m: Measured) {
     expect(Math.min(...row.map((b) => b.left))).toBeCloseTo(m.content.left, 0);
   }
   expect(Math.min(...m.branches.map((b) => b.top))).toBeGreaterThan(base.top);
+  // Rows hug their cards, with no blank band between one row and the next
+  for (const branch of m.branches) expect(branch.slack).toBeLessThan(1);
 }
 
 test.describe("Evolution chain at phone width", () => {
