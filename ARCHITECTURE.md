@@ -37,7 +37,7 @@ Browser
         ├── Rack::Attack — per-IP rate limiting on API, auth and search routes
         │
         ├── Services
-        │     ├── PokeapiClient   — HTTP to pokeapi.co, cache-first through ApiCache
+        │     ├── PokeapiClient   — HTTP to pokeapi.co, cache-first through ApiCache (cache_only: reads never fetch)
         │     ├── PokeapiAdapter  — turns PokeAPI payloads into attribute hashes
         │     ├── PokemonImporter — owns every write to games, pokemons, moves and their join tables
         │     └── SpriteStore     — mirrors sprite PNGs into public/sprites
@@ -46,6 +46,7 @@ Browser
               ├── SeedGamePokemonJob    — triggered on first game load (lazy seeding)
               ├── SeedNationalDexJob    — fills every game's national view in one pass
               ├── SeedAllPokemonJob     — enqueues SeedGamePokemonJob for every game without a regional dex, through the per-game lock
+              ├── WarmAbilitiesJob      — backfills /ability payloads for Pokémon seeded before seeds warmed them
               └── MirrorSpriteJob       — mirrors a new Pokémon's sprites
 
 PostgreSQL
@@ -105,6 +106,15 @@ Each game page has two views (ADR-009), chosen by `?dex=national` in the SPA URL
 - `SeedNationalDexJob` fills every game whose `games.national_seeded_at` is null in one pass over the national dex's species, one cached payload at a time, and then stamps that column. The first `?dex=national` request for such a game enqueues it once (one Redis lock for the whole pass), and the view returns an empty list with `seeding: true` until the stamp is set. `rails pokedex:seed_national` enqueues it by hand (`FORCE=1` reseeds every game). A regional link promotes a national-only row; a national link never changes an existing row.
 - `pokemons.mythical` (from `/pokemon-species/{id}` → `is_mythical`) labels mostly event-only species in both views.
 - Page one of either view also carries `pokemon_ids` and `dex_numbers` for the whole view. The caught counter counts only caught Pokémon in `pokemon_ids`, and the dex-section jumps bucket `dex_numbers`, which are sparse nationally. The team builder's picker and the detail page's number (`GET /api/v1/pokemon/:id?game_id=&dex=`) follow the same `?dex=` parameter.
+
+## Data Flow: Abilities on the Detail Page
+
+`GET /api/v1/pokemon/:id?game_id=` returns `species.abilities` as `[{name, hidden, description, short_effect}]`, built by `PokeapiAdapter#species_info_for(pokemon, game)` from cached payloads only.
+
+- **Which abilities:** the cached `/pokemon/{id}` payload's `abilities`, adjusted to the game's generation with `past_abilities`. Each past entry lists the slots that applied up to and including its generation, and a null ability means the slot was empty (Pikachu has no hidden ability through Gen 4; Gengar has Levitate through Gen 6). Gen 1–2 games get an empty list, and the SPA notes that abilities arrived in Gen 3. Outside a game the current abilities are shown.
+- **Text:** `description` is the English `/ability/{name}` flavor text for the game's version group (from the cached `/version/{name}`). Groups without their own text borrow it per `ABILITY_TEXT_FALLBACKS` (BDSP and Legends: Arceus from Sword/Shield; Scarlet/Violet from its DLC groups, then Sword/Shield; Legends: Z-A from Scarlet/Violet, its DLC groups, then `champions`; X/Y from ORAS; Sun/Moon from USUM), then `short_effect`. Outside a game it uses Legends: Z-A's chain. The text is cleaned of textbox line breaks, soft hyphens and zero-width spaces. `short_effect` is PokeAPI's current mechanics summary; the panel shows it as "In battle:" when it differs.
+- **Cache-only:** the request reads `/ability/*` and `/version/*` with `cache_only: true`, so a miss returns `description: null` and never calls PokeAPI (ADR-002). `SeedGamePokemonJob` and `SeedNationalDexJob` warm each imported Pokémon's current and past abilities. Pokémon seeded before that are backfilled by `rails pokedex:warm_abilities`, which enqueues `WarmAbilitiesJob`; it is idempotent and only fetches what is still missing (at most 314 abilities, about 6 MB of `api_caches`).
+- **SPA:** each ability chip is a button with `aria-expanded`; tapping one opens a full-width panel under the chip row with the description, the "In battle:" line and the Hidden label. The data comes with the page, so there is no extra request.
 
 ---
 

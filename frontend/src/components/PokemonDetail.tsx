@@ -20,8 +20,11 @@ import { useCaughtPokemons } from "../hooks/useCaughtPokemons";
 import { StatBars } from "./pokemon/StatBars";
 import { EvolutionChain } from "./pokemon/EvolutionChain";
 import { MoveTable } from "./pokemon/MoveTable";
+import { AbilityList } from "./pokemon/AbilityList";
+import { AboutItem, AboutLabel } from "./pokemon/aboutStyles";
 import { TypeBadge } from "./TypeBadge";
 import { formatName } from "../utils/formatters";
+import { isPreAbilityGeneration } from "../utils/abilities";
 
 interface PokemonDetailProps {
   pokemonName: string;
@@ -231,39 +234,9 @@ const AboutGrid = styled.div`
   gap: 28px;
 `;
 
-const AboutItem = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-`;
-
-const AboutLabel = styled.span`
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: ${({ theme }) => theme.palette.text.secondary};
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-`;
-
 const AboutValue = styled.span`
   font-size: 0.9rem;
   font-weight: 700;
-  color: ${({ theme }) => theme.palette.text.primary};
-`;
-
-const AbilityRow = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-`;
-
-const AbilityChip = styled.span<{ $hidden: boolean }>`
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 12px;
-  border: 2px ${({ $hidden }) => ($hidden ? "dashed" : "solid")}
-    ${({ theme }) => theme.palette.divider};
   color: ${({ theme }) => theme.palette.text.primary};
 `;
 
@@ -370,7 +343,10 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
   const { pokemon: details, species, moves, evolution_chain } = data;
   const dexNumber = details.pokedex_number;
   const hasAboutSection =
-    species && (species.flavor_text || species.abilities.length > 0);
+    species &&
+    (species.flavor_text ||
+      species.abilities.length > 0 ||
+      isPreAbilityGeneration(game?.generation));
   const isCaught = numericGameId
     ? caught.some(
         (c) => c.pokemon_id === details.id && c.game_id === numericGameId,
@@ -469,22 +445,11 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
                 <AboutValue>{(species.weight / 10).toFixed(1)} kg</AboutValue>
               </AboutItem>
             )}
-            {species.abilities.length > 0 && (
-              <AboutItem>
-                <AboutLabel>Abilities</AboutLabel>
-                <AbilityRow>
-                  {species.abilities.map((ability) => (
-                    <AbilityChip
-                      key={ability.name}
-                      $hidden={ability.hidden}
-                      title={ability.hidden ? "Hidden ability" : undefined}
-                    >
-                      {formatName(ability.name)}
-                    </AbilityChip>
-                  ))}
-                </AbilityRow>
-              </AboutItem>
-            )}
+            <AbilityList
+              key={details.name}
+              abilities={species.abilities}
+              generation={game?.generation ?? null}
+            />
           </AboutGrid>
         </SectionPaper>
       )}

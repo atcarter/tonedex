@@ -46,7 +46,7 @@ class Api::V1::PokemonController < ApplicationController
 
     render json: {
       pokemon: PokemonSerializer.details(pokemon, game: game, dex: params[:dex], sprite_base: request.base_url),
-      species: species_info(pokemon),
+      species: species_info(pokemon, game),
       moves: moves_for_game(pokemon, game),
       evolution_chain: evolution_chain(pokemon)
     }
@@ -77,8 +77,8 @@ class Api::V1::PokemonController < ApplicationController
     []
   end
 
-  def species_info(pokemon)
-    adapter.species_info_for(pokemon)
+  def species_info(pokemon, game)
+    adapter.species_info_for(pokemon, game)
   rescue PokeapiClient::ApiError
     nil
   end

@@ -54,6 +54,27 @@ RSpec.describe PokeapiClient do
     end
   end
 
+  describe "cache_only reads (via #ability)" do
+    it "returns cached data" do
+      allow(cache).to receive(:fetch).with("/ability/levitate").and_return({"name" => "levitate"})
+
+      expect(client.ability("levitate", cache_only: true)).to eq({"name" => "levitate"})
+    end
+
+    it "returns nil on a miss without hitting the network" do
+      expect(HTTParty).not_to receive(:get)
+      expect(client.ability("levitate", cache_only: true)).to be_nil
+      expect(cache).not_to have_received(:store)
+    end
+
+    it "still raises NotFoundError from a cached negative entry" do
+      allow(cache).to receive(:fetch).with("/ability/garbage")
+        .and_return(described_class::NOT_FOUND_SENTINEL.dup)
+
+      expect { client.ability("garbage", cache_only: true) }.to raise_error(described_class::NotFoundError)
+    end
+  end
+
   describe "retry behaviour" do
     it "retries transient network errors and succeeds" do
       ok = response_double(code: 200, body: {"name" => "pikachu"})

@@ -10,6 +10,10 @@
 >
 > **Status note (2026-11-05):** the first-visit trigger now counts regional rows only. A game's national view is filled by a
 > separate job, `SeedNationalDexJob`, on its first `?dex=national` visit (ADR-009).
+>
+> **Status note (2026-11-05, abilities):** the detail page's ability text is read with `PokeapiClient`'s `cache_only:` option, which
+> returns nil on a miss instead of fetching, so it is not a third runtime path. The seed jobs warm `/ability/*`, and
+> `rails pokedex:warm_abilities` backfills games seeded earlier.
 
 ## Context
 

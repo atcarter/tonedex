@@ -25,6 +25,12 @@ namespace :pokedex do
     end
   end
 
+  desc "Cache the /ability payloads of every Pokémon already seeded (async, idempotent)"
+  task warm_abilities: :environment do
+    WarmAbilitiesJob.perform_later
+    puts "Enqueued WarmAbilitiesJob — monitor progress at /sidekiq"
+  end
+
   desc "Seed everything: game metadata + Pokemon (run this on first deploy)"
   task seed: [:seed_games, :seed_pokemon]
 
