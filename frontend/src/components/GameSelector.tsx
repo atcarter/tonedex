@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import styled from "styled-components";
 import { useNavigate, useMatch, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
@@ -8,6 +9,7 @@ import ListSubheader from "@mui/material/ListSubheader";
 import type { Game } from "../types";
 import { useAppContext } from "../hooks/useAppContext";
 import { useGames } from "../hooks/useGames";
+import { getPokemon } from "../services/api";
 
 const StyledFormControl = styled(FormControl)`
   min-width: 200px;
@@ -43,6 +45,14 @@ export function GameSelector() {
   const { pathname } = useLocation();
   const { setSelectedGame } = useAppContext();
   const { data: games = [], isLoading, isError, error } = useGames();
+  const queryClient = useQueryClient();
+  const teamMatch = useMatch("/game/:gameId/team");
+  const detailMatch = useMatch("/game/:gameId/pokemon/:pokemonName");
+  // Bumped per switch and per navigation so a stale membership check can't redirect.
+  const switchRequest = useRef(0);
+  useEffect(() => {
+    switchRequest.current++;
+  }, [pathname]);
 
   // Derive the active game ID from the URL — this is the source of truth.
   // Match both /game/:gameId and deeper routes like /game/:gameId/pokemon/:name
@@ -67,6 +77,37 @@ export function GameSelector() {
       }
     }
   }, [games, pathname, setSelectedGame, navigate]);
+
+  // Team builder and detail page keep their page for the new game when they can.
+  const switchGame = async (game: Game) => {
+    const request = ++switchRequest.current;
+    const go = (path: string) => {
+      if (request !== switchRequest.current) return;
+      setSelectedGame(game);
+      navigate(path);
+    };
+
+    if (teamMatch) return go(`/game/${game.id}/team`);
+
+    const name = detailMatch?.params.pokemonName;
+    if (!name) return go(`/game/${game.id}`);
+
+    try {
+      // Same query as usePokemon, so the detail page renders from cache.
+      const data = await queryClient.fetchQuery({
+        queryKey: ["pokemon", name, game.id],
+        queryFn: () => getPokemon(name, game.id),
+        staleTime: Infinity,
+      });
+      go(
+        data.pokemon.pokedex_number != null
+          ? `/game/${game.id}/pokemon/${name}`
+          : `/game/${game.id}`,
+      );
+    } catch {
+      go(`/game/${game.id}`);
+    }
+  };
 
   if (isLoading)
     return (
@@ -120,12 +161,10 @@ export function GameSelector() {
         value={urlGameId ?? ""}
         onChange={(e) => {
           const game = games.find((g: Game) => g.id === Number(e.target.value));
-          if (game) {
-            setSelectedGame(game);
-            navigate(`/game/${game.id}`);
-          }
+          if (game) void switchGame(game);
         }}
         displayEmpty
+        inputProps={{ "aria-label": "select game" }}
         MenuProps={{ PaperProps: { sx: { maxHeight: 400 } } }}
       >
         <MenuItem value="" disabled>

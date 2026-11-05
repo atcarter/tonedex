@@ -33,17 +33,6 @@ const TEAM = [
 
 const BLOCKING_IMPACTS = new Set(["serious", "critical"]);
 
-// Violations in files other specs own; drop each once its file is fixed.
-const EXCLUDED = [
-  // PokemonSearch.tsx: aria-expanded without a combobox role; unnamed submit
-  "header form",
-  // GameSelector.tsx: unnamed Select
-  "header .MuiSelect-select",
-];
-
-// PokemonCard.tsx (first child of each favorite): unnamed button, dex number contrast
-const FAVORITE_CARD = '[draggable="true"] > :first-child';
-
 function json(body: unknown) {
   return {
     status: 200,
@@ -66,7 +55,6 @@ interface Route {
   name: string;
   path: string;
   signedIn?: boolean;
-  exclude?: string[];
   ready: (page: Page) => Promise<void>;
 }
 
@@ -103,7 +91,6 @@ const ROUTES: Route[] = [
     name: "favorites",
     path: "/favorites",
     signedIn: true,
-    exclude: [FAVORITE_CARD],
     ready: async (page) => {
       await expect(
         page.getByRole("button", { name: "move floragato earlier" }),
@@ -147,22 +134,22 @@ for (const viewport of VIEWPORTS) {
         }, JSON.stringify(TEAM));
         if (route.signedIn) {
           await seedAuthState(page);
-          await mockAuthenticatedRoutes(page, {
-            favorites: [
-              { ...SPRIGATITO, favorite_id: 5 },
-              { ...FLORAGATO, favorite_id: 6 },
-            ],
-          });
+          await mockAuthenticatedRoutes(page);
+          // Every card refetches favorites on mount, so answer each call the same.
+          await page.route(`${API}/api/v1/favorites`, (r) =>
+            r.fulfill(
+              json([
+                { ...SPRIGATITO, favorite_id: 5 },
+                { ...FLORAGATO, favorite_id: 6 },
+              ]),
+            ),
+          );
         }
 
         await page.goto(route.path);
         await route.ready(page);
 
-        const axe = new AxeBuilder({ page });
-        for (const selector of [...EXCLUDED, ...(route.exclude ?? [])]) {
-          axe.exclude(selector);
-        }
-        const results = await axe.analyze();
+        const results = await new AxeBuilder({ page }).analyze();
         const blocking = results.violations.filter((v) =>
           BLOCKING_IMPACTS.has(v.impact ?? ""),
         );

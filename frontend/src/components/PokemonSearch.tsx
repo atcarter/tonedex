@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import InputBase from "@mui/material/InputBase";
@@ -124,6 +124,8 @@ export function PokemonSearch({
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Pokemon[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const listboxId = useId();
+  const optionId = (index: number) => `${listboxId}-${index}`;
 
   // As-you-type suggestions from our own DB (debounced; sprites included).
   // Explicit full-search results (from Enter) take precedence while present.
@@ -234,13 +236,20 @@ export function PokemonSearch({
             }}
             placeholder="Search Pokémon..."
             inputProps={{
+              role: "combobox",
               "aria-label": "search pokemon",
               "aria-autocomplete": "list",
               "aria-expanded": shown.length > 0,
+              "aria-controls": shown.length > 0 ? listboxId : undefined,
+              "aria-activedescendant":
+                activeIndex >= 0 && shown[activeIndex]
+                  ? optionId(activeIndex)
+                  : undefined,
             }}
           />
           <IconButton
             type="submit"
+            aria-label="search"
             disabled={loading}
             sx={{ color: "white", p: "6px" }}
           >
@@ -252,10 +261,17 @@ export function PokemonSearch({
       {error && <ErrorBadge $expanded={expanded}>{error}</ErrorBadge>}
 
       {shown.length > 0 && (
-        <ResultsDropdown elevation={3} role="listbox" $expanded={expanded}>
+        <ResultsDropdown
+          id={listboxId}
+          elevation={3}
+          role="listbox"
+          aria-label="pokemon suggestions"
+          $expanded={expanded}
+        >
           {shown.map((pokemon, index) => (
             <ResultItem
               key={pokemon.id}
+              id={optionId(index)}
               type="button"
               role="option"
               aria-selected={index === activeIndex}
