@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import styled from "styled-components";
 import IconButton from "@mui/material/IconButton";
 import FavoriteIcon from "@mui/icons-material/Favorite";
@@ -142,19 +142,25 @@ const DragHint = styled.p`
   text-align: center;
 `;
 
+// Stable fallback so the sync check below doesn't see a new [] every render
+const NO_FAVORITES: Pokemon[] = [];
+
 export function FavoritesPage() {
   const { currentUser, signIn } = useAppContext();
-  const { data: favorites = [] } = useFavorites();
+  const { data } = useFavorites();
+  const favorites = data ?? NO_FAVORITES;
   const { reorder } = useFavoriteMutations();
 
   // Local ordered state for optimistic drag reordering
   const [ordered, setOrdered] = useState<Pokemon[]>(favorites);
+  const [syncedFrom, setSyncedFrom] = useState<Pokemon[]>(favorites);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
-  // Sync ordered when the server-side favorites list changes (add/remove/load)
-  useEffect(() => {
+  // Re-sync ordered during render when the server list changes (add/remove/load)
+  if (favorites !== syncedFrom) {
+    setSyncedFrom(favorites);
     setOrdered(favorites);
-  }, [favorites]);
+  }
 
   const handleDragStart = (index: number) => {
     setDragIndex(index);
