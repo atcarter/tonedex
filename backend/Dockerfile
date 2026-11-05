@@ -1,8 +1,10 @@
 # syntax=docker/dockerfile:1
 # check=error=true
 
-ARG RUBY_VERSION=3.3.13
-FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
+# A literal tag so Dependabot can track it (it doesn't resolve ARG in FROM).
+# A Ruby image bump must also update backend/.ruby-version in the same PR, so
+# CI tests the same Ruby that production runs.
+FROM docker.io/library/ruby:3.3.13-slim AS base
 
 WORKDIR /rails
 

@@ -95,7 +95,9 @@ updates:
           - "minor"
           - "patch"
 
-  # Docker base image (backend)
+  # Docker base image (backend). A Ruby image bump must also update
+  # backend/.ruby-version in the same PR, so CI tests the same Ruby that
+  # production runs.
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:
