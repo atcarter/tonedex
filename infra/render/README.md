@@ -59,22 +59,23 @@ The api and worker share their secrets, connection strings, `CORS_ORIGINS` and `
 
 The SPA is served at `https://tonedex.app` and the API at `https://api.tonedex.app`. `main.tf` attaches each domain with the service's `custom_domains` attribute, which is how provider 1.9.1 manages them (it has no separate custom-domain resource). The same two names set `VITE_API_URL`, `CORS_ORIGINS`, `ALLOWED_HOSTS` and the CSP, so one apply moves all of them.
 
-The `onrender.com` hostnames still exist, because the DNS records point at them. `tonedex-web.onrender.com` keeps serving the SPA, and the first lines of `frontend/src/main.tsx` send every visit there to the same path, query and fragment on `https://tonedex.app` without initializing Sentry or rendering the app, so links already shared keep working and the old page never calls the API. `CORS_ORIGINS` still lists `https://tonedex-web.onrender.com` (`local.legacy_frontend_url`) next to `https://tonedex.app`, so the site built from `main` keeps working there between the apply and the merge. It needs no later cleanup. `tonedex-api.onrender.com` gets no redirect, and the API refuses it: `ALLOWED_HOSTS` accepts only `api.tonedex.app`.
+The `onrender.com` hostnames still exist, because the DNS records point at them. `tonedex-web.onrender.com` keeps serving the SPA, and the first lines of `frontend/src/main.tsx` send every visit there to the same path, query and fragment on `https://tonedex.app` without initializing Sentry or rendering the app, so links already shared keep working and the old page never calls the API. `CORS_ORIGINS` still lists `https://tonedex-web.onrender.com` (`local.legacy_frontend_url`) next to `https://tonedex.app`, so the site built from `main` keeps working there between certificate issuance and the merge. It needs no later cleanup. `tonedex-api.onrender.com` gets no redirect, and the API refuses it: `ALLOWED_HOSTS` accepts only `api.tonedex.app`.
 
-When the apex is added, Render also adds `www.tonedex.app` as a redirect to `tonedex.app`. The provider records it only in the read-only `active_custom_domains` and leaves it out of `custom_domains`, so no plan drift is expected. It only answers if a `www` DNS record exists, and this setup creates none.
+When the apex is added, Render also adds `www.tonedex.app` as a redirect to `tonedex.app`. The provider records it only in the read-only `active_custom_domains` and leaves it out of `custom_domains`, so no plan drift is expected.
 
 ### Cutover runbook
 
 Run this after hours, in this order. Between the apply and certificate issuance, `tonedex.app` is unreachable and the site on the old hostname can't reach the API, because it's rebuilt to call `https://api.tonedex.app`. That's accepted for this cutover. `.app` is on browsers' HSTS preload list, so `tonedex.app` loads only over HTTPS and stays down until its certificate is issued.
 
-1. **Create the DNS records in Cloudflare**, before applying. Set both to **DNS only** (grey cloud, not proxied). A proxied record makes Render's certificate validation fail.
+1. **Create the DNS records in Cloudflare**, before applying. Set all three to **DNS only** (grey cloud, not proxied). A proxied record makes Render's certificate validation fail.
 
    | Name | Type | Target | Proxy status |
    |---|---|---|---|
    | `tonedex.app` (`@`) | `CNAME` | `tonedex-web.onrender.com` (Cloudflare flattens it at the apex) | DNS only |
+   | `www` | `CNAME` | `tonedex-web.onrender.com` | DNS only |
    | `api` | `CNAME` | `tonedex-api.onrender.com` | DNS only |
 
-   For the apex, the `A` record the Render dashboard shows for the static site's custom domain also works instead of the `CNAME`. Delete any `AAAA` records for `tonedex.app` and `api.tonedex.app`, because Render serves IPv4 only. If the zone has `CAA` records, add ones allowing `letsencrypt.org` and `pki.goog`, or Render can't issue certificates. Check that both names resolve (`dig +short tonedex.app`, `dig +short api.tonedex.app`) before moving on.
+   For the apex, the `A` record the Render dashboard shows for the static site's custom domain also works instead of the `CNAME`. Delete any `AAAA` records for `tonedex.app`, `www.tonedex.app` and `api.tonedex.app`, because Render serves IPv4 only. If the zone has `CAA` records, add ones allowing `letsencrypt.org` and `pki.goog`, or Render can't issue certificates. Check that all three names resolve (`dig +short tonedex.app`, `dig +short www.tonedex.app`, `dig +short api.tonedex.app`) before moving on.
 2. **Apply from a checkout of the PR branch, before merging.** `terraform apply` reads the local `main.tf`, so run it from the PR branch:
 
    ```bash
@@ -91,9 +92,10 @@ Run this after hours, in this order. Between the apply and certificate issuance,
 5. **Update the Google OAuth client** (Google Cloud console → APIs & Services → Credentials → the OAuth 2.0 client whose ID is `google_client_id`):
    - **Authorized JavaScript origins:** add `https://tonedex.app`, for the SPA's sign-in.
    - **Authorized redirect URIs:** add `https://api.tonedex.app/auth/google_oauth2/callback`, for the Sidekiq dashboard's OmniAuth sign-in.
-   - Remove `https://tonedex-web.onrender.com` and `https://tonedex-api.onrender.com/auth/google_oauth2/callback`. Google can take a few minutes to apply changes.
 
-   Then test both sign-ins. At `https://tonedex.app`, sign in with Google, check that the avatar loads and the signed-in pages work, then sign out, all with the browser console open and free of CSP and CORS errors. Open an old link such as `https://tonedex-web.onrender.com/game/scarlet` and check that it lands on `https://tonedex.app/game/scarlet`. At `https://api.tonedex.app/sidekiq`, sign in as `SIDEKIQ_ALLOWED_EMAIL` and check that the dashboard loads.
+   Google can take a few minutes to apply changes. Then test both sign-ins. At `https://tonedex.app`, sign in with Google, check that the avatar loads and the signed-in pages work, then sign out, all with the browser console open and free of CSP and CORS errors. Open an old link such as `https://tonedex-web.onrender.com/game/scarlet` and check that it lands on `https://tonedex.app/game/scarlet`. At `https://api.tonedex.app/sidekiq`, sign in as `SIDEKIQ_ALLOWED_EMAIL` and check that the dashboard loads.
+
+   Only once both sign-ins pass, remove the old entries, `https://tonedex-web.onrender.com` and `https://tonedex-api.onrender.com/auth/google_oauth2/callback`, so they remain a fallback until the new domain is proven.
 6. **Point the smoke suite at the new domain and run it once.** Set the repository variables `SMOKE_BASE_URL` to `https://tonedex.app` and `SMOKE_API_URL` to `https://api.tonedex.app` (GitHub → Settings → Secrets and variables → Actions → Variables), then trigger the Production smoke workflow (`.github/workflows/smoke.yml`, **Run workflow**) as the final check.
 
 ## Importing the ToneDex project
