@@ -169,13 +169,14 @@ class PokeapiAdapter
     end
   end
 
-  def evolution_chain_for(pokemon)
+  # sprite_base is the request's base URL, as for PokemonSerializer.details.
+  def evolution_chain_for(pokemon, sprite_base: nil)
     species_data = @client.pokemon_species(pokemon.pokeapi_id)
     chain_url = species_data.dig("evolution_chain", "url")
     chain_id = chain_url.split("/").last
 
     chain_data = @client.evolution_chain(chain_id)
-    parse_evolution_chain(chain_data["chain"])
+    with_sprite_urls(parse_evolution_chain(chain_data["chain"]), sprite_base)
   end
 
   # Caches the /ability payloads the detail page reads, so the request path stays
@@ -387,6 +388,7 @@ class PokeapiAdapter
     name = chain.dig("species", "name")
     evolutions << {
       name: name,
+      species_id: species_id_from(chain.dig("species", "url")),
       evolves_from: evolves_from,
       evolution_details: chain["evolution_details"].map { |ed| parse_evolution_details(ed) }
     }
@@ -396,6 +398,14 @@ class PokeapiAdapter
     end
 
     evolutions
+  end
+
+  # Swaps each step's species id for its sprite URL
+  def with_sprite_urls(steps, sprite_base)
+    steps.map do |step|
+      id = step.delete(:species_id)
+      step.merge(sprite_url: id && SpriteStore.species_url(id, sprite_base))
+    end
   end
 
   def parse_evolution_details(details)

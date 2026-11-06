@@ -4,6 +4,8 @@ import type { Page, Route } from "@playwright/test";
 // Shared test data
 // ---------------------------------------------------------------------------
 
+const API = "http://localhost:3000";
+
 export const GAME = { id: 1, name: "scarlet", generation: 9, region: "paldea" };
 
 export const SPRIGATITO = {
@@ -29,10 +31,15 @@ export const SPRIGATITO_DETAIL = {
   },
   moves: [{ name: "scratch", level_learned: 1, learn_method: "level-up" }],
   evolution_chain: [
-    { name: "sprigatito", evolution_details: [] },
+    {
+      name: "sprigatito",
+      evolution_details: [],
+      sprite_url: `${API}/sprites/906.png`,
+    },
     {
       name: "floragato",
       evolution_details: [{ trigger: "level-up", min_level: 16 }],
+      sprite_url: `${API}/sprites/907.png`,
     },
   ],
 };
@@ -60,7 +67,11 @@ export const GAME_PAGE_RESPONSE = {
 // so the backend does not need to be reachable from the test runner.
 // ---------------------------------------------------------------------------
 
-const API = "http://localhost:3000";
+// A transparent 1x1 PNG, served for every mirrored sprite
+const SPRITE_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII=",
+  "base64",
+);
 
 /** Responds with JSON and 200 */
 function json(route: Route, body: unknown, status = 200) {
@@ -71,8 +82,11 @@ function json(route: Route, body: unknown, status = 200) {
   });
 }
 
-/** Register the routes that every test needs: game list + game detail page */
+/** Register the routes that every test needs: game list, game detail page and sprites */
 export async function mockPublicGameRoutes(page: Page) {
+  await page.route(`${API}/sprites/**`, (r) =>
+    r.fulfill({ status: 200, contentType: "image/png", body: SPRITE_PNG }),
+  );
   await page.route(`${API}/api/v1/games`, (r) => json(r, [GAME]));
   // The first page request is ?limit=40 with no offset (offset=0 is falsy in api.ts)
   await page.route(`${API}/api/v1/games/1*`, (r) =>

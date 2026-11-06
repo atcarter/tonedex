@@ -13,6 +13,7 @@
 module SpriteStore
   OPEN_TIMEOUT = 2
   READ_TIMEOUT = 5
+  UPSTREAM_URL = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/%d.png"
 
   module_function
 
@@ -41,7 +42,19 @@ module SpriteStore
     return original if original.blank?
     return original unless base_url.present? && mirrored?(pokemon.pokeapi_id, shiny: shiny)
 
-    "#{base_url.chomp("/")}/#{relative_path(pokemon.pokeapi_id, shiny: shiny)}"
+    mirrored_url(pokemon.pokeapi_id, base_url, shiny: shiny)
+  end
+
+  # Default sprite URL for a species that may have no Pokemon row yet
+  # (evolution stages): the mirrored copy, else PokeAPI's standard URL for it.
+  def species_url(pokeapi_id, base_url)
+    return mirrored_url(pokeapi_id, base_url) if base_url.present? && mirrored?(pokeapi_id)
+
+    format(UPSTREAM_URL, pokeapi_id)
+  end
+
+  def mirrored_url(pokeapi_id, base_url, shiny: false)
+    "#{base_url.chomp("/")}/#{relative_path(pokeapi_id, shiny: shiny)}"
   end
 
   # Download both sprites for a pokemon (skipping blanks and existing files).

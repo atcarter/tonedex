@@ -6,8 +6,12 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ## 2026-11-06
 
+### Backend
+- **New:** each step of a Pokémon's `evolution_chain` carries `sprite_url`. The adapter reads the species id from the chain payload's species URL, and `SpriteStore.species_url` resolves every stage by one rule: the mirrored copy under `public/sprites`, else PokeAPI's standard sprite URL for that id. It makes no database queries, no extra PokeAPI calls and creates no rows. `sprite_url` is `null` when the payload names no species URL. The controller passes `request.base_url`, as it does for the detail's own sprites.
+
 ### Frontend
 - **New:** game URLs use the game's name, the PokeAPI version name already stored in `games.name`, instead of its database id: `/game/scarlet`, `/game/scarlet/team` and `/game/scarlet/pokemon/sprigatito`. The game selector, the default-game redirect from `/`, search, cards, the logo, the team builder's slots and evolution links all build the name form. Links by id (`/game/34`, `/game/34/pokemon/pikachu`) still work: `useRouteGame` resolves the segment by id and rewrites it to the name with `replace`, keeping the rest of the path and the query, so history holds only the name URL. Hooks, query keys and API calls keep the numeric id, resolved from the cached games list, so the API, the dex, favorites, team and caught behavior are unchanged. The dex and team pages show "Game not found" for an unknown game name, and the error if the games list fails to load. ADR-005 has a status note. The e2e suite visits the name form, and `e2e/browse.spec.ts` deep-links a name URL and checks that an id URL lands on the name URL.
+- **New:** every evolution-chain stage, linear or branching, shows the Pokémon's sprite above its name at every width, and the current stage keeps its highlight. Sprites are 64px (56px on phones) with negative margins that trim the PNGs' transparent border, so stacked chains stay short. A stage with no `sprite_url`, or whose image fails to load, shows its name only. `e2e/evolution-chain.spec.ts` checks every stage's sprite loads above its name in each chain shape at 375px and desktop, and that a missing or failing sprite leaves just the name. The e2e fixtures serve a placeholder PNG for `/sprites/*`.
 
 ---
 

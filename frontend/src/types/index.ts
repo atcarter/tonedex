@@ -80,6 +80,7 @@ export interface EvolutionStep {
   name: string;
   evolves_from?: string | null;
   evolution_details: EvolutionDetail[];
+  sprite_url?: string | null;
 }
 
 export interface EvolutionDetail {

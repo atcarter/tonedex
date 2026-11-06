@@ -842,5 +842,53 @@ RSpec.describe PokeapiAdapter do
         )
       end
     end
+
+    context "with sprites" do
+      let(:tmp_root) { Pathname.new(Dir.mktmpdir) }
+      let(:base) { "http://localhost:3000" }
+
+      # Sentinel species ids: one only upstream, one mirrored
+      let(:sprite_chain) do
+        stage = ->(name, id, evolves_to = []) {
+          {"species" => {"name" => name, "url" => "https://pokeapi.co/api/v2/pokemon-species/#{id}/"},
+           "evolution_details" => [], "evolves_to" => evolves_to}
+        }
+        {"chain" => stage.call("upstream", 100_101, [stage.call("mirrored", 100_102)])}
+      end
+
+      before do
+        allow(SpriteStore).to receive(:public_root).and_return(tmp_root)
+        FileUtils.mkdir_p(tmp_root.join("sprites"))
+        FileUtils.touch(tmp_root.join("sprites/100102.png"))
+        allow(client).to receive(:evolution_chain).with("1").and_return(sprite_chain)
+      end
+
+      after { FileUtils.remove_entry(tmp_root) }
+
+      it "uses the mirrored copy when present, else the upstream URL" do
+        result = adapter.evolution_chain_for(pokemon, sprite_base: base)
+
+        expect(result.map { |e| e[:sprite_url] }).to eq([
+          "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/100101.png",
+          "http://localhost:3000/sprites/100102.png"
+        ])
+        expect(result).to all(satisfy { |e| !e.key?(:species_id) })
+      end
+
+      it "uses the upstream URL for a mirrored species when there is no base URL" do
+        result = adapter.evolution_chain_for(pokemon)
+
+        expect(result[1][:sprite_url])
+          .to eq("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/100102.png")
+      end
+
+      it "leaves sprite_url nil when the species URL is missing" do
+        allow(client).to receive(:evolution_chain).with("1").and_return(bulbasaur_chain)
+
+        result = adapter.evolution_chain_for(pokemon, sprite_base: base)
+
+        expect(result.map { |e| e[:sprite_url] }).to eq([nil, nil, nil])
+      end
+    end
   end
 end
