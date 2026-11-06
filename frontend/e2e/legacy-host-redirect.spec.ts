@@ -39,3 +39,33 @@ test("the old hostname redirects to the same path on tonedex.app", async ({
 
   await expect(page).toHaveURL(`${NEW_ORIGIN}${path}`);
 });
+
+test("the old hostname never boots the app or calls the API", async ({
+  page,
+  baseURL,
+}) => {
+  // The dev server's page and modules, minus the redirect, so the old page stays as if tonedex.app were slow.
+  const offOrigin: string[] = [];
+  page.on("request", (request) => {
+    if (!request.url().startsWith(OLD_ORIGIN)) offOrigin.push(request.url());
+  });
+  await page.route(`${OLD_ORIGIN}/**`, async (route) => {
+    const { pathname, search } = new URL(route.request().url());
+    const response = await route.fetch({
+      url: `${baseURL}${pathname}${search}`,
+    });
+    if (route.request().resourceType() !== "document")
+      return route.fulfill({ response });
+    const html = await response.text();
+    await route.fulfill({
+      response,
+      body: html.replace(/<script>[\s\S]*?<\/script>/, ""),
+    });
+  });
+
+  await page.goto(`${OLD_ORIGIN}/game/scarlet`);
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.locator("#root")).toBeEmpty();
+  expect(offOrigin).toEqual([]);
+});
