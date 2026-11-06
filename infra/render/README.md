@@ -59,7 +59,7 @@ The api and worker share their secrets, connection strings, `CORS_ORIGINS` and `
 
 The SPA is served at `https://tonedex.app` and the API at `https://api.tonedex.app`. `main.tf` attaches each domain with the service's `custom_domains` attribute, which is how provider 1.9.1 manages them (it has no separate custom-domain resource). The same two names set `VITE_API_URL`, `CORS_ORIGINS`, `ALLOWED_HOSTS` and the CSP, so one apply moves all of them.
 
-The `onrender.com` hostnames still exist, because the DNS records point at them. `tonedex-web.onrender.com` keeps serving the SPA, and the first lines of `frontend/src/main.tsx` send every visit there to the same path, query and fragment on `https://tonedex.app` without initializing Sentry or rendering the app, so links already shared keep working and the old page never calls the API. `CORS_ORIGINS` still lists `https://tonedex-web.onrender.com` (`local.legacy_frontend_url`) next to `https://tonedex.app`, `ALLOWED_HOSTS` likewise lists `tonedex-api.onrender.com` (`local.legacy_api_domain`) next to `api.tonedex.app`, so the build that's live at the apply, which calls the old API host, keeps working until its rebuild finishes. Neither needs a later cleanup. `tonedex-api.onrender.com` gets no redirect.
+The `onrender.com` hostnames still exist, because the DNS records point at them. `tonedex-web.onrender.com` keeps serving the SPA, and the first lines of `frontend/src/main.tsx` send every visit there to the same path, query and fragment on `https://tonedex.app` without initializing Sentry or rendering the app, so links already shared keep working and the old page never calls the API. `CORS_ORIGINS` still lists `https://tonedex-web.onrender.com` (`local.legacy_frontend_url`) next to `https://tonedex.app`, `ALLOWED_HOSTS` likewise lists `tonedex-api.onrender.com` (`local.legacy_api_domain`) next to `api.tonedex.app`, so the build that's live at the apply, which calls the old API host, keeps working until its rebuild finishes. The CSP also allows `https://tonedex-api.onrender.com` (`local.legacy_api_url`) in `connect-src` and `img-src` for the same reason. None of these needs a later cleanup. `tonedex-api.onrender.com` gets no redirect.
 
 When the apex is added, Render also adds `www.tonedex.app` as a redirect to `tonedex.app`. The provider records it only in the read-only `active_custom_domains` and leaves it out of `custom_domains`, so no plan drift is expected.
 
@@ -137,7 +137,7 @@ This deletes every resource above, including the database and all its data, and 
 The static site sends an enforcing `Content-Security-Policy`: the browser blocks anything the policy doesn't allow and logs each block as a console error. Terraform builds the value in `main.tf` (`local.content_security_policy`) from the api URL and the Sentry ingest origin, which comes from `vite_sentry_dsn` (an empty DSN adds no source):
 
 ```
-default-src 'self'; script-src 'self' https://accounts.google.com; frame-src https://accounts.google.com; connect-src 'self' <api url> https://accounts.google.com <sentry ingest origin>; img-src 'self' data: <api url> https://raw.githubusercontent.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+default-src 'self'; script-src 'self' https://accounts.google.com; frame-src https://accounts.google.com; connect-src 'self' <api url> <legacy api url> https://accounts.google.com <sentry ingest origin>; img-src 'self' data: <api url> <legacy api url> https://raw.githubusercontent.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
 ```
 
 Why each non-`'self'` source is there:
@@ -148,6 +148,7 @@ Why each non-`'self'` source is there:
 - **`https://*.googleusercontent.com`** in `img-src`: serves the signed-in user's avatar.
 - **The api URL** in `img-src`: the API serves the mirrored sprites from `backend/public/sprites`.
 - **The api URL and the Sentry ingest origin** in `connect-src`: the SPA's API calls and Sentry's error reports.
+- **The legacy api URL** (`https://tonedex-api.onrender.com`) in `connect-src` and `img-src`: the build live at the cutover apply calls the API and loads sprites there until its rebuild ([Custom domains](#custom-domains)).
 
 ### Enforcing
 

@@ -7,9 +7,10 @@ locals {
   frontend_domain = "tonedex.app"
   api_url         = "https://${local.api_domain}"
   frontend_url    = "https://${local.frontend_domain}"
-  # Still allowed (CORS_ORIGINS, ALLOWED_HOSTS), so the current build keeps working until its rebuild after the apply.
+  # Still allowed (CORS_ORIGINS, ALLOWED_HOSTS, CSP), so the current build keeps working until its rebuild after the apply.
   legacy_frontend_url = "https://tonedex-web.onrender.com"
   legacy_api_domain   = "tonedex-api.onrender.com"
+  legacy_api_url      = "https://${local.legacy_api_domain}"
 
   # https://<key>@o123.ingest.us.sentry.io/456 -> https://o123.ingest.us.sentry.io
   sentry_ingest_origin = (
@@ -27,10 +28,11 @@ locals {
     join(" ", compact([
       "connect-src 'self'",
       local.api_url,
+      local.legacy_api_url,
       "https://accounts.google.com",
       local.sentry_ingest_origin,
     ])),
-    join(" ", ["img-src 'self' data:", local.api_url, "https://raw.githubusercontent.com https://*.googleusercontent.com"]),
+    join(" ", ["img-src 'self' data:", local.api_url, local.legacy_api_url, "https://raw.githubusercontent.com https://*.googleusercontent.com"]),
     "style-src 'self' 'unsafe-inline' https://accounts.google.com",
     "font-src 'self' data:",
     "object-src 'none'",
