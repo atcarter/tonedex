@@ -96,15 +96,16 @@ function setup({
   hasNextPage = false,
   route = "/game/scarlet",
   caught = [] as { id: number; pokemon_id: number; game_id: number }[],
+  gamesQuery = { data: [SCARLET] } as object,
 } = {}) {
   const fetchNextPage = vi.fn();
   mockUseAppContext.mockReturnValue({
     setSelectedGame: vi.fn(),
     currentUser: { id: 1 },
   } as unknown as ReturnType<typeof useAppContext>);
-  mockUseGames.mockReturnValue({ data: [SCARLET] } as unknown as ReturnType<
-    typeof useGames
-  >);
+  mockUseGames.mockReturnValue(
+    gamesQuery as unknown as ReturnType<typeof useGames>,
+  );
   mockUseCaughtPokemons.mockReturnValue({
     data: caught,
   } as unknown as ReturnType<typeof useCaughtPokemons>);
@@ -254,6 +255,24 @@ describe("GamePage URL", () => {
   it("reports an unknown game name", () => {
     setup({ route: "/game/not-a-game" });
     expect(screen.getByText("Game not found")).toBeInTheDocument();
+  });
+
+  it("reports a failed games list for a name URL", () => {
+    setup({
+      gamesQuery: { isPending: false, error: new Error("Network down") },
+    });
+    expect(screen.getByText("Network down")).toBeInTheDocument();
+    expect(mockUseGame).toHaveBeenLastCalledWith(0, "regional");
+  });
+
+  it("still loads an id URL's dex when the games list fails", () => {
+    setup({
+      route: "/game/1",
+      gamesQuery: { isPending: false, error: new Error("Network down") },
+    });
+    expect(screen.queryByText("Network down")).not.toBeInTheDocument();
+    expect(mockUseGame).toHaveBeenLastCalledWith(1, "regional");
+    expect(cardNames()).toHaveLength(POKEMONS.length);
   });
 });
 

@@ -19,7 +19,7 @@ export function findGame(games: Game[], segment: string): Game | null {
 // to the name form in place.
 export function useRouteGame() {
   const { gameId: segment = "" } = useParams<{ gameId: string }>();
-  const { data: games, isPending } = useGames();
+  const { data: games, isPending, error } = useGames();
   const navigate = useNavigate();
   const { pathname, search, hash } = useLocation();
 
@@ -43,5 +43,12 @@ export function useRouteGame() {
   // slug is the segment links should use; it is the name once the list loads
   const slug = game?.name ?? segment;
 
-  return { game, gameId, slug, isPending, notFound: !!games && !game };
+  return {
+    game,
+    gameId,
+    slug,
+    isPending,
+    notFound: !!games && !game,
+    error: gameId ? null : error,
+  };
 }

@@ -44,6 +44,7 @@ export function GamePage() {
     slug,
     isPending: gamesPending,
     notFound,
+    error: gamesError,
   } = useRouteGame();
   const [dex, setDex] = useDexView();
 
@@ -207,6 +208,7 @@ export function GamePage() {
   const sections = dexSections(data?.pages[0]?.dex_numbers ?? []);
 
   if (notFound) return <ErrorText>Game not found</ErrorText>;
+  if (gamesError) return <ErrorText>{gamesError.message}</ErrorText>;
 
   // A name segment waits for the games list before its dex can load
   if (isLoading || (gamesPending && !numericGameId)) {

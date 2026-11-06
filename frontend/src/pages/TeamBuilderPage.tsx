@@ -18,6 +18,7 @@ import { useTeam, MAX_TEAM_SIZE } from "../hooks/useTeam";
 import { TeamAnalysis } from "../components/team/TeamAnalysis";
 import { TypeBadge } from "../components/TypeBadge";
 import { formatName } from "../utils/formatters";
+import { ErrorText } from "./GamePage.styles";
 
 const PageWrapper = styled.div`
   max-width: 1000px;
@@ -244,7 +245,13 @@ const LoadingRow = styled.div`
 `;
 
 export function TeamBuilderPage() {
-  const { game, gameId: numericGameId, slug } = useRouteGame();
+  const {
+    game,
+    gameId: numericGameId,
+    slug,
+    notFound,
+    error: gamesError,
+  } = useRouteGame();
 
   // The picker offers the view chosen on the game page
   const [dex, setDex] = useDexView();
@@ -295,6 +302,9 @@ export function TeamBuilderPage() {
   }, [data, filter, team]);
 
   const emptySlots = Math.max(0, MAX_TEAM_SIZE - team.length);
+
+  if (notFound) return <ErrorText>Game not found</ErrorText>;
+  if (gamesError) return <ErrorText>{gamesError.message}</ErrorText>;
 
   return (
     <PageWrapper>
