@@ -927,10 +927,19 @@ RSpec.describe PokeapiAdapter do
           .to eq(%w[tyrogue hitmonlee hitmonchan hitmontop])
       end
 
-      it "falls back to the first tree when the requested species is later than the game" do
+      it "returns the full chain when the requested species is later than the game" do
         result = chain_for(pichu_chain, red, species: "pichu")
 
-        expect(result.map { |e| e[:name] }).to eq(%w[pikachu raichu])
+        expect(result.map { |e| [e[:name], e[:evolves_from]] })
+          .to eq([["pichu", nil], %w[pikachu pichu], %w[raichu pikachu]])
+        expect(result[1][:evolution_details].first).to include(min_happiness: 220)
+      end
+
+      it "returns the full Eevee chain for Sylveon in Red" do
+        result = chain_for(full_eevee_chain, red, species: "sylveon")
+
+        expect(result.map { |e| e[:name] })
+          .to eq(%w[eevee vaporeon jolteon flareon espeon umbreon leafeon glaceon sylveon])
       end
 
       it "returns the full chain with no game or no stored generation" do
@@ -989,6 +998,22 @@ RSpec.describe PokeapiAdapter do
           result = chain_for(sentinel_scyther_chain, sword, species: "scyther")
 
           expect(result.map { |e| e[:name] }).to eq(%w[scyther scizor])
+        end
+
+        it "returns the full chain for a species the game lacks (Turtwig in Sword)" do
+          turtwig_chain = {"chain" => stage("turtwig", 100_387, [], [
+            stage("grotle", 100_388, [step("level-up", "min_level" => 18)], [
+              stage("torterra", 100_389, [step("level-up", "min_level" => 32)])
+            ])
+          ])}
+          sword = seeded_game(8, regional: [100_123, 100_212])
+
+          result = chain_for(turtwig_chain, sword, species: "turtwig")
+
+          expect(result.map { |e| [e[:name], e[:evolves_from]] })
+            .to eq([["turtwig", nil], %w[grotle turtwig], %w[torterra grotle]])
+          expect(result.last[:evolution_details].first).to include(min_level: 32)
+          expect(result).to all(include(sprite_url: a_string_matching(%r{/\d+\.png\z})))
         end
 
         it "re-roots on a parent the game lacks" do
