@@ -72,7 +72,7 @@ class Api::V1::PokemonController < ApplicationController
   end
 
   def evolution_chain(pokemon)
-    adapter.evolution_chain_for(pokemon)
+    adapter.evolution_chain_for(pokemon, sprite_base: request.base_url)
   rescue PokeapiClient::ApiError
     []
   end

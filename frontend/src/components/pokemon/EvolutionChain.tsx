@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import styled, { css } from "styled-components";
 import { alpha } from "@mui/material/styles";
 import type { EvolutionStep } from "../../types";
@@ -84,6 +84,8 @@ const Pokemon = styled.div<{ $isCurrent: boolean; $clickable: boolean }>`
   ${({ theme }) => theme.breakpoints.down("sm")} {
     justify-content: center;
     min-height: 44px;
+    gap: 0;
+    padding: 4px 16px 6px;
   }
 
   &:hover {
@@ -127,6 +129,22 @@ const Arrow = styled.div<{ $down?: boolean }>`
   }
 `;
 
+/* Negative margins trim the PNGs' transparent border so the creature reads
+   larger without a taller stage, stopping short of overlapping the name */
+const Sprite = styled.img`
+  width: 64px;
+  height: 64px;
+  margin: -8px 0 -4px;
+  object-fit: contain;
+  image-rendering: pixelated;
+
+  ${({ theme }) => theme.breakpoints.down("sm")} {
+    width: 56px;
+    height: 56px;
+    margin: -8px 0 0;
+  }
+`;
+
 const Name = styled.span<{ $isCurrent: boolean }>`
   font-size: 0.75rem;
   font-weight: ${(props) => (props.$isCurrent ? 700 : 500)};
@@ -138,6 +156,21 @@ interface EvolutionChainProps {
   chain: EvolutionStep[];
   currentName: string;
   onSelect: (name: string) => void;
+}
+
+// A missing or broken sprite leaves the stage as its name only
+function StageSprite({ src, name }: { src?: string | null; name: string }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return null;
+  return (
+    <Sprite
+      src={src}
+      alt={formatName(name)}
+      loading="lazy"
+      draggable={false}
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
 // Each stage's evolutions, by parent name
@@ -167,6 +200,11 @@ export function EvolutionChain({
         $clickable={!isCurrent}
         onClick={() => onSelect(step.name)}
       >
+        <StageSprite
+          key={step.sprite_url ?? ""}
+          src={step.sprite_url}
+          name={step.name}
+        />
         <Name $isCurrent={isCurrent}>{formatName(step.name)}</Name>
       </Pokemon>
     );

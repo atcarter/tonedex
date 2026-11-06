@@ -842,5 +842,55 @@ RSpec.describe PokeapiAdapter do
         )
       end
     end
+
+    context "with sprites" do
+      let(:tmp_root) { Pathname.new(Dir.mktmpdir) }
+      let(:base) { "http://localhost:3000" }
+
+      # Sentinel species ids: one stored, one only mirrored, one neither
+      let(:sprite_chain) do
+        stage = ->(name, id, evolves_to = []) {
+          {"species" => {"name" => name, "url" => "https://pokeapi.co/api/v2/pokemon-species/#{id}/"},
+           "evolution_details" => [], "evolves_to" => evolves_to}
+        }
+        {"chain" => stage.call("stored", 100_101, [stage.call("mirrored", 100_102, [stage.call("upstream", 100_103)])])}
+      end
+
+      before do
+        allow(SpriteStore).to receive(:public_root).and_return(tmp_root)
+        FileUtils.mkdir_p(tmp_root.join("sprites"))
+        FileUtils.touch(tmp_root.join("sprites/100102.png"))
+        create(:pokemon, pokeapi_id: 100_101, sprite_url: "https://example.com/stored.png")
+        allow(client).to receive(:evolution_chain).with("1").and_return(sprite_chain)
+      end
+
+      after { FileUtils.remove_entry(tmp_root) }
+
+      it "uses a stored row's sprite, else the mirrored copy, else the upstream URL" do
+        result = adapter.evolution_chain_for(pokemon, sprite_base: base)
+
+        expect(result.map { |e| e[:sprite_url] }).to eq([
+          "https://example.com/stored.png",
+          "http://localhost:3000/sprites/100102.png",
+          "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/100103.png"
+        ])
+        expect(result).to all(satisfy { |e| !e.key?(:species_id) })
+      end
+
+      it "uses the upstream URL for an unstored species when there is no base URL" do
+        result = adapter.evolution_chain_for(pokemon)
+
+        expect(result[1][:sprite_url])
+          .to eq("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/100102.png")
+      end
+
+      it "leaves sprite_url nil when the species URL is missing" do
+        allow(client).to receive(:evolution_chain).with("1").and_return(bulbasaur_chain)
+
+        result = adapter.evolution_chain_for(pokemon, sprite_base: base)
+
+        expect(result.map { |e| e[:sprite_url] }).to eq([nil, nil, nil])
+      end
+    end
   end
 end

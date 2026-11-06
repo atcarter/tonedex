@@ -33,6 +33,13 @@ RSpec.describe "Pokemon API", type: :request do
       expect(json["evolution_chain"].first["name"]).to eq("charmander")
     end
 
+    it "resolves evolution sprites against the request's base URL" do
+      get "/api/v1/pokemon/#{pokemon.id}"
+
+      expect(adapter).to have_received(:evolution_chain_for)
+        .with(pokemon, sprite_base: request.base_url)
+    end
+
     it "returns an empty evolution chain when the adapter fails" do
       allow(adapter).to receive(:evolution_chain_for).and_raise(PokeapiClient::ApiError)
 

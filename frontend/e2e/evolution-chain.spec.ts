@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import { SPRIGATITO_DETAIL, mockPublicGameRoutes } from "./fixtures";
 
 const API = "http://localhost:3000";
@@ -10,7 +10,12 @@ const step = (
   name: string,
   evolves_from: string | null = null,
   evolution_details: unknown[] = [],
-) => ({ name, evolves_from, evolution_details });
+) => ({
+  name,
+  evolves_from,
+  evolution_details,
+  sprite_url: `${API}/sprites/${name}.png` as string | null,
+});
 
 // One chain per shape: single, two and three stage, and branching at the base, past it and with nested stages
 const CHAINS: Record<string, ReturnType<typeof step>[]> = {
@@ -82,7 +87,7 @@ const TREES: Record<string, Record<string, [string, string] | null>> = {
 };
 const BRANCHING = Object.keys(TREES);
 
-async function mockChain(page: Page, name: string) {
+async function mockChain(page: Page, name: string, chain = CHAINS[name]) {
   await mockPublicGameRoutes(page);
   await page.route(`${API}/api/v1/pokemon/${name}*`, (r) =>
     r.fulfill({
@@ -91,20 +96,36 @@ async function mockChain(page: Page, name: string) {
       body: JSON.stringify({
         ...SPRIGATITO_DETAIL,
         pokemon: { ...SPRIGATITO_DETAIL.pokemon, name },
-        evolution_chain: CHAINS[name],
+        evolution_chain: chain,
       }),
     }),
   );
 }
 
-async function openChain(page: Page, name: string) {
-  await mockChain(page, name);
+async function openChain(page: Page, name: string, chain = CHAINS[name]) {
+  await mockChain(page, name, chain);
   await page.goto(`/game/scarlet/pokemon/${name}`);
-  const chain = page.getByTestId("evolution-chain");
-  await expect(chain.getByTestId("evolution-stage")).toHaveCount(
-    CHAINS[name].length,
-  );
-  return chain;
+  const stages = page
+    .getByTestId("evolution-chain")
+    .getByTestId("evolution-stage");
+  await expect(stages).toHaveCount(chain.length);
+  return stages;
+}
+
+// Every stage shows its loaded sprite above its name
+async function expectSprites(stages: Locator) {
+  for (const stage of await stages.all()) {
+    const name = await stage.innerText();
+    const sprite = stage.getByRole("img", { name });
+    // Sprites load lazily, so bring each one into view first
+    await sprite.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() => sprite.evaluate((img: HTMLImageElement) => img.naturalWidth))
+      .toBe(1);
+    const spriteBox = (await sprite.boundingBox())!;
+    const nameBox = (await stage.getByText(name).boundingBox())!;
+    expect(spriteBox.y + spriteBox.height).toBeLessThanOrEqual(nameBox.y + 0.5);
+  }
 }
 
 // Boxes of the chain, its Paper's content area, and each stage card
@@ -231,7 +252,7 @@ test.describe("Evolution chain at phone width", () => {
 
   for (const name of LINEAR) {
     test(`${name} stacks its stages inside the section`, async ({ page }) => {
-      await openChain(page, name);
+      const stages = await openChain(page, name);
       const m = await measure(page);
 
       expect(m.pageWidth).toBe(375);
@@ -244,6 +265,7 @@ test.describe("Evolution chain at phone width", () => {
         expect(stage.right).toBeCloseTo(m.content.right, 0);
         if (i > 0) expect(stage.top).toBeGreaterThan(m.stages[i - 1].top);
       });
+      await expectSprites(stages);
     });
   }
 
@@ -251,12 +273,13 @@ test.describe("Evolution chain at phone width", () => {
     test(`${name} shows its branches under the stage they evolve from`, async ({
       page,
     }) => {
-      await openChain(page, name);
+      const stages = await openChain(page, name);
       const m = await measure(page);
 
       expect(m.pageWidth).toBe(375);
       expectInsideSection(m);
       expectTree(m, name);
+      await expectSprites(stages);
     });
   }
 });
@@ -266,11 +289,12 @@ test.describe("Evolution chain at desktop width", () => {
 
   for (const name of Object.keys(CHAINS)) {
     test(`${name} fits inside the section`, async ({ page }) => {
-      await openChain(page, name);
+      const stages = await openChain(page, name);
       const m = await measure(page);
 
       expect(m.pageWidth).toBe(1280);
       expectInsideSection(m);
+      await expectSprites(stages);
     });
   }
 
@@ -282,6 +306,26 @@ test.describe("Evolution chain at desktop width", () => {
       expectTree(await measure(page), name);
     });
   }
+
+  test("a stage without a sprite, or whose sprite fails, shows its name only", async ({
+    page,
+  }) => {
+    await page.route(`${API}/missing/**`, (r) => r.fulfill({ status: 404 }));
+    const [sprigatito, floragato, meowscarada] = CHAINS.sprigatito;
+    const stages = await openChain(page, "sprigatito", [
+      sprigatito,
+      { ...floragato, sprite_url: `${API}/missing/floragato.png` },
+      { ...meowscarada, sprite_url: null },
+    ]);
+
+    await expect(stages.nth(0).getByRole("img")).toBeVisible();
+    for (const i of [1, 2]) {
+      await expect(stages.nth(i).getByRole("img")).toHaveCount(0);
+      await expect(stages.nth(i)).toBeVisible();
+    }
+    await expect(stages.nth(1)).toHaveText("Floragato");
+    await expect(stages.nth(2)).toHaveText("Meowscarada");
+  });
 
   test("a three-stage chain stays on one row", async ({ page }) => {
     await openChain(page, "sprigatito");

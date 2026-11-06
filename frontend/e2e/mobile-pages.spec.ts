@@ -177,7 +177,7 @@ test.describe("Phone width: pages fit the viewport", () => {
     await expect(heading).toBeVisible();
 
     const sprite = await page
-      .getByRole("img", { name: "sprigatito" })
+      .getByRole("img", { name: "sprigatito", exact: true })
       .boundingBox();
     const name = await heading.boundingBox();
     expect(sprite && name).toBeTruthy();
