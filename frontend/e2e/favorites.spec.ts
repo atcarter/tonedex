@@ -82,6 +82,62 @@ test.describe("Favorites — authenticated user", () => {
   });
 });
 
+test.describe("Favorites — mouse drag reorder", () => {
+  const FAVORITES = [
+    { ...SPRIGATITO, favorite_id: 5 },
+    { ...SPRIGATITO, id: 907, name: "floragato", favorite_id: 6 },
+    { ...SPRIGATITO, id: 908, name: "meowscarada", favorite_id: 7 },
+  ];
+
+  test("dragging a card reorders and saves without opening it", async ({
+    page,
+  }) => {
+    await seedAuthState(page);
+    await mockPublicGameRoutes(page);
+    await mockAuthenticatedRoutes(page);
+    // Refetches return the order the last PATCH stored
+    let serverOrder = FAVORITES;
+    await page.route(`${API}/api/v1/favorites`, (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(serverOrder),
+      }),
+    );
+    const patches: { ids: number[] }[] = [];
+    await page.route(`${API}/api/v1/favorites/reorder`, (route) => {
+      const body = JSON.parse(route.request().postData() ?? "{}") as {
+        ids: number[];
+      };
+      patches.push(body);
+      serverOrder = body.ids.map(
+        (id) => FAVORITES.find((f) => f.favorite_id === id)!,
+      );
+      return route.fulfill({ status: 204, body: "" });
+    });
+
+    await page.goto("/favorites");
+    const items = page.locator("[data-reorder-index]");
+    await expect(items).toHaveCount(3);
+    const from = (await items.nth(0).boundingBox())!;
+    const to = (await items.nth(2).boundingBox())!;
+
+    await page.mouse.move(from.x + from.width / 2, from.y + 60);
+    await page.mouse.down();
+    await page.mouse.move(to.x + to.width / 2, to.y + 60, { steps: 10 });
+    await expect(items.nth(2)).toContainText("Sprigatito");
+    await page.mouse.up();
+
+    await expect.poll(() => patches).toEqual([{ ids: [6, 7, 5] }]);
+    await expect(items.first()).toContainText("Floragato");
+    await expect(page).toHaveURL(/\/favorites$/);
+
+    // The drop swallows one click only; the next one opens the card
+    await page.getByText("Floragato").click();
+    await expect(page).toHaveURL(/\/pokemon\/floragato$/);
+  });
+});
+
 test.describe("Favorites — unauthenticated user", () => {
   // No beforeEach with seedAuthState — these tests run without a signed-in user
 

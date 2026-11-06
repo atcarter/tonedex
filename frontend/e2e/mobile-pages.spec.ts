@@ -7,7 +7,7 @@ import {
   seedAuthState,
 } from "./fixtures";
 
-// 375px with touch: no page scrolls sideways; favorites reorder by tap.
+// 375px with touch: no page scrolls sideways; favorites reorder by tap and drag.
 test.use({
   viewport: { width: 375, height: 812 },
   isMobile: true,
@@ -87,6 +87,32 @@ function json(body: unknown) {
 
 async function pageScrollWidth(page: Page) {
   return page.evaluate(() => document.documentElement.scrollWidth);
+}
+
+type Point = { x: number; y: number };
+
+function centre(box: { x: number; y: number; width: number; height: number }) {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+// Real touch input (Playwright's touchscreen only taps); release() lifts the finger
+async function touchDrag(page: Page, from: Point, to: Point) {
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (type: string, p?: Point) =>
+    cdp.send("Input.dispatchTouchEvent", {
+      type,
+      touchPoints: p ? [{ ...p, id: 1 }] : [],
+    });
+  await touch("touchStart", from);
+  const steps = 12;
+  for (let i = 1; i <= steps; i++) {
+    await touch("touchMove", {
+      x: from.x + ((to.x - from.x) * i) / steps,
+      y: from.y + ((to.y - from.y) * i) / steps,
+    });
+    await page.waitForTimeout(16);
+  }
+  return { release: () => touch("touchEnd") };
 }
 
 test.describe("Phone width: pages fit the viewport", () => {
@@ -230,45 +256,134 @@ test.describe("Phone width: pages fit the viewport", () => {
 test.describe("Phone width: favorites reorder by touch", () => {
   const SECOND = { ...FLORAGATO, favorite_id: 6 };
   const FIRST = { ...SPRIGATITO, favorite_id: 5 };
+  const THIRD = {
+    id: 908,
+    name: "meowscarada",
+    types: ["grass", "dark"],
+    sprite_url: "",
+    pokedex_number: 3,
+    favorite_id: 7,
+  };
+  const items = (page: Page) => page.locator("[data-reorder-index]");
+  const order = async (page: Page) =>
+    (await items(page).allInnerTexts()).map((t) =>
+      t.split("\n").find((line) => /[a-z]{4}/i.test(line)),
+    );
 
-  test("move buttons are visible, 44px tall, and tapping one reorders", async ({
-    page,
-  }) => {
+  // Serves the favorites in the order the last PATCH stored
+  async function mockFavorites(page: Page, initial: (typeof FIRST)[]) {
     await seedAuthState(page);
     await mockPublicGameRoutes(page);
-    await mockAuthenticatedRoutes(page, { favorites: [FIRST, SECOND] });
-
-    // Refetches return the order the last PATCH stored
-    let serverOrder = [FIRST, SECOND];
+    await mockAuthenticatedRoutes(page, { favorites: initial });
+    let serverOrder = initial;
     await page.route(`${API}/api/v1/favorites`, (r) =>
       r.fulfill(json(serverOrder)),
     );
-    const patches: unknown[] = [];
+    const patches: { ids: number[] }[] = [];
     await page.route(`${API}/api/v1/favorites/reorder`, (route) => {
       const body = JSON.parse(route.request().postData() ?? "{}") as {
         ids: number[];
       };
       patches.push(body);
-      serverOrder = body.ids.map((id) =>
-        id === FIRST.favorite_id ? FIRST : SECOND,
+      serverOrder = body.ids.map(
+        (id) => initial.find((f) => f.favorite_id === id)!,
       );
       return route.fulfill({ status: 204, body: "" });
     });
+    return patches;
+  }
+
+  test("dragging a card's handle reorders live and saves the order", async ({
+    page,
+  }) => {
+    const patches = await mockFavorites(page, [FIRST, SECOND, THIRD]);
+    await page.goto("/favorites");
+    await expect(page.getByText("Meowscarada")).toBeVisible();
+
+    const handle = items(page).first().locator("[data-reorder-handle]");
+    const handleBox = await handle.boundingBox();
+    expect(handleBox?.width).toBeGreaterThanOrEqual(44);
+    expect(handleBox?.height).toBeGreaterThanOrEqual(44);
+    const target = await items(page).nth(2).boundingBox();
+
+    const drag = await touchDrag(page, centre(handleBox!), centre(target!));
+    // Live while the finger is down, and nothing saved yet
+    await expect
+      .poll(() => order(page))
+      .toEqual(["Floragato", "Meowscarada", "Sprigatito"]);
+    await expect(items(page).nth(2)).toHaveCSS("opacity", "0.4");
+    expect(patches).toEqual([]);
+
+    await drag.release();
+    await expect.poll(() => patches).toEqual([{ ids: [6, 7, 5] }]);
+    await expect(items(page).nth(2)).toHaveCSS("opacity", "1");
+    await expect(page).toHaveURL(/\/favorites$/);
+
+    await page.reload();
+    await expect(page.getByText("Meowscarada")).toBeVisible();
+    expect(await order(page)).toEqual([
+      "Floragato",
+      "Meowscarada",
+      "Sprigatito",
+    ]);
+  });
+
+  test("a swipe on a card scrolls the page instead of dragging", async ({
+    page,
+  }) => {
+    const many = Array.from({ length: 12 }, (_, i) => ({
+      ...THIRD,
+      id: 2000 + i,
+      name: `pokemon-number-${i + 1}`,
+      favorite_id: 3000 + i,
+    }));
+    const patches = await mockFavorites(page, many);
+    await page.goto("/favorites");
+    await expect(items(page)).toHaveCount(12);
+    const before = await order(page);
+
+    const card = await items(page).nth(2).boundingBox();
+    const from = { x: card!.x + card!.width / 2, y: card!.y + 40 };
+    const drag = await touchDrag(page, from, { ...from, y: from.y - 300 });
+    await drag.release();
+
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(100);
+    expect(await order(page)).toEqual(before);
+    expect(patches).toEqual([]);
+  });
+
+  test("move buttons are visible, 44px tall, and tapping one reorders", async ({
+    page,
+  }) => {
+    // A second row, whose cards must not cover the first row's buttons
+    const patches = await mockFavorites(page, [FIRST, SECOND, THIRD]);
 
     await page.goto("/favorites");
     await expect(page.getByText("Sprigatito")).toBeVisible();
-    await expect(page.getByText("Floragato")).toBeVisible();
+    await expect(page.getByText("Meowscarada")).toBeVisible();
     expect(await pageScrollWidth(page)).toBe(PHONE_WIDTH);
 
     const moveButtons = page.getByRole("button", {
       name: /^move .* (earlier|later)$/,
     });
-    await expect(moveButtons).toHaveCount(4);
+    await expect(moveButtons).toHaveCount(6);
     for (const button of await moveButtons.all()) {
-      const opacity = await button.evaluate(
-        (el) => getComputedStyle(el.parentElement!).opacity,
-      );
+      const { opacity, onTop } = await button.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          r.x + r.width / 2,
+          r.y + r.height / 2,
+        );
+        return {
+          opacity: getComputedStyle(el.parentElement!).opacity,
+          // Disabled buttons pass hits through to their controls row
+          onTop: el.parentElement!.contains(hit),
+        };
+      });
       expect(opacity).toBe("1");
+      expect(onTop).toBe(true);
       await expect(button).toBeVisible();
       const box = await button.boundingBox();
       expect(box?.height).toBeGreaterThanOrEqual(44);
@@ -276,12 +391,14 @@ test.describe("Phone width: favorites reorder by touch", () => {
 
     await page.getByRole("button", { name: "move sprigatito later" }).tap();
 
-    await expect.poll(() => patches).toEqual([{ ids: [6, 5] }]);
-    const names = page.locator('[draggable="true"]');
-    await expect(names.first()).toContainText("Floragato");
-    await expect(names.last()).toContainText("Sprigatito");
+    await expect.poll(() => patches).toEqual([{ ids: [6, 5, 7] }]);
+    expect(await order(page)).toEqual([
+      "Floragato",
+      "Sprigatito",
+      "Meowscarada",
+    ]);
     await expect(
-      page.getByText("Sprigatito moved to position 2 of 2"),
+      page.getByText("Sprigatito moved to position 2 of 3"),
     ).toBeAttached();
   });
 });

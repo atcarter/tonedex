@@ -4,11 +4,13 @@ import IconButton from "@mui/material/IconButton";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { GoogleLogin } from "@react-oauth/google";
 import type { CredentialResponse } from "@react-oauth/google";
 import { useAppContext } from "../hooks/useAppContext";
 import { useFavorites } from "../hooks/useFavorites";
 import { useFavoriteMutations } from "../hooks/useFavoriteMutations";
+import { moveItem, usePointerReorder } from "../hooks/usePointerReorder";
 import { PokemonCard } from "../components/PokemonCard";
 import { formatName } from "../utils/formatters";
 import type { Pokemon } from "../types";
@@ -55,18 +57,33 @@ const Grid = styled.div`
   gap: 12px;
 `;
 
+// The card's 100% height fills the first row, so the controls stay in the cell
 const DragItem = styled.div<{ $dragging: boolean }>`
+  display: grid;
+  grid-template-rows: 1fr auto;
   opacity: ${({ $dragging }) => ($dragging ? 0.4 : 1)};
   cursor: grab;
   transition: opacity 0.15s ease;
+  user-select: none;
 
   &:active {
     cursor: grabbing;
   }
 `;
 
-// Keyboard alternative to drag-and-drop: revealed on hover or when a button
-// inside receives focus (so Tab users can find it), space always reserved
+// Touch and pen drag from here; elsewhere a swipe scrolls the page
+const DragHandle = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  touch-action: none;
+  -webkit-touch-callout: none;
+`;
+
+// Move buttons (the keyboard alternative) and the drag handle: revealed on hover
+// or when a button inside receives focus (so Tab users can find it), space always reserved
 const MoveControls = styled.div`
   display: flex;
   justify-content: center;
@@ -85,13 +102,18 @@ const MoveControls = styled.div`
     color: ${({ theme }) => theme.palette.text.secondary};
   }
 
-  /* Phones have no hover or HTML5 drag */
+  /* Touch screens have no hover */
+  @media (hover: none) {
+    opacity: 1;
+  }
+
   ${({ theme }) => theme.breakpoints.down("sm")} {
     height: auto;
     margin-top: 4px;
     opacity: 1;
 
-    .MuiIconButton-root {
+    .MuiIconButton-root,
+    ${DragHandle} {
       min-width: 44px;
       min-height: 44px;
     }
@@ -154,7 +176,6 @@ export function FavoritesPage() {
   // Local ordered state for optimistic drag reordering
   const [ordered, setOrdered] = useState<Pokemon[]>(favorites);
   const [syncedFrom, setSyncedFrom] = useState<Pokemon[]>(favorites);
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   // Re-sync ordered during render when the server list changes (add/remove/load)
   if (favorites !== syncedFrom) {
@@ -162,40 +183,20 @@ export function FavoritesPage() {
     setOrdered(favorites);
   }
 
-  const handleDragStart = (index: number) => {
-    setDragIndex(index);
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (dragIndex === null || dragIndex === index) return;
-
-    // Reorder in place for live visual feedback
-    const next = [...ordered];
-    const [moved] = next.splice(dragIndex, 1);
-    next.splice(index, 0, moved);
-    setOrdered(next);
-    setDragIndex(index);
-  };
-
-  const handleDrop = () => {
-    setDragIndex(null);
-    reorder.mutate(ordered);
-  };
-
-  const handleDragEnd = () => {
-    // Safety reset if drop fires outside a valid target
-    setDragIndex(null);
-  };
+  // Reorders live while dragging and saves on drop
+  const { dragIndex, itemProps } = usePointerReorder(
+    ordered,
+    setOrdered,
+    reorder.mutate,
+  );
 
   // Keyboard-accessible alternative to drag and drop: moves one position and
   // persists immediately (announced via the live region below)
   const [announcement, setAnnouncement] = useState("");
   const moveByOne = (from: number, to: number) => {
     if (to < 0 || to >= ordered.length) return;
-    const next = [...ordered];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
+    const next = moveItem(ordered, from, to);
+    const moved = next[to];
     setOrdered(next);
     reorder.mutate(next);
     setAnnouncement(
@@ -253,11 +254,7 @@ export function FavoritesPage() {
           <DragItem
             key={pokemon.id}
             $dragging={dragIndex === index}
-            draggable
-            onDragStart={() => handleDragStart(index)}
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDrop={handleDrop}
-            onDragEnd={handleDragEnd}
+            {...itemProps(index)}
           >
             <PokemonCard pokemon={pokemon} showFavoriteButton />
             <MoveControls>
@@ -269,6 +266,9 @@ export function FavoritesPage() {
               >
                 <ChevronLeftIcon />
               </IconButton>
+              <DragHandle data-reorder-handle aria-hidden="true">
+                <DragIndicatorIcon />
+              </DragHandle>
               <IconButton
                 size="small"
                 aria-label={`move ${pokemon.name} later`}
@@ -282,7 +282,8 @@ export function FavoritesPage() {
         ))}
       </Grid>
       <DragHint>
-        Drag cards — or use a card's arrow buttons — to reorder your favorites
+        Drag a card by its handle — or use its arrow buttons — to reorder your
+        favorites
       </DragHint>
       <LiveRegion aria-live="polite">{announcement}</LiveRegion>
     </PageWrapper>
