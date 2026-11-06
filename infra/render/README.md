@@ -45,7 +45,7 @@ State is local (`terraform.tfstate` in this directory) for now.
    terraform apply
    ```
 
-`terraform output` then prints `api_url` and `frontend_url`. On a stack built from nothing, those custom domains also need the DNS records and the Google OAuth entries from the [cutover runbook](#cutover-runbook) (steps 1, 4 and 5).
+`terraform output` then prints `api_url` and `frontend_url`. On a stack built from nothing, those custom domains also need the DNS records and the Google OAuth entries from the [cutover runbook](#cutover-runbook) (steps 1, 3 and 5).
 
 On a stack built from nothing, this apply creates the ToneDex project and its Production environment too, so there's nothing to import.
 
@@ -57,31 +57,44 @@ The api and worker share their secrets, connection strings, `CORS_ORIGINS` and `
 
 ## Custom domains
 
-The SPA is served at `https://tonedex.app` and the API at `https://api.tonedex.app`. `main.tf` attaches each domain with the service's `custom_domains` attribute, which is how provider 1.9.1 manages them (it has no separate custom-domain resource). The same two names set `VITE_API_URL`, `CORS_ORIGINS`, `ALLOWED_HOSTS` and the CSP, so one apply moves all of them. The `onrender.com` hostnames still exist, because the DNS records point at them. `tonedex-web.onrender.com` keeps serving the SPA, and an inline script at the top of `frontend/index.html` sends every visit there to the same path, query and fragment on `https://tonedex.app`, so links already shared keep working. `src/main.tsx` skips Sentry and the React render on that hostname, so the old page never calls the API while the redirect loads. `tonedex-api.onrender.com` gets no redirect, and the API refuses it: `ALLOWED_HOSTS` accepts only `api.tonedex.app`, and CORS only `https://tonedex.app`.
+The SPA is served at `https://tonedex.app` and the API at `https://api.tonedex.app`. `main.tf` attaches each domain with the service's `custom_domains` attribute, which is how provider 1.9.1 manages them (it has no separate custom-domain resource). The same two names set `VITE_API_URL`, `CORS_ORIGINS`, `ALLOWED_HOSTS` and the CSP, so one apply moves all of them.
 
-When the apex is added, Render also adds `www.tonedex.app` and redirects it to `tonedex.app`. The provider leaves that redirect out of state, so it causes no plan diff. It only answers if a `www` DNS record exists, and this setup creates none.
+The `onrender.com` hostnames still exist, because the DNS records point at them. `tonedex-web.onrender.com` keeps serving the SPA, and the first lines of `frontend/src/main.tsx` send every visit there to the same path, query and fragment on `https://tonedex.app` without initializing Sentry or rendering the app, so links already shared keep working and the old page never calls the API. `CORS_ORIGINS` still lists `https://tonedex-web.onrender.com` (`local.legacy_frontend_url`) next to `https://tonedex.app`, so the site built from `main` keeps working there between the apply and the merge. It needs no later cleanup. `tonedex-api.onrender.com` gets no redirect, and the API refuses it: `ALLOWED_HOSTS` accepts only `api.tonedex.app`.
+
+When the apex is added, Render also adds `www.tonedex.app` as a redirect to `tonedex.app`. The provider records it only in the read-only `active_custom_domains` and leaves it out of `custom_domains`, so no plan drift is expected. It only answers if a `www` DNS record exists, and this setup creates none.
 
 ### Cutover runbook
 
-Run this after hours. Between the apply and certificate issuance, the site may be unreachable at both the old and the new hostnames. That's accepted for this cutover. `.app` is on browsers' HSTS preload list, so `tonedex.app` loads only over HTTPS and stays down until its certificate is issued.
+Run this after hours, in this order. Between the apply and certificate issuance, `tonedex.app` is unreachable and the site on the old hostname can't reach the API, because it's rebuilt to call `https://api.tonedex.app`. That's accepted for this cutover. `.app` is on browsers' HSTS preload list, so `tonedex.app` loads only over HTTPS and stays down until its certificate is issued.
 
-1. **Create the DNS records at the registrar**, before applying:
+1. **Create the DNS records in Cloudflare**, before applying. Set both to **DNS only** (grey cloud, not proxied). A proxied record makes Render's certificate validation fail.
 
-   | Name | Type | Value |
-   |---|---|---|
-   | `tonedex.app` (apex, `@`) | `ALIAS` or `ANAME` if the provider supports it, else `A` | `tonedex-web.onrender.com` (ALIAS/ANAME) or `216.24.57.1` (A) |
-   | `api` | `CNAME` | `tonedex-api.onrender.com` |
+   | Name | Type | Target | Proxy status |
+   |---|---|---|---|
+   | `tonedex.app` (`@`) | `CNAME` | `tonedex-web.onrender.com` (Cloudflare flattens it at the apex) | DNS only |
+   | `api` | `CNAME` | `tonedex-api.onrender.com` | DNS only |
 
-   On Cloudflare, use a `CNAME` to `tonedex-web.onrender.com` for the apex instead (it flattens it), with the proxy off. Delete any `AAAA` records for `tonedex.app` and `api.tonedex.app`, because Render serves IPv4 only. If the domain has `CAA` records, add ones allowing `letsencrypt.org` and `pki.goog`, or Render can't issue certificates. Check that both names resolve (`dig +short tonedex.app`, `dig +short api.tonedex.app`) before moving on.
-2. **Merge the PR, then `terraform plan` and `terraform apply`.** Expect in-place updates only: `custom_domains` added to `render_web_service.api` and `render_static_site.web`, the new `VITE_API_URL` and `Content-Security-Policy` on the static site, and the new `CORS_ORIGINS` and `ALLOWED_HOSTS` in `render_env_group.backend`. Nothing should be replaced or destroyed.
-3. **Check that the new values deployed.** `VITE_API_URL` is baked in at build time, so `tonedex-web` needs a build that started after the apply, and `tonedex-api` and `tonedex-worker` need a deploy that picked up the env group change. If any of the three shows no new deploy, use **Manual Deploy → Deploy latest commit** on it.
-4. **Confirm both certificates were issued.** In the dashboard, open **Settings → Custom Domains** on `tonedex-web` and on `tonedex-api`. Each domain should show **Verified** with its certificate issued, not "DNS update needed". If one is still waiting a few minutes after DNS resolves, click **Verify** next to it. Then check from a terminal: `curl -sI https://tonedex.app` and `curl -s https://api.tonedex.app/up` should succeed without certificate errors.
+   For the apex, the `A` record the Render dashboard shows for the static site's custom domain also works instead of the `CNAME`. Delete any `AAAA` records for `tonedex.app` and `api.tonedex.app`, because Render serves IPv4 only. If the zone has `CAA` records, add ones allowing `letsencrypt.org` and `pki.goog`, or Render can't issue certificates. Check that both names resolve (`dig +short tonedex.app`, `dig +short api.tonedex.app`) before moving on.
+2. **Apply from a checkout of the PR branch, before merging.** `terraform apply` reads the local `main.tf`, so run it from the PR branch:
+
+   ```bash
+   git fetch origin fm/tonedex-custom-domain
+   git checkout fm/tonedex-custom-domain
+   cd infra/render
+   terraform plan
+   terraform apply
+   ```
+
+   Expect in-place updates only: `custom_domains` added to `render_web_service.api` and `render_static_site.web`, the new `VITE_API_URL` and `Content-Security-Policy` on the static site, and the new `CORS_ORIGINS` and `ALLOWED_HOSTS` in `render_env_group.backend`. Nothing should be replaced or destroyed. The env change rebuilds the current site from `main` against the new domain: `tonedex-web` needs a build that started after the apply (`VITE_API_URL` is baked in at build time), and `tonedex-api` and `tonedex-worker` need a deploy that picked up the env group change. If any of the three shows no new deploy, use **Manual Deploy → Deploy latest commit** on it.
+3. **Wait for both certificates to show issued.** In the dashboard, open **Settings → Custom Domains** on `tonedex-web` and on `tonedex-api`. Each domain should show **Verified** with its certificate issued, not "DNS update needed". If one is still waiting a few minutes after DNS resolves, click **Verify** next to it. Then check from a terminal: `curl -sI https://tonedex.app` and `curl -s https://api.tonedex.app/up` should succeed without certificate errors.
+4. **Merge the PR.** Render deploys the merge once its checks pass. From then on, old links on `tonedex-web.onrender.com` redirect to `tonedex.app`. The apply already matches the merged `main.tf`, so a later `terraform plan` from `main` shows no changes.
 5. **Update the Google OAuth client** (Google Cloud console → APIs & Services → Credentials → the OAuth 2.0 client whose ID is `google_client_id`):
    - **Authorized JavaScript origins:** add `https://tonedex.app`, for the SPA's sign-in.
    - **Authorized redirect URIs:** add `https://api.tonedex.app/auth/google_oauth2/callback`, for the Sidekiq dashboard's OmniAuth sign-in.
    - Remove `https://tonedex-web.onrender.com` and `https://tonedex-api.onrender.com/auth/google_oauth2/callback`. Google can take a few minutes to apply changes.
-6. **Test both sign-ins.** At `https://tonedex.app`, sign in with Google, check that the avatar loads and the signed-in pages work, then sign out, all with the browser console open and free of CSP and CORS errors. Open an old link such as `https://tonedex-web.onrender.com/game/scarlet` and check that it lands on `https://tonedex.app/game/scarlet`. At `https://api.tonedex.app/sidekiq`, sign in as `SIDEKIQ_ALLOWED_EMAIL` and check that the dashboard loads.
-7. **Point the smoke suite at the new domain.** Set the repository variables `SMOKE_BASE_URL` to `https://tonedex.app` and `SMOKE_API_URL` to `https://api.tonedex.app` (GitHub → Settings → Secrets and variables → Actions → Variables), then run `.github/workflows/smoke.yml` on demand.
+
+   Then test both sign-ins. At `https://tonedex.app`, sign in with Google, check that the avatar loads and the signed-in pages work, then sign out, all with the browser console open and free of CSP and CORS errors. Open an old link such as `https://tonedex-web.onrender.com/game/scarlet` and check that it lands on `https://tonedex.app/game/scarlet`. At `https://api.tonedex.app/sidekiq`, sign in as `SIDEKIQ_ALLOWED_EMAIL` and check that the dashboard loads.
+6. **Point the smoke suite at the new domain and run it once.** Set the repository variables `SMOKE_BASE_URL` to `https://tonedex.app` and `SMOKE_API_URL` to `https://api.tonedex.app` (GitHub → Settings → Secrets and variables → Actions → Variables), then trigger the Production smoke workflow (`.github/workflows/smoke.yml`, **Run workflow**) as the final check.
 
 ## Importing the ToneDex project
 
@@ -122,13 +135,12 @@ This deletes every resource above, including the database and all its data, and 
 The static site sends an enforcing `Content-Security-Policy`: the browser blocks anything the policy doesn't allow and logs each block as a console error. Terraform builds the value in `main.tf` (`local.content_security_policy`) from the api URL and the Sentry ingest origin, which comes from `vite_sentry_dsn` (an empty DSN adds no source):
 
 ```
-default-src 'self'; script-src 'self' 'sha256-<redirect script hash>' https://accounts.google.com; frame-src https://accounts.google.com; connect-src 'self' <api url> https://accounts.google.com <sentry ingest origin>; img-src 'self' data: <api url> https://raw.githubusercontent.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+default-src 'self'; script-src 'self' https://accounts.google.com; frame-src https://accounts.google.com; connect-src 'self' <api url> https://accounts.google.com <sentry ingest origin>; img-src 'self' data: <api url> https://raw.githubusercontent.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
 ```
 
 Why each non-`'self'` source is there:
 
 - **`https://accounts.google.com`** in `script-src`, `frame-src`, `connect-src` and `style-src`: Google Identity Services loads its script, sign-in iframe, token requests and stylesheet from there.
-- **`'sha256-…'` in `script-src`** (`local.redirect_script_hash`): allows only the inline redirect script in `frontend/index.html`. The hash covers the script's exact text, so any edit to it, even whitespace, needs a new hash. `frontend/e2e/legacy-host-redirect.spec.ts` serves the page with this hash as its CSP and fails while the hash is stale. Compute the new one with `node -e 'const h=require("fs").readFileSync("index.html","utf8").match(/<script>([\s\S]*?)<\/script>/)[1];console.log(require("crypto").createHash("sha256").update(h).digest("base64"))'` from `frontend/`.
 - **`'unsafe-inline'` in `style-src`**: styled-components and MUI inject `<style>` tags at runtime.
 - **`https://raw.githubusercontent.com`** in `img-src`: the sprite fallback for anything not mirrored under `backend/public/sprites/`.
 - **`https://*.googleusercontent.com`** in `img-src`: serves the signed-in user's avatar.

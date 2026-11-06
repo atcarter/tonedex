@@ -1,36 +1,27 @@
-import { readFileSync } from "node:fs";
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
-// The inline script in index.html sends links to the old Render hostname to the
-// same path on tonedex.app. The page is served with a CSP allowing only the hash
-// in infra/render/main.tf, so a stale hash blocks the script and fails the test.
+// src/main.tsx sends visits on the old Render hostname to the same URL on
+// tonedex.app without booting the app. The old origin is served by the dev
+// server, so these run the real page and modules.
 const OLD_ORIGIN = "https://tonedex-web.onrender.com";
 const NEW_ORIGIN = "https://tonedex.app";
 
-const indexHtml = readFileSync(
-  new URL("../index.html", import.meta.url),
-  "utf8",
-);
-const mainTf = readFileSync(
-  new URL("../../infra/render/main.tf", import.meta.url),
-  "utf8",
-);
-const scriptHash = mainTf.match(/'sha256-[A-Za-z0-9+/=]+'/)?.[0];
+async function serveOldOriginFromDevServer(page: Page, baseURL: string) {
+  await page.route(`${OLD_ORIGIN}/**`, async (route) => {
+    const { pathname, search } = new URL(route.request().url());
+    const response = await route.fetch({
+      url: `${baseURL}${pathname}${search}`,
+    });
+    await route.fulfill({ response });
+  });
+}
 
 test("the old hostname redirects to the same path on tonedex.app", async ({
   page,
+  baseURL,
 }) => {
-  expect(scriptHash).toBeDefined();
   const path = "/game/scarlet/pokemon/sprigatito?dex=national#moves";
-  await page.route(`${OLD_ORIGIN}/**`, (route) =>
-    route.request().resourceType() === "document"
-      ? route.fulfill({
-          contentType: "text/html",
-          headers: { "Content-Security-Policy": `script-src ${scriptHash}` },
-          body: indexHtml,
-        })
-      : route.abort(),
-  );
+  await serveOldOriginFromDevServer(page, baseURL!);
   await page.route(`${NEW_ORIGIN}/**`, (route) =>
     route.fulfill({ contentType: "text/html", body: "<p>new host</p>" }),
   );
@@ -44,28 +35,35 @@ test("the old hostname never boots the app or calls the API", async ({
   page,
   baseURL,
 }) => {
-  // The dev server's page and modules, minus the redirect, so the old page stays as if tonedex.app were slow.
   const offOrigin: string[] = [];
   page.on("request", (request) => {
-    if (!request.url().startsWith(OLD_ORIGIN)) offOrigin.push(request.url());
+    const url = request.url();
+    if (!url.startsWith(OLD_ORIGIN) && !url.startsWith(NEW_ORIGIN))
+      offOrigin.push(url);
   });
-  await page.route(`${OLD_ORIGIN}/**`, async (route) => {
-    const { pathname, search } = new URL(route.request().url());
-    const response = await route.fetch({
-      url: `${baseURL}${pathname}${search}`,
-    });
-    if (route.request().resourceType() !== "document")
-      return route.fulfill({ response });
-    const html = await response.text();
-    await route.fulfill({
-      response,
-      body: html.replace(/<script>[\s\S]*?<\/script>/, ""),
-    });
+  const mountedOn: string[] = [];
+  await page.exposeFunction("reportMounted", (origin: string) =>
+    mountedOn.push(origin),
+  );
+  await page.addInitScript(() => {
+    new MutationObserver(() => {
+      if (document.getElementById("root")?.hasChildNodes())
+        (
+          window as unknown as { reportMounted: (o: string) => void }
+        ).reportMounted(location.origin);
+    }).observe(document, { childList: true, subtree: true });
+  });
+  await serveOldOriginFromDevServer(page, baseURL!);
+  // Hold the redirect so the old page stays loaded, as if tonedex.app were slow;
+  // a wrongly booted app would render and fire its first queries meanwhile.
+  await page.route(`${NEW_ORIGIN}/**`, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.fulfill({ contentType: "text/html", body: "<p>new host</p>" });
   });
 
-  await page.goto(`${OLD_ORIGIN}/game/scarlet`);
-  await page.waitForLoadState("networkidle");
+  await page.goto(`${OLD_ORIGIN}/game/scarlet`, { waitUntil: "commit" });
+  await page.waitForURL(`${NEW_ORIGIN}/game/scarlet`);
 
-  await expect(page.locator("#root")).toBeEmpty();
+  expect(mountedOn).toEqual([]);
   expect(offOrigin).toEqual([]);
 });

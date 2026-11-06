@@ -7,6 +7,8 @@ locals {
   frontend_domain = "tonedex.app"
   api_url         = "https://${local.api_domain}"
   frontend_url    = "https://${local.frontend_domain}"
+  # Still allowed by CORS, so the current site keeps working between apply and merge.
+  legacy_frontend_url = "https://tonedex-web.onrender.com"
 
   # https://<key>@o123.ingest.us.sentry.io/456 -> https://o123.ingest.us.sentry.io
   sentry_ingest_origin = (
@@ -15,15 +17,11 @@ locals {
     : "https://${regex("^https://[^@/]+@([^/]+)/", var.vite_sentry_dsn)[0]}"
   )
 
-  # sha256 of the inline redirect script in frontend/index.html. It changes whenever
-  # that script does; frontend/e2e/legacy-host-redirect.spec.ts fails until this matches.
-  redirect_script_hash = "'sha256-LDFQUu0lR9rSDODyz9p55bvHMKA0nVvFbygTVag+7VM='"
-
   # Sent as an enforcing Content-Security-Policy. infra/render/README.md
   # explains each source; run frontend/e2e-smoke/csp.spec.ts before changing it.
   content_security_policy = join("; ", [
     "default-src 'self'",
-    "script-src 'self' ${local.redirect_script_hash} https://accounts.google.com",
+    "script-src 'self' https://accounts.google.com",
     "frame-src https://accounts.google.com",
     join(" ", compact([
       "connect-src 'self'",
@@ -159,7 +157,7 @@ resource "render_env_group" "backend" {
       GOOGLE_CLIENT_ID      = { value = var.google_client_id }
       GOOGLE_CLIENT_SECRET  = { value = var.google_client_secret }
       SIDEKIQ_ALLOWED_EMAIL = { value = var.sidekiq_allowed_email }
-      CORS_ORIGINS          = { value = local.frontend_url }
+      CORS_ORIGINS          = { value = join(",", [local.frontend_url, local.legacy_frontend_url]) }
       ALLOWED_HOSTS         = { value = local.api_domain }
     },
     local.optional_backend_env,

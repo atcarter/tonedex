@@ -10,8 +10,12 @@ import { UiProvider } from "./contexts/UiContext";
 import { AppProvider } from "./contexts/AppContext";
 import { ThemedApp } from "./ThemedApp";
 
-// The old Render hostname only redirects (index.html), so the app never boots there.
-if (location.hostname !== "tonedex-web.onrender.com") {
+// Links shared on the old Render hostname land on the same URL at tonedex.app; the app never boots there.
+if (location.hostname === "tonedex-web.onrender.com") {
+  location.replace(
+    "https://tonedex.app" + location.pathname + location.search + location.hash,
+  );
+} else {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
     environment: import.meta.env.MODE,
