@@ -14,6 +14,7 @@ import ListSubheader from "@mui/material/ListSubheader";
 import type { Game } from "../types";
 import { useAppContext } from "../hooks/useAppContext";
 import { useGames } from "../hooks/useGames";
+import { findGame } from "../hooks/useRouteGame";
 import { getPokemon } from "../services/api";
 import { pokemonQueryKey } from "../hooks/usePokemon";
 import { parseDexView, dexSearch } from "../hooks/useDexView";
@@ -64,13 +65,15 @@ export function GameSelector() {
     switchRequest.current++;
   }, [pathname]);
 
-  // Derive the active game ID from the URL — this is the source of truth.
+  // Derive the active game from the URL — this is the source of truth.
   // Match both /game/:gameId and deeper routes like /game/:gameId/pokemon/:name
   // so the selector stays on the right game while viewing a Pokémon detail.
   const gameMatch = useMatch("/game/:gameId");
   const gameSubMatch = useMatch("/game/:gameId/*");
   const matchedGameId = (gameMatch ?? gameSubMatch)?.params.gameId;
-  const urlGameId = matchedGameId ? Number(matchedGameId) : null;
+  const urlGameId = matchedGameId
+    ? (findGame(games, matchedGameId)?.id ?? null)
+    : null;
 
   // Auto-navigate to scarlet (or first game) when landing on the bare root.
   // Scoped strictly to "/" — navigating from any other game-less route (e.g.
@@ -83,7 +86,7 @@ export function GameSelector() {
       const defaultGame = scarlet ?? games[0];
       if (defaultGame) {
         setSelectedGame(defaultGame);
-        navigate(`/game/${defaultGame.id}`, { replace: true });
+        navigate(`/game/${defaultGame.name}`, { replace: true });
       }
     }
   }, [games, pathname, setSelectedGame, navigate]);
@@ -98,10 +101,10 @@ export function GameSelector() {
     };
 
     const search = dexSearch(dex);
-    if (teamMatch) return go(`/game/${game.id}/team${search}`);
+    if (teamMatch) return go(`/game/${game.name}/team${search}`);
 
     const name = detailMatch?.params.pokemonName;
-    if (!name) return go(`/game/${game.id}${search}`);
+    if (!name) return go(`/game/${game.name}${search}`);
 
     try {
       // Same query as usePokemon, so the detail page renders from cache.
@@ -112,11 +115,11 @@ export function GameSelector() {
       });
       go(
         data.pokemon.pokedex_number != null
-          ? `/game/${game.id}/pokemon/${name}${search}`
-          : `/game/${game.id}${search}`,
+          ? `/game/${game.name}/pokemon/${name}${search}`
+          : `/game/${game.name}${search}`,
       );
     } catch {
-      go(`/game/${game.id}${search}`);
+      go(`/game/${game.name}${search}`);
     }
   };
 

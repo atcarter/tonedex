@@ -49,7 +49,7 @@ async function openTeamBuilder(page: Page, team: typeof DEX = []) {
       sessionStorage.setItem("seeded", "1");
     }
   }, JSON.stringify(team));
-  await page.goto(`/game/${GAME.id}/team`);
+  await page.goto(`/game/${GAME.name}/team`);
 }
 
 const pickerToggle = (page: Page) =>
@@ -136,10 +136,10 @@ for (const viewport of VIEWPORTS) {
 
       await page.getByRole("button", { name: "remove fuecoco" }).click();
       await expect(page.getByTestId("team-slot")).toHaveCount(2);
-      await expect(page).toHaveURL(/\/game\/1\/team$/);
+      await expect(page).toHaveURL(/\/game\/scarlet\/team$/);
 
       await page.getByRole("link", { name: /Sprigatito/ }).click();
-      await expect(page).toHaveURL(/\/game\/1\/pokemon\/sprigatito$/);
+      await expect(page).toHaveURL(/\/game\/scarlet\/pokemon\/sprigatito$/);
       await expect(page.getByText("Scratch")).toBeVisible();
     });
 

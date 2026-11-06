@@ -56,7 +56,7 @@ test.describe("Phone header", () => {
   test("is one row and the page has no horizontal overflow", async ({
     page,
   }) => {
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
     await expect(page.getByText("Sprigatito")).toBeVisible();
 
     const { height } = await headerRect(page);
@@ -76,7 +76,7 @@ test.describe("Phone header", () => {
         body: JSON.stringify({ results: [SPRIGATITO] }),
       }),
     );
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
 
     await page.getByRole("button", { name: "open search" }).tap();
     const input = page.getByLabel("search pokemon");
@@ -100,7 +100,7 @@ test.describe("Phone header", () => {
   test("the account menu holds Favorites and the color-mode toggle", async ({
     page,
   }) => {
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
 
     await page.getByRole("button", { name: "account" }).tap();
     const menu = page.getByRole("menu");
@@ -130,7 +130,7 @@ test.describe("Phone header", () => {
         }),
       }),
     );
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
     await expect(page.getByText("Sprigatito 40")).toBeAttached();
 
     await page.evaluate(() => window.scrollBy(0, 400));
@@ -145,7 +145,7 @@ test.describe("Phone header", () => {
   test("signed out, Google's sign-in renders only inside the account menu", async ({
     page,
   }) => {
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
     await expect(page.getByRole("button", { name: "account" })).toBeVisible();
 
     await expect(page.locator("header iframe")).toHaveCount(0);
@@ -168,7 +168,7 @@ test.describe("Desktop header", () => {
     page,
   }) => {
     await mockPublicGameRoutes(page);
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
 
     const search = page.getByLabel("search pokemon");
     await expect(search).toBeVisible();

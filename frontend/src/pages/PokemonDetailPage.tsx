@@ -7,6 +7,7 @@ import { PokemonDetail } from "../components/PokemonDetail";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { useAppContext } from "../hooks/useAppContext";
 import { useGames } from "../hooks/useGames";
+import { useRouteGame } from "../hooks/useRouteGame";
 
 const PageWrapper = styled.div`
   /* A centred flex item shrinks to its content; fill up to the max instead */
@@ -43,10 +44,9 @@ export function PokemonDetailPage() {
   const navigate = useNavigate();
   const { selectedGame } = useAppContext();
   const { data: games, isLoading: gamesLoading } = useGames();
+  const { game: routeGame } = useRouteGame();
 
   if (!pokemonName) return null;
-
-  const numericGameId = gameId ? Number(gameId) : undefined;
 
   // Wait for the games list so the first pokemon fetch already carries the
   // right game_id (types/moves for that game).
@@ -62,8 +62,8 @@ export function PokemonDetailPage() {
   // Game-scoped URLs use their game. The game-less route (search, compare,
   // evolution links) still deserves a moves section — default to the game
   // being browsed, else the app default (mirroring GameSelector's choice).
-  const game = numericGameId
-    ? (gameList.find((g) => g.id === numericGameId) ?? null)
+  const game = gameId
+    ? routeGame
     : (selectedGame ??
       gameList.find((g) => g.name === "scarlet") ??
       gameList[0] ??

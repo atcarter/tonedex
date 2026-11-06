@@ -129,7 +129,7 @@ test.describe("Phone width: pages fit the viewport", () => {
   test("detail page with 30 moves keeps the move list inside its wrapper", async ({
     page,
   }) => {
-    await page.goto("/game/1/pokemon/sprigatito");
+    await page.goto("/game/scarlet/pokemon/sprigatito");
     await expect(
       page.getByRole("heading", { name: /sprigatito/i }),
     ).toBeVisible();
@@ -157,7 +157,7 @@ test.describe("Phone width: pages fit the viewport", () => {
   test("a tapped ability opens a full-width panel with its hidden label", async ({
     page,
   }) => {
-    await page.goto("/game/1/pokemon/sprigatito");
+    await page.goto("/game/scarlet/pokemon/sprigatito");
     const chip = page.getByRole("button", { name: "Protean" });
     await chip.tap();
 
@@ -172,7 +172,7 @@ test.describe("Phone width: pages fit the viewport", () => {
   test("detail header stacks the sprite above the name, centred", async ({
     page,
   }) => {
-    await page.goto("/game/1/pokemon/sprigatito");
+    await page.goto("/game/scarlet/pokemon/sprigatito");
     const heading = page.getByRole("heading", { name: /sprigatito/i });
     await expect(heading).toBeVisible();
 
@@ -228,7 +228,7 @@ test.describe("Phone width: pages fit the viewport", () => {
       localStorage.setItem("pokedex_team_1", value);
     }, JSON.stringify(team));
 
-    await page.goto("/game/1/team");
+    await page.goto("/game/scarlet/team");
     await expect(page.getByTestId("team-slot")).toHaveCount(6);
     await expect(page.getByText("Defensive Overview")).toBeVisible();
 

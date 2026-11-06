@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -10,7 +10,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { alpha } from "@mui/material/styles";
 import type { Pokemon } from "../types";
-import { useGames } from "../hooks/useGames";
+import { useRouteGame } from "../hooks/useRouteGame";
 import { useGame } from "../hooks/useGame";
 import { useDexView } from "../hooks/useDexView";
 import { DexToggle } from "../components/DexToggle";
@@ -18,6 +18,7 @@ import { useTeam, MAX_TEAM_SIZE } from "../hooks/useTeam";
 import { TeamAnalysis } from "../components/team/TeamAnalysis";
 import { TypeBadge } from "../components/TypeBadge";
 import { formatName } from "../utils/formatters";
+import { ErrorText } from "./GamePage.styles";
 
 const PageWrapper = styled.div`
   max-width: 1000px;
@@ -244,11 +245,14 @@ const LoadingRow = styled.div`
 `;
 
 export function TeamBuilderPage() {
-  const { gameId } = useParams<{ gameId: string }>();
-  const numericGameId = Number(gameId);
-
-  const { data: games = [] } = useGames();
-  const game = games.find((g) => g.id === numericGameId) ?? null;
+  const {
+    game,
+    gameId: numericGameId,
+    slug,
+    isPending: gamesPending,
+    notFound,
+    error: gamesError,
+  } = useRouteGame();
 
   // The picker offers the view chosen on the game page
   const [dex, setDex] = useDexView();
@@ -300,6 +304,19 @@ export function TeamBuilderPage() {
 
   const emptySlots = Math.max(0, MAX_TEAM_SIZE - team.length);
 
+  if (notFound) return <ErrorText>Game not found</ErrorText>;
+  if (gamesError) return <ErrorText>{gamesError.message}</ErrorText>;
+  if (gamesPending) {
+    return (
+      <PageWrapper>
+        <LoadingRow>
+          <CircularProgress size={16} sx={{ color: "primary.main" }} />
+          Loading…
+        </LoadingRow>
+      </PageWrapper>
+    );
+  }
+
   return (
     <PageWrapper>
       <HeaderRow>
@@ -328,7 +345,7 @@ export function TeamBuilderPage() {
       <SlotsGrid>
         {team.map((member) => (
           <Slot key={member.id} data-testid="team-slot">
-            <SlotLink to={`/game/${numericGameId}/pokemon/${member.name}`}>
+            <SlotLink to={`/game/${slug}/pokemon/${member.name}`}>
               <img src={member.sprite_url} alt="" loading="lazy" />
               <SlotName>{formatName(member.name)}</SlotName>
               <SlotTypes>

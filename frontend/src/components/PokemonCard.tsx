@@ -22,6 +22,8 @@ import { formatName } from "../utils/formatters";
 interface PokemonCardProps {
   pokemon: Pokemon;
   gameId?: number;
+  // URL segment for the game; set together with gameId
+  gameSlug?: string;
   // The game page's view, carried onto the detail link
   dex?: DexView;
   showFavoriteButton?: boolean;
@@ -167,6 +169,7 @@ const TopRight = styled.div`
 export function PokemonCard({
   pokemon,
   gameId,
+  gameSlug,
   dex = "regional",
   showFavoriteButton = true,
 }: PokemonCardProps) {
@@ -185,8 +188,8 @@ export function PokemonCard({
 
   const handleClick = () => {
     navigate(
-      gameId
-        ? `/game/${gameId}/pokemon/${pokemon.name}${dexSearch(dex)}`
+      gameSlug
+        ? `/game/${gameSlug}/pokemon/${pokemon.name}${dexSearch(dex)}`
         : `/pokemon/${pokemon.name}`,
     );
   };

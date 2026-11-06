@@ -291,7 +291,8 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
   const { gameId } = useParams<{ gameId?: string }>();
   const { currentUser } = useAppContext();
 
-  const numericGameId = gameId ? Number(gameId) : undefined;
+  // Only a game-scoped route has caught state; the game-less one still gets a game for moves
+  const numericGameId = gameId ? game?.id : undefined;
   // Regional or national number, as on the game page this came from
   const [dex] = useDexView();
 
@@ -316,7 +317,7 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
     if (name === pokemonName) return;
     navigate(
       gameId
-        ? `/game/${gameId}/pokemon/${name}${dexSearch(dex)}`
+        ? `/game/${game?.name ?? gameId}/pokemon/${name}${dexSearch(dex)}`
         : `/pokemon/${name}`,
     );
   };

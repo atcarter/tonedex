@@ -99,7 +99,7 @@ async function mockChain(page: Page, name: string) {
 
 async function openChain(page: Page, name: string) {
   await mockChain(page, name);
-  await page.goto(`/game/1/pokemon/${name}`);
+  await page.goto(`/game/scarlet/pokemon/${name}`);
   const chain = page.getByTestId("evolution-chain");
   await expect(chain.getByTestId("evolution-stage")).toHaveCount(
     CHAINS[name].length,

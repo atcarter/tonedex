@@ -55,7 +55,7 @@ function Logo() {
         textTransform: "uppercase",
       }}
       onClick={() =>
-        selectedGame ? navigate(`/game/${selectedGame.id}`) : navigate("/")
+        selectedGame ? navigate(`/game/${selectedGame.name}`) : navigate("/")
       }
     >
       ◆ ToneDex

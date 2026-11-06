@@ -34,11 +34,19 @@ const POKEMONS: Pokemon[] = [
   pokedex_number: i + 1,
 }));
 
-function setup(initialTeam: Pokemon[] = []) {
+function setup(
+  initialTeam: Pokemon[] = [],
+  {
+    route = "/game/scarlet/team",
+    gamesQuery = {
+      data: [{ id: 1, name: "scarlet", generation: 9, region: "paldea" }],
+    } as object,
+  } = {},
+) {
   localStorage.setItem("pokedex_team_1", JSON.stringify(initialTeam));
-  vi.mocked(useGames).mockReturnValue({ data: [] } as unknown as ReturnType<
-    typeof useGames
-  >);
+  vi.mocked(useGames).mockReturnValue(
+    gamesQuery as unknown as ReturnType<typeof useGames>,
+  );
   vi.mocked(useGame).mockReturnValue({
     data: { pages: [{ pokemons: POKEMONS }] },
     isLoading: false,
@@ -50,7 +58,7 @@ function setup(initialTeam: Pokemon[] = []) {
   render(
     <ThemeProvider theme={theme}>
       <SCThemeProvider theme={theme}>
-        <MemoryRouter initialEntries={["/game/1/team"]}>
+        <MemoryRouter initialEntries={[route]}>
           <Routes>
             <Route path="/game/:gameId/team" element={<TeamBuilderPage />} />
             <Route
@@ -142,7 +150,7 @@ describe("TeamBuilderPage slots", () => {
     setup(POKEMONS.slice(0, 2));
 
     const link = screen.getByRole("link", { name: /Sprigatito/ });
-    expect(link).toHaveAttribute("href", "/game/1/pokemon/sprigatito");
+    expect(link).toHaveAttribute("href", "/game/scarlet/pokemon/sprigatito");
 
     fireEvent.click(link);
     expect(screen.getByText("detail page")).toBeInTheDocument();
@@ -158,5 +166,28 @@ describe("TeamBuilderPage slots", () => {
     expect(
       screen.queryByRole("link", { name: /Sprigatito/ }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("TeamBuilderPage game lookup", () => {
+  it("reports an unknown game name", () => {
+    setup([], { route: "/game/not-a-game/team" });
+    expect(screen.getByText("Game not found")).toBeInTheDocument();
+    expect(screen.queryByText("Team Builder")).not.toBeInTheDocument();
+  });
+
+  it("reports a failed games list for a name URL", () => {
+    setup([], {
+      gamesQuery: { isPending: false, error: new Error("Network down") },
+    });
+    expect(screen.getByText("Network down")).toBeInTheDocument();
+    expect(screen.queryByText("Team Builder")).not.toBeInTheDocument();
+  });
+
+  it("waits for the games list instead of showing an empty team", () => {
+    setup(POKEMONS.slice(0, 2), { gamesQuery: { isPending: true } });
+    expect(screen.getByText("Loading…")).toBeInTheDocument();
+    expect(screen.queryAllByTestId("team-slot")).toHaveLength(0);
+    expect(screen.queryByText("Team Builder")).not.toBeInTheDocument();
   });
 });

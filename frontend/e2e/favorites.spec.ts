@@ -20,7 +20,7 @@ test.describe("Favorites — authenticated user", () => {
   });
 
   test("favorite button is enabled when signed in", async ({ page }) => {
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
 
     await expect(page.getByText("Sprigatito")).toBeVisible();
     // When signed in, no buttons should be disabled (caught + favorite are both enabled)
@@ -54,7 +54,7 @@ test.describe("Favorites — authenticated user", () => {
       });
     });
 
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
     await expect(page.getByText("Sprigatito")).toBeVisible();
 
     // The favorite button is the last icon button inside the card
@@ -189,7 +189,7 @@ test.describe("Favorites persistence across navigation", () => {
       r.fulfill({ status: 204, body: "" }),
     );
 
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
     await expect(page.getByText("Sprigatito")).toBeVisible();
 
     // Click the favorite button on the first card

@@ -77,7 +77,9 @@ See ADR-007 for the full rationale.
 
 ### Game Switching
 
-The URL is the source of truth for the selected game (ADR-005). Switching games keeps the current page where it can: the team builder stays on `/game/<new>/team`, and a detail page stays on that Pokémon when the detail endpoint returns a `pokedex_number` for it in the new game (fetched under the detail page's own query key, so it renders from cache); otherwise the switch goes to the new game's dex. The `?dex=` view carries over.
+The URL is the source of truth for the selected game (ADR-005). The game segment is the game's `name`, the PokeAPI version name (`/game/scarlet`, `/game/scarlet/team`, `/game/scarlet/pokemon/sprigatito`). `useRouteGame` resolves it against the games list (`useGames`) and hands the pages the numeric id, which hooks, query keys and API calls still use; `GameSelector` resolves it the same way through `findGame`. A numeric segment is a legacy link: it resolves by id and is rewritten to the name form with `replace`, keeping the rest of the path, the query and the hash. On the dex and team pages, an unknown name renders "Game not found" and a failed games list renders its error. The API is still called by id.
+
+Switching games keeps the current page where it can: the team builder stays on `/game/<new>/team`, and a detail page stays on that Pokémon when the detail endpoint returns a `pokedex_number` for it in the new game (fetched under the detail page's own query key, so it renders from cache); otherwise the switch goes to the new game's dex. The `?dex=` view carries over.
 
 ### Query Key Conventions
 

@@ -4,6 +4,13 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ---
 
+## 2026-11-06
+
+### Frontend
+- **New:** game URLs use the game's name, the PokeAPI version name already stored in `games.name`, instead of its database id: `/game/scarlet`, `/game/scarlet/team` and `/game/scarlet/pokemon/sprigatito`. The game selector, the default-game redirect from `/`, search, cards, the logo, the team builder's slots and evolution links all build the name form. Links by id (`/game/34`, `/game/34/pokemon/pikachu`) still work: `useRouteGame` resolves the segment by id and rewrites it to the name with `replace`, keeping the rest of the path and the query, so history holds only the name URL. Hooks, query keys and API calls keep the numeric id, resolved from the cached games list, so the API, the dex, favorites, team and caught behavior are unchanged. The dex and team pages show "Game not found" for an unknown game name, and the error if the games list fails to load. ADR-005 has a status note. The e2e suite visits the name form, and `e2e/browse.spec.ts` deep-links a name URL and checks that an id URL lands on the name URL.
+
+---
+
 ## 2026-11-05
 
 ### Backend
