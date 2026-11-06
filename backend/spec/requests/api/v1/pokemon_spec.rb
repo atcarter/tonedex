@@ -33,11 +33,11 @@ RSpec.describe "Pokemon API", type: :request do
       expect(json["evolution_chain"].first["name"]).to eq("charmander")
     end
 
-    it "resolves evolution sprites against the request's base URL" do
+    it "builds the full evolution chain outside a game, with sprites against the request's base URL" do
       get "/api/v1/pokemon/#{pokemon.id}"
 
       expect(adapter).to have_received(:evolution_chain_for)
-        .with(pokemon, sprite_base: request.base_url)
+        .with(pokemon, nil, sprite_base: request.base_url)
     end
 
     it "returns an empty evolution chain when the adapter fails" do
@@ -99,6 +99,13 @@ RSpec.describe "Pokemon API", type: :request do
         get "/api/v1/pokemon/#{pokemon.id}", params: {game_id: game.id}
 
         expect(adapter).to have_received(:species_info_for).with(pokemon, game)
+      end
+
+      it "builds the evolution chain for the selected game" do
+        get "/api/v1/pokemon/#{pokemon.id}", params: {game_id: game.id}
+
+        expect(adapter).to have_received(:evolution_chain_for)
+          .with(pokemon, game, sprite_base: request.base_url)
       end
 
       it "includes the game-local pokedex number" do

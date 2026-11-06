@@ -843,6 +843,189 @@ RSpec.describe PokeapiAdapter do
       end
     end
 
+    context "with a game" do
+      # Real species ids: a stage's generation comes from its national-dex number
+      def stage(name, id, details = [], evolves_to = [])
+        {"species" => {"name" => name, "url" => "https://pokeapi.co/api/v2/pokemon-species/#{id}/"},
+         "evolution_details" => details, "evolves_to" => evolves_to}
+      end
+
+      def step(trigger, extra = {})
+        {"trigger" => {"name" => trigger}, "time_of_day" => ""}.merge(extra)
+      end
+
+      let(:pichu_chain) do
+        {"chain" => stage("pichu", 172, [], [
+          stage("pikachu", 25, [step("level-up", "min_happiness" => 220)], [
+            stage("raichu", 26, [step("use-item", "item" => {"name" => "thunder-stone"})])
+          ])
+        ])}
+      end
+
+      let(:full_eevee_chain) do
+        evolutions = {
+          "vaporeon" => 134, "jolteon" => 135, "flareon" => 136, "espeon" => 196,
+          "umbreon" => 197, "leafeon" => 470, "glaceon" => 471, "sylveon" => 700
+        }.map { |name, id| stage(name, id, [step("level-up")]) }
+        {"chain" => stage("eevee", 133, [], evolutions)}
+      end
+
+      let(:onix_chain) do
+        {"chain" => stage("onix", 95, [], [stage("steelix", 208, [step("trade")])])}
+      end
+
+      let(:tyrogue_chain) do
+        {"chain" => stage("tyrogue", 236, [], [
+          stage("hitmonlee", 106, [step("level-up", "min_level" => 20)]),
+          stage("hitmonchan", 107, [step("level-up", "min_level" => 20)]),
+          stage("hitmontop", 237, [step("level-up", "min_level" => 20)])
+        ])}
+      end
+
+      let(:red) { build(:game, generation: 1) }
+      let(:gold) { build(:game, generation: 2) }
+
+      def chain_for(chain, game, species: nil)
+        allow(client).to receive(:pokemon_species).with(pokemon.pokeapi_id)
+          .and_return(species_data.merge("name" => species))
+        allow(client).to receive(:evolution_chain).with("1").and_return(chain)
+        adapter.evolution_chain_for(pokemon, game)
+      end
+
+      it "drops species from later generations and re-roots the chain" do
+        result = chain_for(pichu_chain, red, species: "pikachu")
+
+        expect(result.map { |e| e[:name] }).to eq(%w[pikachu raichu])
+        expect(result.first).to include(evolves_from: nil, evolution_details: [])
+        expect(result.last).to include(evolves_from: "pikachu")
+        expect(result.last[:evolution_details].first).to include(item: "thunder-stone")
+      end
+
+      it "keeps a baby species in the generation that introduced it" do
+        result = chain_for(pichu_chain, gold, species: "pikachu")
+
+        expect(result.map { |e| e[:name] }).to eq(%w[pichu pikachu raichu])
+        expect(result[1][:evolution_details].first).to include(min_happiness: 220)
+      end
+
+      it "keeps only the branches the generation had" do
+        result = chain_for(full_eevee_chain, red, species: "eevee")
+
+        expect(result.map { |e| e[:name] }).to eq(%w[eevee vaporeon jolteon flareon])
+      end
+
+      it "leaves a single stage when every evolution is later" do
+        result = chain_for(onix_chain, red, species: "onix")
+
+        expect(result.map { |e| e[:name] }).to eq(%w[onix])
+      end
+
+      it "keeps only the requested species' tree when re-rooting splits the chain" do
+        expect(chain_for(tyrogue_chain, red, species: "hitmonchan").map { |e| e[:name] })
+          .to eq(%w[hitmonchan])
+        expect(chain_for(tyrogue_chain, gold, species: "hitmonchan").map { |e| e[:name] })
+          .to eq(%w[tyrogue hitmonlee hitmonchan hitmontop])
+      end
+
+      it "returns the full chain when the requested species is later than the game" do
+        result = chain_for(pichu_chain, red, species: "pichu")
+
+        expect(result.map { |e| [e[:name], e[:evolves_from]] })
+          .to eq([["pichu", nil], %w[pikachu pichu], %w[raichu pikachu]])
+        expect(result[1][:evolution_details].first).to include(min_happiness: 220)
+      end
+
+      it "returns the full Eevee chain for Sylveon in Red" do
+        result = chain_for(full_eevee_chain, red, species: "sylveon")
+
+        expect(result.map { |e| e[:name] })
+          .to eq(%w[eevee vaporeon jolteon flareon espeon umbreon leafeon glaceon sylveon])
+      end
+
+      it "returns the full chain with no game or no stored generation" do
+        expect(chain_for(full_eevee_chain, nil).size).to eq(9)
+        expect(chain_for(full_eevee_chain, build(:game, generation: nil)).size).to eq(9)
+      end
+
+      context "when the game's national view is seeded" do
+        # Sentinel ids past every generation: the cutoff would drop them all, so
+        # only the game's own game_pokemons rows can keep a stage.
+        def seeded_game(generation, regional: [], national: [])
+          game = create(:game, generation: generation, national_seeded_at: Time.current)
+          regional.each { |id| link(game, id, regional: true) }
+          national.each { |id| link(game, id, regional: false) }
+          game
+        end
+
+        def link(game, pokeapi_id, regional:)
+          pokemon = Pokemon.find_by(pokeapi_id: pokeapi_id) || create(:pokemon, pokeapi_id: pokeapi_id)
+          GamePokemon.create!(game: game, pokemon: pokemon, regional: regional)
+        end
+
+        let(:eevee_ids) do
+          {"eevee" => 100_133, "vaporeon" => 100_134, "jolteon" => 100_135, "flareon" => 100_136,
+           "espeon" => 100_196, "umbreon" => 100_197, "leafeon" => 100_470, "glaceon" => 100_471,
+           "sylveon" => 100_700}
+        end
+
+        let(:sentinel_eevee_chain) do
+          evolutions = eevee_ids.except("eevee").map { |name, id| stage(name, id, [step("level-up")]) }
+          {"chain" => stage("eevee", eevee_ids["eevee"], [], evolutions)}
+        end
+
+        let(:sentinel_scyther_chain) do
+          {"chain" => stage("scyther", 100_123, [], [
+            stage("scizor", 100_212, [step("trade")]),
+            stage("kleavor", 100_900, [step("use-item", "item" => {"name" => "black-augurite"})])
+          ])}
+        end
+
+        it "keeps only the species the game has, regional or national (BDSP's Eevee has no Sylveon)" do
+          bdsp = seeded_game(8, regional: eevee_ids.values_at("eevee", "vaporeon", "jolteon", "flareon"),
+            national: eevee_ids.values_at("espeon", "umbreon", "leafeon", "glaceon"))
+          other_game = seeded_game(8, regional: [eevee_ids["sylveon"]])
+
+          result = chain_for(sentinel_eevee_chain, bdsp, species: "eevee")
+
+          expect(other_game.pokemons.pluck(:pokeapi_id)).to include(eevee_ids["sylveon"])
+          expect(result.map { |e| e[:name] })
+            .to eq(%w[eevee vaporeon jolteon flareon espeon umbreon leafeon glaceon])
+        end
+
+        it "drops an evolution the game lacks (Sword/Shield's Scyther has no Kleavor)" do
+          sword = seeded_game(8, regional: [100_123, 100_212])
+
+          result = chain_for(sentinel_scyther_chain, sword, species: "scyther")
+
+          expect(result.map { |e| e[:name] }).to eq(%w[scyther scizor])
+        end
+
+        it "returns the full chain for a species the game lacks (Turtwig in Sword)" do
+          turtwig_chain = {"chain" => stage("turtwig", 100_387, [], [
+            stage("grotle", 100_388, [step("level-up", "min_level" => 18)], [
+              stage("torterra", 100_389, [step("level-up", "min_level" => 32)])
+            ])
+          ])}
+          sword = seeded_game(8, regional: [100_123, 100_212])
+
+          result = chain_for(turtwig_chain, sword, species: "turtwig")
+
+          expect(result.map { |e| [e[:name], e[:evolves_from]] })
+            .to eq([["turtwig", nil], %w[grotle turtwig], %w[torterra grotle]])
+          expect(result.last[:evolution_details].first).to include(min_level: 32)
+          expect(result).to all(include(sprite_url: a_string_matching(%r{/\d+\.png\z})))
+        end
+
+        it "re-roots on a parent the game lacks" do
+          game = seeded_game(8, regional: [100_212])
+
+          result = chain_for(sentinel_scyther_chain, game, species: "scizor")
+
+          expect(result).to contain_exactly(include(name: "scizor", evolves_from: nil, evolution_details: []))
+        end
+      end
+    end
+
     context "with sprites" do
       let(:tmp_root) { Pathname.new(Dir.mktmpdir) }
       let(:base) { "http://localhost:3000" }

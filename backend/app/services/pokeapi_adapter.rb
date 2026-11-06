@@ -170,13 +170,20 @@ class PokeapiAdapter
   end
 
   # sprite_base is the request's base URL, as for PokemonSerializer.details.
-  def evolution_chain_for(pokemon, sprite_base: nil)
+  # A game narrows the chain to the species the game has: its game_pokemons
+  # rows once the national pass has stamped it (ADR-009), else the species
+  # introduced in or before its generation. With no game, an unstamped game
+  # with no stored generation, or a species the game lacks, the full chain is
+  # returned.
+  def evolution_chain_for(pokemon, game = nil, sprite_base: nil)
     species_data = @client.pokemon_species(pokemon.pokeapi_id)
     chain_url = species_data.dig("evolution_chain", "url")
     chain_id = chain_url.split("/").last
 
     chain_data = @client.evolution_chain(chain_id)
-    with_sprite_urls(parse_evolution_chain(chain_data["chain"]), sprite_base)
+    steps = parse_evolution_chain(chain_data["chain"])
+    steps = within_game(steps, game, species_data["name"]) if game
+    with_sprite_urls(steps, sprite_base)
   end
 
   # Caches the /ability payloads the detail page reads, so the request path stays
@@ -398,6 +405,37 @@ class PokeapiAdapter
     end
 
     evolutions
+  end
+
+  # Keeps the stages whose species the game has, in one query. A stage whose
+  # parent the game lacks becomes a root with no evolution details: in Gen 1,
+  # Pikachu starts the chain and Pichu's happiness step is gone. When that
+  # leaves several roots (Hitmonlee and Hitmonchan without Tyrogue), only the
+  # tree holding the requested species is kept. A species the game lacks keeps
+  # its full chain.
+  def within_game(steps, game, species_name)
+    if game.national_seeded_at
+      ids = game.pokemons.where(pokeapi_id: steps.pluck(:species_id).compact).pluck(:pokeapi_id).to_set
+      kept = steps.select { |step| ids.include?(step[:species_id]) }
+    elsif game.generation.to_i.positive?
+      kept = steps.select { |step| Generation.introducing(step[:species_id]).to_i <= game.generation }
+    else
+      return steps
+    end
+
+    names = kept.to_set { |step| step[:name] }
+    return steps unless names.include?(species_name)
+
+    kept = kept.map do |step|
+      next step if step[:evolves_from].nil? || names.include?(step[:evolves_from])
+
+      step.merge(evolves_from: nil, evolution_details: [])
+    end
+
+    parents = kept.to_h { |step| [step[:name], step[:evolves_from]] }
+    root_of = ->(name) { parents[name] ? root_of.call(parents[name]) : name }
+    root = root_of.call(species_name)
+    kept.select { |step| root_of.call(step[:name]) == root }
   end
 
   # Swaps each step's species id for its sprite URL
