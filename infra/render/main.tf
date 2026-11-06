@@ -15,11 +15,15 @@ locals {
     : "https://${regex("^https://[^@/]+@([^/]+)/", var.vite_sentry_dsn)[0]}"
   )
 
+  # sha256 of the inline redirect script in frontend/index.html. It changes whenever
+  # that script does; frontend/e2e/legacy-host-redirect.spec.ts fails until this matches.
+  redirect_script_hash = "'sha256-LDFQUu0lR9rSDODyz9p55bvHMKA0nVvFbygTVag+7VM='"
+
   # Sent as an enforcing Content-Security-Policy. infra/render/README.md
   # explains each source; run frontend/e2e-smoke/csp.spec.ts before changing it.
   content_security_policy = join("; ", [
     "default-src 'self'",
-    "script-src 'self' https://accounts.google.com",
+    "script-src 'self' ${local.redirect_script_hash} https://accounts.google.com",
     "frame-src https://accounts.google.com",
     join(" ", compact([
       "connect-src 'self'",

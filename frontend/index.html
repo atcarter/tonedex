@@ -2,6 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Old links to tonedex-web.onrender.com land on the same path at tonedex.app.
+         The CSP allows this script by its sha256 (infra/render/main.tf), so editing it changes the hash. -->
+    <script>
+      if (location.hostname === "tonedex-web.onrender.com") {
+        location.replace(
+          "https://tonedex.app" +
+            location.pathname +
+            location.search +
+            location.hash,
+        );
+      }
+    </script>
     <link rel="icon" type="image/svg+xml" href="/pokeball.svg" />
     <meta
       name="viewport"

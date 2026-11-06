@@ -57,7 +57,7 @@ The api and worker share their secrets, connection strings, `CORS_ORIGINS` and `
 
 ## Custom domains
 
-The SPA is served at `https://tonedex.app` and the API at `https://api.tonedex.app`. `main.tf` attaches each domain with the service's `custom_domains` attribute, which is how provider 1.9.1 manages them (it has no separate custom-domain resource). The same two names set `VITE_API_URL`, `CORS_ORIGINS`, `ALLOWED_HOSTS` and the CSP, so one apply moves all of them. The `onrender.com` hostnames still exist, because the DNS records point at them, but the app no longer works there: CORS and `ALLOWED_HOSTS` accept only the new names.
+The SPA is served at `https://tonedex.app` and the API at `https://api.tonedex.app`. `main.tf` attaches each domain with the service's `custom_domains` attribute, which is how provider 1.9.1 manages them (it has no separate custom-domain resource). The same two names set `VITE_API_URL`, `CORS_ORIGINS`, `ALLOWED_HOSTS` and the CSP, so one apply moves all of them. The `onrender.com` hostnames still exist, because the DNS records point at them. `tonedex-web.onrender.com` keeps serving the SPA, and an inline script at the top of `frontend/index.html` sends every visit there to the same path, query and fragment on `https://tonedex.app`, so links already shared keep working. `tonedex-api.onrender.com` gets no redirect, and the API refuses it: `ALLOWED_HOSTS` accepts only `api.tonedex.app`, and CORS only `https://tonedex.app`.
 
 When the apex is added, Render also adds `www.tonedex.app` and redirects it to `tonedex.app`. The provider leaves that redirect out of state, so it causes no plan diff. It only answers if a `www` DNS record exists, and this setup creates none.
 
@@ -80,7 +80,7 @@ Run this after hours. Between the apply and certificate issuance, the site may b
    - **Authorized JavaScript origins:** add `https://tonedex.app`, for the SPA's sign-in.
    - **Authorized redirect URIs:** add `https://api.tonedex.app/auth/google_oauth2/callback`, for the Sidekiq dashboard's OmniAuth sign-in.
    - Remove `https://tonedex-web.onrender.com` and `https://tonedex-api.onrender.com/auth/google_oauth2/callback`. Google can take a few minutes to apply changes.
-6. **Test both sign-ins.** At `https://tonedex.app`, sign in with Google, check that the avatar loads and the signed-in pages work, then sign out, all with the browser console open and free of CSP and CORS errors. At `https://api.tonedex.app/sidekiq`, sign in as `SIDEKIQ_ALLOWED_EMAIL` and check that the dashboard loads.
+6. **Test both sign-ins.** At `https://tonedex.app`, sign in with Google, check that the avatar loads and the signed-in pages work, then sign out, all with the browser console open and free of CSP and CORS errors. Open an old link such as `https://tonedex-web.onrender.com/game/scarlet` and check that it lands on `https://tonedex.app/game/scarlet`. At `https://api.tonedex.app/sidekiq`, sign in as `SIDEKIQ_ALLOWED_EMAIL` and check that the dashboard loads.
 7. **Point the smoke suite at the new domain.** Set the repository variables `SMOKE_BASE_URL` to `https://tonedex.app` and `SMOKE_API_URL` to `https://api.tonedex.app` (GitHub → Settings → Secrets and variables → Actions → Variables), then run `.github/workflows/smoke.yml` on demand.
 
 ## Importing the ToneDex project
@@ -122,12 +122,13 @@ This deletes every resource above, including the database and all its data, and 
 The static site sends an enforcing `Content-Security-Policy`: the browser blocks anything the policy doesn't allow and logs each block as a console error. Terraform builds the value in `main.tf` (`local.content_security_policy`) from the api URL and the Sentry ingest origin, which comes from `vite_sentry_dsn` (an empty DSN adds no source):
 
 ```
-default-src 'self'; script-src 'self' https://accounts.google.com; frame-src https://accounts.google.com; connect-src 'self' <api url> https://accounts.google.com <sentry ingest origin>; img-src 'self' data: <api url> https://raw.githubusercontent.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+default-src 'self'; script-src 'self' 'sha256-<redirect script hash>' https://accounts.google.com; frame-src https://accounts.google.com; connect-src 'self' <api url> https://accounts.google.com <sentry ingest origin>; img-src 'self' data: <api url> https://raw.githubusercontent.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
 ```
 
 Why each non-`'self'` source is there:
 
 - **`https://accounts.google.com`** in `script-src`, `frame-src`, `connect-src` and `style-src`: Google Identity Services loads its script, sign-in iframe, token requests and stylesheet from there.
+- **`'sha256-…'` in `script-src`** (`local.redirect_script_hash`): allows only the inline redirect script in `frontend/index.html`. The hash covers the script's exact text, so any edit to it, even whitespace, needs a new hash. `frontend/e2e/legacy-host-redirect.spec.ts` serves the page with this hash as its CSP and fails while the hash is stale. Compute the new one with `node -e 'const h=require("fs").readFileSync("index.html","utf8").match(/<script>([\s\S]*?)<\/script>/)[1];console.log(require("crypto").createHash("sha256").update(h).digest("base64"))'` from `frontend/`.
 - **`'unsafe-inline'` in `style-src`**: styled-components and MUI inject `<style>` tags at runtime.
 - **`https://raw.githubusercontent.com`** in `img-src`: the sprite fallback for anything not mirrored under `backend/public/sprites/`.
 - **`https://*.googleusercontent.com`** in `img-src`: serves the signed-in user's avatar.
