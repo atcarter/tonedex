@@ -7,8 +7,9 @@ locals {
   frontend_domain = "tonedex.app"
   api_url         = "https://${local.api_domain}"
   frontend_url    = "https://${local.frontend_domain}"
-  # Still allowed by CORS, so the current site keeps working between certificate issuance and the merge.
+  # Still allowed (CORS_ORIGINS, ALLOWED_HOSTS), so the current build keeps working until its rebuild after the apply.
   legacy_frontend_url = "https://tonedex-web.onrender.com"
+  legacy_api_domain   = "tonedex-api.onrender.com"
 
   # https://<key>@o123.ingest.us.sentry.io/456 -> https://o123.ingest.us.sentry.io
   sentry_ingest_origin = (
@@ -158,7 +159,7 @@ resource "render_env_group" "backend" {
       GOOGLE_CLIENT_SECRET  = { value = var.google_client_secret }
       SIDEKIQ_ALLOWED_EMAIL = { value = var.sidekiq_allowed_email }
       CORS_ORIGINS          = { value = join(",", [local.frontend_url, local.legacy_frontend_url]) }
-      ALLOWED_HOSTS         = { value = local.api_domain }
+      ALLOWED_HOSTS         = { value = join(",", [local.api_domain, local.legacy_api_domain]) }
     },
     local.optional_backend_env,
   )
@@ -185,7 +186,7 @@ resource "render_static_site" "web" {
   # Deploy a commit only after its GitHub checks pass (README: "Deploys wait for CI").
   auto_deploy_trigger = "checksPass"
 
-  # Render also adds www.tonedex.app as a redirect to the apex; the provider leaves it out of state.
+  # Render also adds www.tonedex.app as a redirect to the apex; the provider records it only in active_custom_domains.
   custom_domains = [{ name = local.frontend_domain }]
 
   env_vars = merge(

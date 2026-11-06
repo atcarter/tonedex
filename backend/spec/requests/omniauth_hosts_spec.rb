@@ -3,11 +3,13 @@ require "rails_helper"
 # Configures OmniAuth as production does with ALLOWED_HOSTS set. The test env has no Rails host check.
 RSpec.describe "OmniAuth callback hosts", type: :request do
   let(:allowed_host) { "api.tonedex.test" }
+  # Production lists the old Render host second, so the build live at a cutover keeps signing in.
+  let(:second_allowed_host) { "tonedex-api.legacy.test" }
   let(:forged_host) { "evil.example" }
 
   around do |example|
     original_hosts, original_logger = OmniAuth.config.allowed_hosts, OmniAuth.config.logger
-    OmniAuth.config.allowed_hosts = OmniauthAllowedHosts.from(ActiveSupport::EnvironmentInquirer.new("production"), [allowed_host])
+    OmniAuth.config.allowed_hosts = OmniauthAllowedHosts.from(ActiveSupport::EnvironmentInquirer.new("production"), [allowed_host, second_allowed_host])
     OmniAuth.config.logger = Logger.new(IO::NULL)
     example.run
   ensure
@@ -26,6 +28,13 @@ RSpec.describe "OmniAuth callback hosts", type: :request do
       expect(response.location).to start_with("https://accounts.google.com/")
       redirect_uri = Rack::Utils.parse_query(URI(response.location).query)["redirect_uri"]
       expect(redirect_uri).to eq("http://#{allowed_host}/auth/google_oauth2/callback")
+    end
+
+    it "builds the callback on whichever allowed host the request came to" do
+      post "/auth/google_oauth2", headers: {"Host" => second_allowed_host}
+
+      redirect_uri = Rack::Utils.parse_query(URI(response.location).query)["redirect_uri"]
+      expect(redirect_uri).to eq("http://#{second_allowed_host}/auth/google_oauth2/callback")
     end
 
     it "rejects a forged Host header" do
