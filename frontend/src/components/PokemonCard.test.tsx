@@ -199,10 +199,17 @@ describe("PokemonCard", () => {
 
   it("carries the national view onto the detail link", () => {
     setup();
-    renderCard(<PokemonCard pokemon={PIKACHU} gameId={1} dex="national" />);
+    renderCard(
+      <PokemonCard
+        pokemon={PIKACHU}
+        gameId={1}
+        gameSlug="scarlet"
+        dex="national"
+      />,
+    );
     fireEvent.click(screen.getByText("Pikachu"));
     expect(screen.getByTestId("location")).toHaveTextContent(
-      "/game/1/pokemon/pikachu?dex=national",
+      "/game/scarlet/pokemon/pikachu?dex=national",
     );
   });
 });

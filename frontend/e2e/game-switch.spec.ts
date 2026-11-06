@@ -67,46 +67,46 @@ test.describe("Game switch", () => {
       },
       JSON.stringify([SPRIGATITO]),
     );
-    await page.goto("/game/1/team");
+    await page.goto("/game/scarlet/team");
     await expect(page.getByText("empty slot")).toHaveCount(5);
 
     await chooseGame(page, "Violet");
 
-    await expect(page).toHaveURL(/\/game\/2\/team$/);
+    await expect(page).toHaveURL(/\/game\/violet\/team$/);
     await expect(page.getByText("Team Builder")).toBeVisible();
     // Violet has its own team, empty so far
     await expect(page.getByText("empty slot")).toHaveCount(6);
   });
 
   test("on the dex, goes to the new game's dex", async ({ page }) => {
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
     await expect(page.getByText("#001")).toBeVisible();
 
     await chooseGame(page, "Violet");
 
-    await expect(page).toHaveURL(/\/game\/2$/);
+    await expect(page).toHaveURL(/\/game\/violet$/);
   });
 
   test("on a detail page, stays put when the Pokémon is in the new game", async ({
     page,
   }) => {
-    await page.goto("/game/1/pokemon/sprigatito");
+    await page.goto("/game/scarlet/pokemon/sprigatito");
     await expect(page.getByText("Scratch")).toBeVisible();
 
     await chooseGame(page, "Violet");
 
-    await expect(page).toHaveURL(/\/game\/2\/pokemon\/sprigatito$/);
+    await expect(page).toHaveURL(/\/game\/violet\/pokemon\/sprigatito$/);
     await expect(page.getByText(/moves in violet/i)).toBeVisible();
   });
 
   test("on a detail page, goes to the new game's dex when the Pokémon isn't in it", async ({
     page,
   }) => {
-    await page.goto("/game/1/pokemon/sprigatito");
+    await page.goto("/game/scarlet/pokemon/sprigatito");
     await expect(page.getByText("Scratch")).toBeVisible();
 
     await chooseGame(page, "Sword");
 
-    await expect(page).toHaveURL(/\/game\/3$/);
+    await expect(page).toHaveURL(/\/game\/sword$/);
   });
 });

@@ -156,7 +156,7 @@ export function PokemonSearch({
   // caught toggle, and dex number; game-less only when no game is selected.
   const detailPath = (name: string) =>
     selectedGame
-      ? `/game/${selectedGame.id}/pokemon/${name}`
+      ? `/game/${selectedGame.name}/pokemon/${name}`
       : `/pokemon/${name}`;
 
   const handleSelect = (pokemon: Pokemon) => {

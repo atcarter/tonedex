@@ -36,9 +36,9 @@ const POKEMONS: Pokemon[] = [
 
 function setup(initialTeam: Pokemon[] = []) {
   localStorage.setItem("pokedex_team_1", JSON.stringify(initialTeam));
-  vi.mocked(useGames).mockReturnValue({ data: [] } as unknown as ReturnType<
-    typeof useGames
-  >);
+  vi.mocked(useGames).mockReturnValue({
+    data: [{ id: 1, name: "scarlet", generation: 9, region: "paldea" }],
+  } as unknown as ReturnType<typeof useGames>);
   vi.mocked(useGame).mockReturnValue({
     data: { pages: [{ pokemons: POKEMONS }] },
     isLoading: false,
@@ -50,7 +50,7 @@ function setup(initialTeam: Pokemon[] = []) {
   render(
     <ThemeProvider theme={theme}>
       <SCThemeProvider theme={theme}>
-        <MemoryRouter initialEntries={["/game/1/team"]}>
+        <MemoryRouter initialEntries={["/game/scarlet/team"]}>
           <Routes>
             <Route path="/game/:gameId/team" element={<TeamBuilderPage />} />
             <Route
@@ -142,7 +142,7 @@ describe("TeamBuilderPage slots", () => {
     setup(POKEMONS.slice(0, 2));
 
     const link = screen.getByRole("link", { name: /Sprigatito/ });
-    expect(link).toHaveAttribute("href", "/game/1/pokemon/sprigatito");
+    expect(link).toHaveAttribute("href", "/game/scarlet/pokemon/sprigatito");
 
     fireEvent.click(link);
     expect(screen.getByText("detail page")).toBeInTheDocument();

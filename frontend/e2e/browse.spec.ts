@@ -20,13 +20,13 @@ test.describe("Unauthenticated browsing", () => {
   });
 
   test("game page renders Pokemon cards from the API", async ({ page }) => {
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
 
     await expect(page.getByText("Sprigatito")).toBeVisible();
   });
 
   test("Pokemon card shows the type badge", async ({ page }) => {
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
 
     await expect(page.getByText("Sprigatito")).toBeVisible();
     // Type badges render the type name in lowercase (e.g. "grass", not "Grass").
@@ -38,12 +38,12 @@ test.describe("Unauthenticated browsing", () => {
   test("clicking a Pokemon card navigates to its detail page", async ({
     page,
   }) => {
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
 
     await expect(page.getByText("Sprigatito")).toBeVisible();
     await page.getByText("Sprigatito").click();
 
-    await expect(page).toHaveURL(/\/game\/1\/pokemon\/sprigatito/);
+    await expect(page).toHaveURL(/\/game\/scarlet\/pokemon\/sprigatito/);
     // Wait for detail content to load before asserting the heading
     await expect(page.locator("text=Loading Pokémon...")).not.toBeVisible();
     await expect(
@@ -72,22 +72,24 @@ test.describe("Unauthenticated browsing", () => {
         }),
       }),
     );
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
     await expect(page.getByText("Sprigatito")).toBeVisible();
 
     await page.getByRole("button", { name: "National" }).click();
 
-    await expect(page).toHaveURL(/\/game\/1\?dex=national$/);
+    await expect(page).toHaveURL(/\/game\/scarlet\?dex=national$/);
     await expect(page.getByText("Mew")).toBeVisible();
     await expect(page.getByText("Mythical")).toBeVisible();
     await expect(page.getByText("Sprigatito")).not.toBeVisible();
 
     await page.getByText("Mew").click();
-    await expect(page).toHaveURL(/\/game\/1\/pokemon\/mew\?dex=national$/);
+    await expect(page).toHaveURL(
+      /\/game\/scarlet\/pokemon\/mew\?dex=national$/,
+    );
   });
 
   test("favorite button is disabled when signed out", async ({ page }) => {
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
 
     await expect(page.getByText("Sprigatito")).toBeVisible();
     // All icon buttons on the card are disabled when there is no currentUser
@@ -96,7 +98,7 @@ test.describe("Unauthenticated browsing", () => {
   });
 
   test("evolution chain appears on the detail page", async ({ page }) => {
-    await page.goto("/game/1/pokemon/sprigatito");
+    await page.goto("/game/scarlet/pokemon/sprigatito");
 
     await expect(page.getByText("Floragato")).toBeVisible();
   });
@@ -117,7 +119,7 @@ test.describe("Navigation", () => {
   test("back button on detail page returns to the game page", async ({
     page,
   }) => {
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
     await expect(page.getByText("Sprigatito")).toBeVisible();
     await page.getByText("Sprigatito").click();
     await expect(page).toHaveURL(/pokemon\/sprigatito/);
@@ -126,7 +128,28 @@ test.describe("Navigation", () => {
     await expect(page.locator("text=Loading Pokémon...")).not.toBeVisible();
     await page.getByRole("button", { name: /back/i }).click();
 
-    await expect(page).toHaveURL(/\/game\/1$/);
+    await expect(page).toHaveURL(/\/game\/scarlet$/);
+  });
+
+  test("a game name URL deep-links to that game", async ({ page }) => {
+    await page.goto("/game/scarlet");
+
+    await expect(page.getByText("Sprigatito")).toBeVisible();
+    await expect(
+      page.getByRole("combobox", { name: "select game" }),
+    ).toHaveText("Scarlet");
+    await expect(page).toHaveURL(/\/game\/scarlet$/);
+  });
+
+  test("a legacy id URL lands on the game name URL", async ({ page }) => {
+    await page.goto("/game/1/pokemon/sprigatito?dex=national");
+
+    await expect(page).toHaveURL(
+      /\/game\/scarlet\/pokemon\/sprigatito\?dex=national$/,
+    );
+    await expect(
+      page.getByRole("heading", { name: /sprigatito/i }),
+    ).toBeVisible();
   });
 });
 
@@ -160,7 +183,7 @@ test.describe("Seeding state", () => {
       }),
     );
 
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
 
     // GamePage renders a SeedingBanner with this specific copy when seeding: true
     await expect(

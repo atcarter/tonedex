@@ -34,7 +34,7 @@ for (const viewport of VIEWPORTS) {
       await page.addInitScript((team) => {
         localStorage.setItem("pokedex_team_1", team);
       }, JSON.stringify(TEAM));
-      await page.goto(`/game/${GAME.id}/team`);
+      await page.goto(`/game/${GAME.name}/team`);
 
       const entries = page.getByTestId("defense-member");
       await expect(entries).toHaveCount(6);

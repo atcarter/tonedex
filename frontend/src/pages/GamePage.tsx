@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
@@ -7,7 +7,7 @@ import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import type { Pokemon } from "../types";
 import { TYPE_COLORS } from "../constants/typeColors";
 import { useAppContext } from "../hooks/useAppContext";
-import { useGames } from "../hooks/useGames";
+import { useRouteGame } from "../hooks/useRouteGame";
 import { useGame, PAGE_SIZE } from "../hooks/useGame";
 import { useCaughtPokemons } from "../hooks/useCaughtPokemons";
 import { useDexView, dexSearch } from "../hooks/useDexView";
@@ -36,12 +36,15 @@ import {
 } from "./GamePage.styles";
 
 export function GamePage() {
-  const { gameId } = useParams<{ gameId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setSelectedGame, currentUser } = useAppContext();
-  const { data: games = [] } = useGames();
-
-  const numericGameId = Number(gameId);
+  const {
+    game,
+    gameId: numericGameId,
+    slug,
+    isPending: gamesPending,
+    notFound,
+  } = useRouteGame();
   const [dex, setDex] = useDexView();
 
   const {
@@ -75,11 +78,8 @@ export function GamePage() {
 
   // Sync selectedGame context with URL on game change
   useEffect(() => {
-    if (games.length > 0 && numericGameId) {
-      const game = games.find((g) => g.id === numericGameId) ?? null;
-      setSelectedGame(game);
-    }
-  }, [numericGameId, games, setSelectedGame]);
+    if (game || notFound) setSelectedGame(game);
+  }, [game, notFound, setSelectedGame]);
 
   // Infinite scroll sentinel
   useEffect(() => {
@@ -206,7 +206,10 @@ export function GamePage() {
   // (filtered results don't align with dex-number sections)
   const sections = dexSections(data?.pages[0]?.dex_numbers ?? []);
 
-  if (isLoading) {
+  if (notFound) return <ErrorText>Game not found</ErrorText>;
+
+  // A name segment waits for the games list before its dex can load
+  if (isLoading || (gamesPending && !numericGameId)) {
     return (
       <LoadingContainer>
         <RedSpinner size={28} />
@@ -259,7 +262,7 @@ export function GamePage() {
         <Button
           size="small"
           component={Link}
-          to={`/game/${numericGameId}/team${dexSearch(dex)}`}
+          to={`/game/${slug}/team${dexSearch(dex)}`}
           sx={{ ml: "auto", fontWeight: 700, flexShrink: 0 }}
         >
           Team builder
@@ -342,7 +345,12 @@ export function GamePage() {
       <Grid>
         {filtered.map((pokemon) => (
           <div key={pokemon.id} data-dex={pokemon.pokedex_number}>
-            <PokemonCard pokemon={pokemon} gameId={numericGameId} dex={dex} />
+            <PokemonCard
+              pokemon={pokemon}
+              gameId={numericGameId}
+              gameSlug={slug}
+              dex={dex}
+            />
           </div>
         ))}
       </Grid>

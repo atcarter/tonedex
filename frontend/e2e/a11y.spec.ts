@@ -91,7 +91,7 @@ interface Route {
 const ROUTES: Route[] = [
   {
     name: "detail",
-    path: "/game/1/pokemon/sprigatito",
+    path: "/game/scarlet/pokemon/sprigatito",
     ready: async (page) => {
       await expect(page.getByText("Scratch")).toBeVisible();
       await page.getByRole("button", { name: "Overgrow" }).click();
@@ -116,7 +116,7 @@ const ROUTES: Route[] = [
   },
   {
     name: "team builder",
-    path: "/game/1/team",
+    path: "/game/scarlet/team",
     ready: async (page) => {
       await expect(page.getByText("Defensive Overview")).toBeVisible();
     },

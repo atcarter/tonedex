@@ -37,13 +37,13 @@ test.describe("Search", () => {
         body: JSON.stringify({ results: [SPRIGATITO], exact: true }),
       }),
     );
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
 
     await page.getByLabel("search pokemon").fill("sprigatito");
     await page.getByLabel("search pokemon").press("Enter");
 
     // Search stays inside the selected game's context
-    await expect(page).toHaveURL(/\/game\/1\/pokemon\/sprigatito/);
+    await expect(page).toHaveURL(/\/game\/scarlet\/pokemon\/sprigatito/);
     await expect(
       page.getByRole("heading", { name: /sprigatito/i }),
     ).toBeVisible();
@@ -64,7 +64,7 @@ test.describe("Search", () => {
         }),
       }),
     );
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
 
     await page.getByLabel("search pokemon").fill("gato");
     await page.getByLabel("search pokemon").press("Enter");
@@ -72,7 +72,7 @@ test.describe("Search", () => {
     await expect(page.getByText("Floragato")).toBeVisible();
     await page.getByText("Sprigatito").last().click();
 
-    await expect(page).toHaveURL(/\/game\/1\/pokemon\/sprigatito/);
+    await expect(page).toHaveURL(/\/game\/scarlet\/pokemon\/sprigatito/);
   });
 
   test("no matches shows an error that Escape dismisses", async ({ page }) => {
@@ -83,7 +83,7 @@ test.describe("Search", () => {
         body: JSON.stringify({ results: [], exact: false }),
       }),
     );
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
 
     await page.getByLabel("search pokemon").fill("zzz");
     await page.getByLabel("search pokemon").press("Enter");
@@ -124,7 +124,7 @@ test.describe("Search autocomplete", () => {
   test("typing shows sprite suggestions and clicking one navigates", async ({
     page,
   }) => {
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
 
     await page.getByLabel("search pokemon").fill("gato");
 
@@ -134,13 +134,13 @@ test.describe("Search autocomplete", () => {
 
     // No Enter pressed — this is pure autocomplete
     await listbox.getByText("Sprigatito").click();
-    await expect(page).toHaveURL(/\/game\/1\/pokemon\/sprigatito/);
+    await expect(page).toHaveURL(/\/game\/scarlet\/pokemon\/sprigatito/);
   });
 
   test("arrow keys highlight and Enter selects a suggestion", async ({
     page,
   }) => {
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
 
     const input = page.getByLabel("search pokemon");
     await input.fill("gato");
@@ -152,7 +152,7 @@ test.describe("Search autocomplete", () => {
     ).toBeVisible();
 
     await input.press("Enter");
-    await expect(page).toHaveURL(/\/game\/1\/pokemon\/sprigatito/);
+    await expect(page).toHaveURL(/\/game\/scarlet\/pokemon\/sprigatito/);
   });
 });
 
@@ -255,7 +255,7 @@ test.describe("Move drawer", () => {
       });
     });
 
-    await page.goto("/game/1/pokemon/sprigatito");
+    await page.goto("/game/scarlet/pokemon/sprigatito");
     await expect(page.getByText("Scratch")).toBeVisible();
     // Not fetched until the row is expanded
     expect(moveRequested).toBe(false);
@@ -298,7 +298,7 @@ test.describe("Caught tracker", () => {
       });
     });
 
-    await page.goto("/game/1");
+    await page.goto("/game/scarlet");
     await expect(page.getByText("Sprigatito")).toBeVisible();
 
     const postRequest = page.waitForRequest(

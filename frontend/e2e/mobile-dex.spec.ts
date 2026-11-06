@@ -81,7 +81,7 @@ async function openDex(page: Page) {
   await page.route(`${API}/api/v1/games/1*`, (r) =>
     json(r, GAME_PAGE_RESPONSE),
   );
-  await page.goto("/game/1");
+  await page.goto("/game/red-blue");
   await expect(page.locator("[data-dex]")).toHaveCount(40);
 }
 

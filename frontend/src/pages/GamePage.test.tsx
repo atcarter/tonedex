@@ -63,7 +63,7 @@ function gamePage(
 ): GameResponse {
   const total = overrides.pagination?.total ?? 400;
   return {
-    game: { id: 1, name: "scarlet", generation: 9, region: "paldea" },
+    game: SCARLET,
     pokemons,
     available_types: ["grass", "fire", "water", "fighting", "electric"],
     pokemon_ids: range(1, total),
@@ -79,15 +79,22 @@ function gamePage(
   };
 }
 
+const SCARLET = { id: 1, name: "scarlet", generation: 9, region: "paldea" };
+
 function LocationProbe() {
-  const { search } = useLocation();
-  return <div data-testid="search">{search}</div>;
+  const { pathname, search } = useLocation();
+  return (
+    <>
+      <div data-testid="pathname">{pathname}</div>
+      <div data-testid="search">{search}</div>
+    </>
+  );
 }
 
 function setup({
   pages = [gamePage(POKEMONS)],
   hasNextPage = false,
-  route = "/game/1",
+  route = "/game/scarlet",
   caught = [] as { id: number; pokemon_id: number; game_id: number }[],
 } = {}) {
   const fetchNextPage = vi.fn();
@@ -95,7 +102,7 @@ function setup({
     setSelectedGame: vi.fn(),
     currentUser: { id: 1 },
   } as unknown as ReturnType<typeof useAppContext>);
-  mockUseGames.mockReturnValue({ data: [] } as unknown as ReturnType<
+  mockUseGames.mockReturnValue({ data: [SCARLET] } as unknown as ReturnType<
     typeof useGames
   >);
   mockUseCaughtPokemons.mockReturnValue({
@@ -227,10 +234,26 @@ describe("GamePage filtering", () => {
     // Page one is loaded (offset 0); ?loaded=80 asks for two more pages
     const { fetchNextPage } = setup({
       hasNextPage: true,
-      route: "/game/1?loaded=80",
+      route: "/game/scarlet?loaded=80",
     });
 
     await waitFor(() => expect(fetchNextPage).toHaveBeenCalled());
+  });
+});
+
+describe("GamePage URL", () => {
+  it("rewrites a legacy id URL to the game's name, keeping the query", async () => {
+    setup({ route: "/game/1?dex=national" });
+    await waitFor(() =>
+      expect(screen.getByTestId("pathname")).toHaveTextContent("/game/scarlet"),
+    );
+    expect(screen.getByTestId("search")).toHaveTextContent("?dex=national");
+    expect(mockUseGame).toHaveBeenLastCalledWith(1, "national");
+  });
+
+  it("reports an unknown game name", () => {
+    setup({ route: "/game/not-a-game" });
+    expect(screen.getByText("Game not found")).toBeInTheDocument();
   });
 });
 
@@ -245,7 +268,7 @@ describe("GamePage dex view", () => {
   });
 
   it("reads ?dex=national from the URL", () => {
-    setup({ route: "/game/1?dex=national" });
+    setup({ route: "/game/scarlet?dex=national" });
     expect(mockUseGame).toHaveBeenLastCalledWith(1, "national");
     expect(screen.getByRole("button", { name: "National" })).toHaveAttribute(
       "aria-pressed",
@@ -254,7 +277,7 @@ describe("GamePage dex view", () => {
   });
 
   it("switches views through the URL and drops the loaded depth", () => {
-    setup({ route: "/game/1?loaded=80" });
+    setup({ route: "/game/scarlet?loaded=80" });
 
     fireEvent.click(screen.getByRole("button", { name: "National" }));
     expect(screen.getByTestId("search")).toHaveTextContent("?dex=national");
@@ -265,10 +288,10 @@ describe("GamePage dex view", () => {
   });
 
   it("carries the view onto the team builder link", () => {
-    setup({ route: "/game/1?dex=national" });
+    setup({ route: "/game/scarlet?dex=national" });
     expect(screen.getByRole("link", { name: "Team builder" })).toHaveAttribute(
       "href",
-      "/game/1/team?dex=national",
+      "/game/scarlet/team?dex=national",
     );
   });
 
@@ -298,7 +321,7 @@ describe("GamePage dex view", () => {
   it("builds quick-jump sections from the national numbers present", () => {
     const numbers = [...range(1, 60), ...range(120, 179), 900];
     setup({
-      route: "/game/1?dex=national",
+      route: "/game/scarlet?dex=national",
       pages: [
         gamePage(POKEMONS, {
           dex_numbers: numbers,
@@ -321,7 +344,7 @@ describe("GamePage dex view", () => {
 
   it("explains the national seeding wait", () => {
     setup({
-      route: "/game/1?dex=national",
+      route: "/game/scarlet?dex=national",
       pages: [
         gamePage([], {
           pokemon_ids: [],

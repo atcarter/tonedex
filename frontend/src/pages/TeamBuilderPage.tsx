@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -10,7 +10,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { alpha } from "@mui/material/styles";
 import type { Pokemon } from "../types";
-import { useGames } from "../hooks/useGames";
+import { useRouteGame } from "../hooks/useRouteGame";
 import { useGame } from "../hooks/useGame";
 import { useDexView } from "../hooks/useDexView";
 import { DexToggle } from "../components/DexToggle";
@@ -244,11 +244,7 @@ const LoadingRow = styled.div`
 `;
 
 export function TeamBuilderPage() {
-  const { gameId } = useParams<{ gameId: string }>();
-  const numericGameId = Number(gameId);
-
-  const { data: games = [] } = useGames();
-  const game = games.find((g) => g.id === numericGameId) ?? null;
+  const { game, gameId: numericGameId, slug } = useRouteGame();
 
   // The picker offers the view chosen on the game page
   const [dex, setDex] = useDexView();
@@ -328,7 +324,7 @@ export function TeamBuilderPage() {
       <SlotsGrid>
         {team.map((member) => (
           <Slot key={member.id} data-testid="team-slot">
-            <SlotLink to={`/game/${numericGameId}/pokemon/${member.name}`}>
+            <SlotLink to={`/game/${slug}/pokemon/${member.name}`}>
               <img src={member.sprite_url} alt="" loading="lazy" />
               <SlotName>{formatName(member.name)}</SlotName>
               <SlotTypes>
