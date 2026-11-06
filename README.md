@@ -1,6 +1,6 @@
 # ToneDex
 
-A dex for the game you're actually playing. Pick a Pokémon game and browse its regional dex, or every Pokémon the game can hold, with each Pokémon's moves and types as they are in that game.
+A dex for the game you're actually playing. Pick a Pokémon game and browse its regional dex or national dex, with each Pokémon's moves and types as they are in that particular game. After some time away from the mainline Pokémon series, I wanted a companion app that could help me keep up.
 
 **Live:** https://tonedex-web.onrender.com
 
