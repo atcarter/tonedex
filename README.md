@@ -7,7 +7,7 @@ A dex for the game you're actually playing. Pick a Pokémon game and browse its 
 ## Features
 
 - **Game-specific dex:** choose a game and scroll its regional dex, jump to any section of large dexes, and filter by type across the whole dex. A Regional/National toggle switches to every species in the game's data, including transfer-only ones, and mythical Pokémon carry a label.
-- **Detail pages:** types and abilities (accurate to the game's generation, with each ability's in-game description a tap away), base stats, flavor text, evolution chain, and the moves learnable in that game with their learn levels.
+- **Detail pages:** types and abilities (accurate to the game's generation, with each ability's in-game description a tap away), base stats, flavor text, the evolution chain (only the species the game's generation had), and the moves learnable in that game with their learn levels.
 - **Search:** one game-aware search bar with autocomplete and sprites.
 - **Compare:** two Pokémon side by side, with a shareable URL.
 - **Team builder:** pick up to six Pokémon from the game's regional or national dex. The picker collapses once the team is full, and each slot links to that Pokémon's detail page. The defensive overview gives each member an entry with its sprite, name and type badges, then the attacking types that hit it under separate 4×, 2×, ½×, ¼× and 0× (immune) tiers, with unlisted types doing normal damage. The offensive check names the types that none of the members' own types hit super-effectively.

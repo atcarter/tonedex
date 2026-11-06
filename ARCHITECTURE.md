@@ -118,6 +118,13 @@ Each game page has two views (ADR-009), chosen by `?dex=national` in the SPA URL
 - **Cache-only:** the request reads `/ability/*` and `/version/*` with `cache_only: true`, so a miss returns `description: null` and never calls PokeAPI (ADR-002). `SeedGamePokemonJob` and `SeedNationalDexJob` warm each imported Pokémon's current and past abilities. Pokémon seeded before that are backfilled by `rails pokedex:warm_abilities`, which enqueues `WarmAbilitiesJob`; it is idempotent and only fetches what is still missing (at most 314 abilities, about 6 MB of `api_caches`).
 - **SPA:** each ability chip is a button with `aria-expanded`; tapping one opens a full-width panel under the chip row with the description, the "In battle:" line and the Hidden label. The data comes with the page, so there is no extra request.
 
+## Data Flow: Evolution Chain on the Detail Page
+
+`GET /api/v1/pokemon/:id?game_id=` returns `evolution_chain`, a depth-first list of `{name, evolves_from, evolution_details, sprite_url}` built by `PokeapiAdapter#evolution_chain_for(pokemon, game)` from the cached `/pokemon-species/{id}` and `/evolution-chain/{id}` payloads.
+
+- **Which stages:** with a game, only species introduced in or before `games.generation`. `Generation.introducing` reads a species' generation from its national-dex number (`LAST_SPECIES_ID`), so the filter makes no PokeAPI call. A stage whose parent is dropped becomes the root with no `evolution_details` (Pikachu starts the chain in Red, without Pichu). If that leaves several roots (Hitmonlee and Hitmonchan in Gen 1, without Tyrogue), only the tree holding the requested species is kept. Outside a game, or for a game with no stored generation, the full chain is returned.
+- **Evolution methods** are PokeAPI's current ones; a method that changed across generations for a species that existed is not adjusted.
+
 ---
 
 ## PokeAPI Caching

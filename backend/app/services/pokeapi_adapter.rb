@@ -170,13 +170,18 @@ class PokeapiAdapter
   end
 
   # sprite_base is the request's base URL, as for PokemonSerializer.details.
-  def evolution_chain_for(pokemon, sprite_base: nil)
+  # A game narrows the chain to the species its generation had; with no game
+  # (or no stored generation) the full chain is returned.
+  def evolution_chain_for(pokemon, game = nil, sprite_base: nil)
     species_data = @client.pokemon_species(pokemon.pokeapi_id)
     chain_url = species_data.dig("evolution_chain", "url")
     chain_id = chain_url.split("/").last
 
     chain_data = @client.evolution_chain(chain_id)
-    with_sprite_urls(parse_evolution_chain(chain_data["chain"]), sprite_base)
+    steps = parse_evolution_chain(chain_data["chain"])
+    generation = game&.generation.to_i
+    steps = within_generation(steps, generation, species_data["name"]) if generation.positive?
+    with_sprite_urls(steps, sprite_base)
   end
 
   # Caches the /ability payloads the detail page reads, so the request path stays
@@ -398,6 +403,26 @@ class PokeapiAdapter
     end
 
     evolutions
+  end
+
+  # Keeps the stages whose species existed in the generation. A stage whose
+  # parent came later becomes a root with no evolution details: in Gen 1,
+  # Pikachu starts the chain and Pichu's happiness step is gone. When that
+  # leaves several roots (Hitmonlee and Hitmonchan without Tyrogue), only the
+  # tree holding the requested species is kept, else the first one.
+  def within_generation(steps, generation, species_name)
+    kept = steps.select { |step| Generation.introducing(step[:species_id]).to_i <= generation }
+    names = kept.to_set { |step| step[:name] }
+    kept = kept.map do |step|
+      next step if step[:evolves_from].nil? || names.include?(step[:evolves_from])
+
+      step.merge(evolves_from: nil, evolution_details: [])
+    end
+
+    parents = kept.to_h { |step| [step[:name], step[:evolves_from]] }
+    root_of = ->(name) { parents[name] ? root_of.call(parents[name]) : name }
+    root = root_of.call(names.include?(species_name) ? species_name : kept.first&.dig(:name))
+    kept.select { |step| root_of.call(step[:name]) == root }
   end
 
   # Swaps each step's species id for its sprite URL

@@ -843,6 +843,102 @@ RSpec.describe PokeapiAdapter do
       end
     end
 
+    context "with a game" do
+      # Real species ids: a stage's generation comes from its national-dex number
+      def stage(name, id, details = [], evolves_to = [])
+        {"species" => {"name" => name, "url" => "https://pokeapi.co/api/v2/pokemon-species/#{id}/"},
+         "evolution_details" => details, "evolves_to" => evolves_to}
+      end
+
+      def step(trigger, extra = {})
+        {"trigger" => {"name" => trigger}, "time_of_day" => ""}.merge(extra)
+      end
+
+      let(:pichu_chain) do
+        {"chain" => stage("pichu", 172, [], [
+          stage("pikachu", 25, [step("level-up", "min_happiness" => 220)], [
+            stage("raichu", 26, [step("use-item", "item" => {"name" => "thunder-stone"})])
+          ])
+        ])}
+      end
+
+      let(:full_eevee_chain) do
+        evolutions = {
+          "vaporeon" => 134, "jolteon" => 135, "flareon" => 136, "espeon" => 196,
+          "umbreon" => 197, "leafeon" => 470, "glaceon" => 471, "sylveon" => 700
+        }.map { |name, id| stage(name, id, [step("level-up")]) }
+        {"chain" => stage("eevee", 133, [], evolutions)}
+      end
+
+      let(:onix_chain) do
+        {"chain" => stage("onix", 95, [], [stage("steelix", 208, [step("trade")])])}
+      end
+
+      let(:tyrogue_chain) do
+        {"chain" => stage("tyrogue", 236, [], [
+          stage("hitmonlee", 106, [step("level-up", "min_level" => 20)]),
+          stage("hitmonchan", 107, [step("level-up", "min_level" => 20)]),
+          stage("hitmontop", 237, [step("level-up", "min_level" => 20)])
+        ])}
+      end
+
+      let(:red) { build(:game, generation: 1) }
+      let(:gold) { build(:game, generation: 2) }
+
+      def chain_for(chain, game, species: nil)
+        allow(client).to receive(:pokemon_species).with(pokemon.pokeapi_id)
+          .and_return(species_data.merge("name" => species))
+        allow(client).to receive(:evolution_chain).with("1").and_return(chain)
+        adapter.evolution_chain_for(pokemon, game)
+      end
+
+      it "drops species from later generations and re-roots the chain" do
+        result = chain_for(pichu_chain, red, species: "pikachu")
+
+        expect(result.map { |e| e[:name] }).to eq(%w[pikachu raichu])
+        expect(result.first).to include(evolves_from: nil, evolution_details: [])
+        expect(result.last).to include(evolves_from: "pikachu")
+        expect(result.last[:evolution_details].first).to include(item: "thunder-stone")
+      end
+
+      it "keeps a baby species in the generation that introduced it" do
+        result = chain_for(pichu_chain, gold, species: "pikachu")
+
+        expect(result.map { |e| e[:name] }).to eq(%w[pichu pikachu raichu])
+        expect(result[1][:evolution_details].first).to include(min_happiness: 220)
+      end
+
+      it "keeps only the branches the generation had" do
+        result = chain_for(full_eevee_chain, red, species: "eevee")
+
+        expect(result.map { |e| e[:name] }).to eq(%w[eevee vaporeon jolteon flareon])
+      end
+
+      it "leaves a single stage when every evolution is later" do
+        result = chain_for(onix_chain, red, species: "onix")
+
+        expect(result.map { |e| e[:name] }).to eq(%w[onix])
+      end
+
+      it "keeps only the requested species' tree when re-rooting splits the chain" do
+        expect(chain_for(tyrogue_chain, red, species: "hitmonchan").map { |e| e[:name] })
+          .to eq(%w[hitmonchan])
+        expect(chain_for(tyrogue_chain, gold, species: "hitmonchan").map { |e| e[:name] })
+          .to eq(%w[tyrogue hitmonlee hitmonchan hitmontop])
+      end
+
+      it "falls back to the first tree when the requested species is later than the game" do
+        result = chain_for(pichu_chain, red, species: "pichu")
+
+        expect(result.map { |e| e[:name] }).to eq(%w[pikachu raichu])
+      end
+
+      it "returns the full chain with no game or no stored generation" do
+        expect(chain_for(full_eevee_chain, nil).size).to eq(9)
+        expect(chain_for(full_eevee_chain, build(:game, generation: nil)).size).to eq(9)
+      end
+    end
+
     context "with sprites" do
       let(:tmp_root) { Pathname.new(Dir.mktmpdir) }
       let(:base) { "http://localhost:3000" }
