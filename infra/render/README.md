@@ -134,7 +134,7 @@ This deletes every resource above, including the database and all its data, and 
 
 ## Content Security Policy
 
-The static site sends an enforcing `Content-Security-Policy`: the browser blocks anything the policy doesn't allow and logs each block as a console error. Terraform builds the value in `main.tf` (`local.content_security_policy`) from the api URL and the Sentry ingest origin, which comes from `vite_sentry_dsn` (an empty DSN adds no source):
+The static site sends an enforcing `Content-Security-Policy`: the browser blocks anything the policy doesn't allow and logs each block as a console error. Terraform builds the value in `main.tf` (`local.content_security_policy`) from the api URL, the legacy api URL and the Sentry ingest origin, which comes from `vite_sentry_dsn` (an empty DSN adds no source):
 
 ```
 default-src 'self'; script-src 'self' https://accounts.google.com; frame-src https://accounts.google.com; connect-src 'self' <api url> <legacy api url> https://accounts.google.com <sentry ingest origin>; img-src 'self' data: <api url> <legacy api url> https://raw.githubusercontent.com https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
