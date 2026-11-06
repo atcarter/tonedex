@@ -179,8 +179,8 @@ Production runs on Render, region ohio, and every resource is declared in Terraf
 
 ```
 Browser
-  ├──▶ tonedex-web     https://tonedex-web.onrender.com (Render's global CDN, no region)
-  └──▶ tonedex-api     https://tonedex-api.onrender.com ──┐
+  ├──▶ tonedex-web     https://tonedex.app (Render's global CDN, no region)
+  └──▶ tonedex-api     https://api.tonedex.app ───────────┐
        tonedex-worker  Sidekiq ───────────────────────────┤
                                                           ├──▶ tonedex-db     Postgres 15
                                                           └──▶ tonedex-redis  Key Value
@@ -188,10 +188,10 @@ Browser
 tonedex-backend env group ──▶ tonedex-api, tonedex-worker
 ```
 
-The api, worker, database and Key Value all run in region ohio; the database and Key Value accept connections only from Render's private network. The Sidekiq UI is at https://tonedex-api.onrender.com/sidekiq, behind Google sign-in for the one `SIDEKIQ_ALLOWED_EMAIL`.
+The api, worker, database and Key Value all run in region ohio; the database and Key Value accept connections only from Render's private network. The Sidekiq UI is at https://api.tonedex.app/sidekiq, behind Google sign-in for the one `SIDEKIQ_ALLOWED_EMAIL`.
 
 - **Configuration is env-only.** Production reads the database from `DATABASE_URL` (`config/database.yml` has a single `production` entry) and Redis from `REDIS_URL`. The Rails cache is `:memory_store`; there is no solid_cache, solid_queue or solid_cable database.
-- **The env group breaks a URL cycle.** The api needs the frontend's URL for `CORS_ORIGINS` and the static site needs the api's URL for `VITE_API_URL` and its CSP. `CORS_ORIGINS` lives in the env group, so the api resource never references the static site.
+- **Custom domains.** `tonedex.app` is attached to `tonedex-web` and `api.tonedex.app` to `tonedex-api`, through each resource's `custom_domains`. Both are literals in `main.tf`'s `locals`, which set `VITE_API_URL`, the CSP, `CORS_ORIGINS` and `ALLOWED_HOSTS`, so no resource reads another's URL. The `onrender.com` hostnames remain as the DNS targets. The first lines of `frontend/src/main.tsx` redirect `tonedex-web.onrender.com` to the same path on `tonedex.app` without booting the app. `CORS_ORIGINS` keeps that old origin next to `https://tonedex.app`, `ALLOWED_HOSTS` keeps `tonedex-api.onrender.com` next to `api.tonedex.app`, and the CSP still allows `https://tonedex-api.onrender.com`, so the build that's live at the apply keeps working until its rebuild finishes. The API's old hostname has no redirect. [`infra/render/README.md`](infra/render/README.md#custom-domains) has the DNS records and the cutover runbook.
 - **Concurrency** matches Concurrency & Connection Pools: the api sets `RAILS_MAX_THREADS=3` and `DB_POOL=3`, the worker `SIDEKIQ_CONCURRENCY=5` and `DB_POOL=5`.
 - **Seeding** runs in `tonedex-worker`, as in development (ADR-002). The first production seed copied the development `api_caches` table in, so it made no PokeAPI calls.
 - **CI** gates `main` with five required checks: `backend`, `frontend`, `e2e` and `backend-image` from `ci.yml`, and `terraform.yml`'s fmt and validate job. `backend-image` builds the production image and waits for `/up` to answer 200 against real Postgres and Redis. The Terraform job has no credentials and never plans or applies.

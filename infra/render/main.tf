@@ -2,8 +2,15 @@ locals {
   # Every resource that can belong to an environment goes in ToneDex/Production.
   environment_id = render_project.tonedex.environments["Production"].id
 
-  api_url      = trimsuffix(render_web_service.api.url, "/")
-  frontend_url = trimsuffix(render_static_site.web.url, "/")
+  # Custom domains, attached below; infra/render/README.md has the cutover runbook.
+  api_domain      = "api.tonedex.app"
+  frontend_domain = "tonedex.app"
+  api_url         = "https://${local.api_domain}"
+  frontend_url    = "https://${local.frontend_domain}"
+  # Still allowed (CORS_ORIGINS, ALLOWED_HOSTS, CSP), so the current build keeps working until its rebuild after the apply.
+  legacy_frontend_url = "https://tonedex-web.onrender.com"
+  legacy_api_domain   = "tonedex-api.onrender.com"
+  legacy_api_url      = "https://${local.legacy_api_domain}"
 
   # https://<key>@o123.ingest.us.sentry.io/456 -> https://o123.ingest.us.sentry.io
   sentry_ingest_origin = (
@@ -21,10 +28,11 @@ locals {
     join(" ", compact([
       "connect-src 'self'",
       local.api_url,
+      local.legacy_api_url,
       "https://accounts.google.com",
       local.sentry_ingest_origin,
     ])),
-    join(" ", ["img-src 'self' data:", local.api_url, "https://raw.githubusercontent.com https://*.googleusercontent.com"]),
+    join(" ", ["img-src 'self' data:", local.api_url, local.legacy_api_url, "https://raw.githubusercontent.com https://*.googleusercontent.com"]),
     "style-src 'self' 'unsafe-inline' https://accounts.google.com",
     "font-src 'self' data:",
     "object-src 'none'",
@@ -98,8 +106,7 @@ resource "render_keyvalue" "redis" {
 # --- Backend -----------------------------------------------------------------
 
 # Shared configuration lives in render_env_group.backend, attached by
-# render_env_group_link.backend. Neither service references the static site,
-# which is what keeps the api <-> web URL dependency from forming a cycle.
+# render_env_group_link.backend.
 resource "render_web_service" "api" {
   name           = "tonedex-api"
   environment_id = local.environment_id
@@ -112,6 +119,8 @@ resource "render_web_service" "api" {
 
   health_check_path  = "/up"
   pre_deploy_command = "./bin/rails db:migrate"
+
+  custom_domains = [{ name = local.api_domain }]
 
   env_vars = {
     HTTP_PORT         = { value = "10000" }
@@ -151,8 +160,8 @@ resource "render_env_group" "backend" {
       GOOGLE_CLIENT_ID      = { value = var.google_client_id }
       GOOGLE_CLIENT_SECRET  = { value = var.google_client_secret }
       SIDEKIQ_ALLOWED_EMAIL = { value = var.sidekiq_allowed_email }
-      CORS_ORIGINS          = { value = local.frontend_url }
-      ALLOWED_HOSTS         = { value = trimprefix(local.api_url, "https://") }
+      CORS_ORIGINS          = { value = join(",", [local.frontend_url, local.legacy_frontend_url]) }
+      ALLOWED_HOSTS         = { value = join(",", [local.api_domain, local.legacy_api_domain]) }
     },
     local.optional_backend_env,
   )
@@ -178,6 +187,9 @@ resource "render_static_site" "web" {
   publish_path   = "dist"
   # Deploy a commit only after its GitHub checks pass (README: "Deploys wait for CI").
   auto_deploy_trigger = "checksPass"
+
+  # Render also adds www.tonedex.app as a redirect to the apex; the provider records it only in active_custom_domains.
+  custom_domains = [{ name = local.frontend_domain }]
 
   env_vars = merge(
     {

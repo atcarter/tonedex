@@ -1,7 +1,7 @@
 # ADR-008 — Render via Terraform for Production Hosting
 
 **Date:** 2026-10-30
-**Status:** Accepted
+**Status:** Accepted. Updated 2026-11-06: production moved to the custom domains `tonedex.app` (static site) and `api.tonedex.app` (API), attached in Terraform. The Render URLs no longer depend on each other, so the env group no longer breaks a cycle.
 
 ## Context
 
@@ -43,7 +43,7 @@ Supporting decisions:
 **Positive:**
 - One `terraform apply` builds production from nothing, and infrastructure changes are reviewable diffs.
 - Roughly $20–30/month: web $7, worker $7, Postgres ~$6, Key Value free or $10, static site free.
-- Managed TLS on `*.onrender.com`. A custom domain is optional and purely cosmetic, because the JWT travels in a header, not a cookie.
+- Managed TLS, now on the custom domains `tonedex.app` and `api.tonedex.app`. The domain is cosmetic, because the JWT travels in a header, not a cookie.
 - The app stays portable: Docker plus environment variables. Leaving Render would mean rewriting `infra/`, not the app.
 
 **Negative:**
@@ -51,7 +51,7 @@ Supporting decisions:
 - **Local state is a single point of loss** on one laptop. Revisit with a remote backend if a second machine ever needs to apply.
 - **Free Key Value isn't persistent.** Acceptable for now: the only queued jobs are re-runnable seed crawls, and resetting Rack::Attack counters is harmless.
 - **Render instances have ephemeral disks.** Mirrored sprites stay committed to git so they ship in the image.
-- **The free `onrender.com` URLs aren't memorable.** That's fine until a domain is chosen.
+- **The free `onrender.com` URLs weren't memorable.** Resolved on 2026-11-06 by `tonedex.app` and `api.tonedex.app`.
 
 ## Alternatives Considered
 

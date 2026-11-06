@@ -10,28 +10,35 @@ import { UiProvider } from "./contexts/UiContext";
 import { AppProvider } from "./contexts/AppContext";
 import { ThemedApp } from "./ThemedApp";
 
-Sentry.init({
-  dsn: import.meta.env.VITE_SENTRY_DSN,
-  environment: import.meta.env.MODE,
-  tracesSampleRate: 0.2,
-  enabled: import.meta.env.PROD,
-  // v11 infers IP by default; keep v10's no-IP behaviour
-  dataCollection: { userInfo: false },
-});
+// Links shared on the old Render hostname land on the same URL at tonedex.app; the app never boots there.
+if (location.hostname === "tonedex-web.onrender.com") {
+  location.replace(
+    "https://tonedex.app" + location.pathname + location.search + location.hash,
+  );
+} else {
+  Sentry.init({
+    dsn: import.meta.env.VITE_SENTRY_DSN,
+    environment: import.meta.env.MODE,
+    tracesSampleRate: 0.2,
+    enabled: import.meta.env.PROD,
+    // v11 infers IP by default; keep v10's no-IP behaviour
+    dataCollection: { userInfo: false },
+  });
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
-      <BrowserRouter>
-        <QueryClientProvider client={queryClient}>
-          <UiProvider>
-            <AppProvider>
-              <ThemedApp />
-            </AppProvider>
-          </UiProvider>
-          <ReactQueryDevtools initialIsOpen={false} />
-        </QueryClientProvider>
-      </BrowserRouter>
-    </GoogleOAuthProvider>
-  </StrictMode>,
-);
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}>
+        <BrowserRouter>
+          <QueryClientProvider client={queryClient}>
+            <UiProvider>
+              <AppProvider>
+                <ThemedApp />
+              </AppProvider>
+            </UiProvider>
+            <ReactQueryDevtools initialIsOpen={false} />
+          </QueryClientProvider>
+        </BrowserRouter>
+      </GoogleOAuthProvider>
+    </StrictMode>,
+  );
+}
