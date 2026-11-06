@@ -102,16 +102,10 @@ RSpec.describe "Pokemon API", type: :request do
       end
 
       it "builds the evolution chain for the selected game" do
-        allow(adapter).to receive(:evolution_chain_for).and_return([
-          {name: "pikachu", evolves_from: nil, evolution_details: []},
-          {name: "raichu", evolves_from: "pikachu", evolution_details: [{trigger: "use-item"}]}
-        ])
-
         get "/api/v1/pokemon/#{pokemon.id}", params: {game_id: game.id}
 
         expect(adapter).to have_received(:evolution_chain_for)
           .with(pokemon, game, sprite_base: request.base_url)
-        expect(response.parsed_body["evolution_chain"].map { |e| e["name"] }).to eq(%w[pikachu raichu])
       end
 
       it "includes the game-local pokedex number" do

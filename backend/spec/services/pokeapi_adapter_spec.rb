@@ -937,6 +937,68 @@ RSpec.describe PokeapiAdapter do
         expect(chain_for(full_eevee_chain, nil).size).to eq(9)
         expect(chain_for(full_eevee_chain, build(:game, generation: nil)).size).to eq(9)
       end
+
+      context "when the game's national view is seeded" do
+        # Sentinel ids past every generation: the cutoff would drop them all, so
+        # only the game's own game_pokemons rows can keep a stage.
+        def seeded_game(generation, regional: [], national: [])
+          game = create(:game, generation: generation, national_seeded_at: Time.current)
+          regional.each { |id| link(game, id, regional: true) }
+          national.each { |id| link(game, id, regional: false) }
+          game
+        end
+
+        def link(game, pokeapi_id, regional:)
+          pokemon = Pokemon.find_by(pokeapi_id: pokeapi_id) || create(:pokemon, pokeapi_id: pokeapi_id)
+          GamePokemon.create!(game: game, pokemon: pokemon, regional: regional)
+        end
+
+        let(:eevee_ids) do
+          {"eevee" => 100_133, "vaporeon" => 100_134, "jolteon" => 100_135, "flareon" => 100_136,
+           "espeon" => 100_196, "umbreon" => 100_197, "leafeon" => 100_470, "glaceon" => 100_471,
+           "sylveon" => 100_700}
+        end
+
+        let(:sentinel_eevee_chain) do
+          evolutions = eevee_ids.except("eevee").map { |name, id| stage(name, id, [step("level-up")]) }
+          {"chain" => stage("eevee", eevee_ids["eevee"], [], evolutions)}
+        end
+
+        let(:sentinel_scyther_chain) do
+          {"chain" => stage("scyther", 100_123, [], [
+            stage("scizor", 100_212, [step("trade")]),
+            stage("kleavor", 100_900, [step("use-item", "item" => {"name" => "black-augurite"})])
+          ])}
+        end
+
+        it "keeps only the species the game has, regional or national (BDSP's Eevee has no Sylveon)" do
+          bdsp = seeded_game(8, regional: eevee_ids.values_at("eevee", "vaporeon", "jolteon", "flareon"),
+            national: eevee_ids.values_at("espeon", "umbreon", "leafeon", "glaceon"))
+          other_game = seeded_game(8, regional: [eevee_ids["sylveon"]])
+
+          result = chain_for(sentinel_eevee_chain, bdsp, species: "eevee")
+
+          expect(other_game.pokemons.pluck(:pokeapi_id)).to include(eevee_ids["sylveon"])
+          expect(result.map { |e| e[:name] })
+            .to eq(%w[eevee vaporeon jolteon flareon espeon umbreon leafeon glaceon])
+        end
+
+        it "drops an evolution the game lacks (Sword/Shield's Scyther has no Kleavor)" do
+          sword = seeded_game(8, regional: [100_123, 100_212])
+
+          result = chain_for(sentinel_scyther_chain, sword, species: "scyther")
+
+          expect(result.map { |e| e[:name] }).to eq(%w[scyther scizor])
+        end
+
+        it "re-roots on a parent the game lacks" do
+          game = seeded_game(8, regional: [100_212])
+
+          result = chain_for(sentinel_scyther_chain, game, species: "scizor")
+
+          expect(result).to contain_exactly(include(name: "scizor", evolves_from: nil, evolution_details: []))
+        end
+      end
     end
 
     context "with sprites" do
