@@ -7,7 +7,7 @@ locals {
   frontend_domain = "tonedex.app"
   api_url         = "https://${local.api_domain}"
   frontend_url    = "https://${local.frontend_domain}"
-  # Still allowed by CORS, so the current site keeps working between apply and merge.
+  # Still allowed by CORS, so the current site keeps working between certificate issuance and the merge.
   legacy_frontend_url = "https://tonedex-web.onrender.com"
 
   # https://<key>@o123.ingest.us.sentry.io/456 -> https://o123.ingest.us.sentry.io
