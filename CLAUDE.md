@@ -102,7 +102,7 @@ All env vars come from `.env.local` at the **project root**, loaded by Docker Co
 | `REDIS_URL` | Sidekiq queues + Rack::Attack store |
 | `SENTRY_DSN` / `VITE_SENTRY_DSN` | Error tracking (backend / frontend), production only |
 | `CORS_ORIGINS` | Allowed origins in production (required) |
-| `ALLOWED_HOSTS` | Host-header allowlist in production (unset disables filtering) |
+| `ALLOWED_HOSTS` | Host-header allowlist in production, also the hosts OmniAuth builds callback URLs for (unset disables both) |
 
 ## Conventions
 
