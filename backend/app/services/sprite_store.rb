@@ -45,20 +45,12 @@ module SpriteStore
     mirrored_url(pokemon.pokeapi_id, base_url, shiny: shiny)
   end
 
-  # Default sprite URLs keyed by species id, for species that may have no
-  # Pokemon row yet (evolution stages): a stored row resolves as url_for does,
-  # otherwise the mirrored copy or PokeAPI's standard URL for that id.
-  def urls_for_species(pokeapi_ids, base_url)
-    rows = Pokemon.where(pokeapi_id: pokeapi_ids).index_by(&:pokeapi_id)
-    pokeapi_ids.index_with do |id|
-      if rows[id]
-        url_for(rows[id], base_url)
-      elsif base_url.present? && mirrored?(id)
-        mirrored_url(id, base_url)
-      else
-        format(UPSTREAM_URL, id)
-      end
-    end
+  # Default sprite URL for a species that may have no Pokemon row yet
+  # (evolution stages): the mirrored copy, else PokeAPI's standard URL for it.
+  def species_url(pokeapi_id, base_url)
+    return mirrored_url(pokeapi_id, base_url) if base_url.present? && mirrored?(pokeapi_id)
+
+    format(UPSTREAM_URL, pokeapi_id)
   end
 
   def mirrored_url(pokeapi_id, base_url, shiny: false)

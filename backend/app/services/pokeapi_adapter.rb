@@ -400,12 +400,11 @@ class PokeapiAdapter
     evolutions
   end
 
-  # Swaps each step's species id for its sprite URL, with one lookup for the chain
+  # Swaps each step's species id for its sprite URL
   def with_sprite_urls(steps, sprite_base)
-    urls = SpriteStore.urls_for_species(steps.filter_map { |step| step[:species_id] }, sprite_base)
     steps.map do |step|
       id = step.delete(:species_id)
-      step.merge(sprite_url: id && urls[id])
+      step.merge(sprite_url: id && SpriteStore.species_url(id, sprite_base))
     end
   end
 
