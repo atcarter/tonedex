@@ -14,7 +14,7 @@ This directory declares the whole production stack on [Render](https://render.co
 
 Every other resource in the table sets `environment_id` to the `Production` environment, so all six live in **ToneDex → Production** in the dashboard. `render_env_group_link.backend` has no environment of its own. It only attaches the env group to the api and worker. `Production` is `unprotected`, Render's default for a new environment. The configuration leaves the environment's IP allow list and network isolation unset, so Terraform doesn't manage them. If you turn on network isolation in the dashboard, add `network_isolated = true` to the environment in `main.tf` as well, because the provider sends `false` whenever it updates the environment without it. The project was created in the dashboard, so an existing stack has to [import it](#importing-the-tonedex-project) before its next apply.
 
-Service names become public `onrender.com` hostnames, which is why every resource has the `tonedex-` prefix. One `region` variable (default `oregon`) applies to every regional resource. The static site is served from Render's global CDN, so it has no region.
+Service names become public `onrender.com` hostnames, which is why every resource has the `tonedex-` prefix. Production is served from custom domains on top of them: `tonedex.app` for the static site and `api.tonedex.app` for the api ([Custom domains](#custom-domains)). One `region` variable (default `oregon`) applies to every regional resource. The static site is served from Render's global CDN, so it has no region.
 
 By default the database and Key Value have empty IP allow lists, so only services on Render's private network in the same region can reach them. The Key Value is always private. The database's list comes from the `postgres_ip_allow_list` variable (default `[]`).
 
@@ -45,7 +45,7 @@ State is local (`terraform.tfstate` in this directory) for now.
    terraform apply
    ```
 
-`terraform output` then prints `api_url` and `frontend_url`.
+`terraform output` then prints `api_url` and `frontend_url`. On a stack built from nothing, those custom domains also need the DNS records and the Google OAuth entries from the [cutover runbook](#cutover-runbook) (steps 1, 4 and 5).
 
 On a stack built from nothing, this apply creates the ToneDex project and its Production environment too, so there's nothing to import.
 
@@ -53,7 +53,35 @@ The env group is linked to the api and worker after both services exist, so thei
 
 ### Why the env group
 
-The api needs the static site's URL (`CORS_ORIGINS`) and the static site needs the api's URL (`VITE_API_URL` and the CSP). If both URLs sat on the services themselves, that would be a dependency cycle. `CORS_ORIGINS` (and everything else the backend shares) lives in `render_env_group.backend` instead, attached with `render_env_group_link`, so the api resource never references the static site.
+The api and worker share their secrets, connection strings, `CORS_ORIGINS` and `ALLOWED_HOSTS`, so they live once in `render_env_group.backend`, attached to both with `render_env_group_link`. The env group also keeps the api resource from referencing the static site. That used to break a dependency cycle, when each service's URL came from the other's Render-assigned hostname. Now both URLs are fixed custom domains in `locals`, so there's no cycle either way.
+
+## Custom domains
+
+The SPA is served at `https://tonedex.app` and the API at `https://api.tonedex.app`. `main.tf` attaches each domain with the service's `custom_domains` attribute, which is how provider 1.9.1 manages them (it has no separate custom-domain resource). The same two names set `VITE_API_URL`, `CORS_ORIGINS`, `ALLOWED_HOSTS` and the CSP, so one apply moves all of them. The `onrender.com` hostnames still exist, because the DNS records point at them, but the app no longer works there: CORS and `ALLOWED_HOSTS` accept only the new names.
+
+When the apex is added, Render also adds `www.tonedex.app` and redirects it to `tonedex.app`. The provider leaves that redirect out of state, so it causes no plan diff. It only answers if a `www` DNS record exists, and this setup creates none.
+
+### Cutover runbook
+
+Run this after hours. Between the apply and certificate issuance, the site may be unreachable at both the old and the new hostnames. That's accepted for this cutover. `.app` is on browsers' HSTS preload list, so `tonedex.app` loads only over HTTPS and stays down until its certificate is issued.
+
+1. **Create the DNS records at the registrar**, before applying:
+
+   | Name | Type | Value |
+   |---|---|---|
+   | `tonedex.app` (apex, `@`) | `ALIAS` or `ANAME` if the provider supports it, else `A` | `tonedex-web.onrender.com` (ALIAS/ANAME) or `216.24.57.1` (A) |
+   | `api` | `CNAME` | `tonedex-api.onrender.com` |
+
+   On Cloudflare, use a `CNAME` to `tonedex-web.onrender.com` for the apex instead (it flattens it), with the proxy off. Delete any `AAAA` records for `tonedex.app` and `api.tonedex.app`, because Render serves IPv4 only. If the domain has `CAA` records, add ones allowing `letsencrypt.org` and `pki.goog`, or Render can't issue certificates. Check that both names resolve (`dig +short tonedex.app`, `dig +short api.tonedex.app`) before moving on.
+2. **Merge the PR, then `terraform plan` and `terraform apply`.** Expect in-place updates only: `custom_domains` added to `render_web_service.api` and `render_static_site.web`, the new `VITE_API_URL` and `Content-Security-Policy` on the static site, and the new `CORS_ORIGINS` and `ALLOWED_HOSTS` in `render_env_group.backend`. Nothing should be replaced or destroyed.
+3. **Check that the new values deployed.** `VITE_API_URL` is baked in at build time, so `tonedex-web` needs a build that started after the apply, and `tonedex-api` and `tonedex-worker` need a deploy that picked up the env group change. If any of the three shows no new deploy, use **Manual Deploy → Deploy latest commit** on it.
+4. **Confirm both certificates were issued.** In the dashboard, open **Settings → Custom Domains** on `tonedex-web` and on `tonedex-api`. Each domain should show **Verified** with its certificate issued, not "DNS update needed". If one is still waiting a few minutes after DNS resolves, click **Verify** next to it. Then check from a terminal: `curl -sI https://tonedex.app` and `curl -s https://api.tonedex.app/up` should succeed without certificate errors.
+5. **Update the Google OAuth client** (Google Cloud console → APIs & Services → Credentials → the OAuth 2.0 client whose ID is `google_client_id`):
+   - **Authorized JavaScript origins:** add `https://tonedex.app`, for the SPA's sign-in.
+   - **Authorized redirect URIs:** add `https://api.tonedex.app/auth/google_oauth2/callback`, for the Sidekiq dashboard's OmniAuth sign-in.
+   - Remove `https://tonedex-web.onrender.com` and `https://tonedex-api.onrender.com/auth/google_oauth2/callback`. Google can take a few minutes to apply changes.
+6. **Test both sign-ins.** At `https://tonedex.app`, sign in with Google, check that the avatar loads and the signed-in pages work, then sign out, all with the browser console open and free of CSP and CORS errors. At `https://api.tonedex.app/sidekiq`, sign in as `SIDEKIQ_ALLOWED_EMAIL` and check that the dashboard loads.
+7. **Point the smoke suite at the new domain.** Set the repository variables `SMOKE_BASE_URL` to `https://tonedex.app` and `SMOKE_API_URL` to `https://api.tonedex.app` (GitHub → Settings → Secrets and variables → Actions → Variables), then run `.github/workflows/smoke.yml` on demand.
 
 ## Importing the ToneDex project
 
@@ -115,7 +143,7 @@ Before changing `local.content_security_policy`:
 1. Run the spec against production from `frontend/`:
 
    ```bash
-   SMOKE_BASE_URL=https://tonedex-web.onrender.com SMOKE_API_URL=https://tonedex-api.onrender.com npm run test:smoke
+   SMOKE_BASE_URL=https://tonedex.app SMOKE_API_URL=https://api.tonedex.app npm run test:smoke
    ```
 
 2. Add a source as the exact origin a violation names, not a wildcard, then `terraform apply` and run the spec again.

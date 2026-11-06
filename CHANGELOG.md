@@ -6,6 +6,9 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ## 2026-11-06
 
+### Infrastructure
+- **New:** production moves to its own domain: the SPA at `https://tonedex.app` and the API at `https://api.tonedex.app`, replacing `tonedex-web.onrender.com` and `tonedex-api.onrender.com`. `infra/render/main.tf` attaches each domain through the service's `custom_domains` (provider 1.9.1 has no separate resource) and sets `local.api_url` and `local.frontend_url` to them, so `VITE_API_URL`, the CSP, `CORS_ORIGINS` and `ALLOWED_HOSTS` (now `api.tonedex.app`) change in the same apply. The old hostnames get no compatibility period: CORS and `ALLOWED_HOSTS` accept only the new names. `infra/render/README.md` has the ordered cutover runbook: DNS records, apply, certificate checks, the Google OAuth client and the smoke-suite variables. ADR-008 has a status note.
+
 ### Backend
 - **New:** each step of a Pokémon's `evolution_chain` carries `sprite_url`. The adapter reads the species id from the chain payload's species URL, and `SpriteStore.species_url` resolves every stage by one rule: the mirrored copy under `public/sprites`, else PokeAPI's standard sprite URL for that id. It makes no database queries, no extra PokeAPI calls and creates no rows. `sprite_url` is `null` when the payload names no species URL. The controller passes `request.base_url`, as it does for the detail's own sprites.
 

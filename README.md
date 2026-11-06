@@ -2,7 +2,7 @@
 
 A dex for the game you're actually playing. Pick a Pokémon game and browse its regional dex or national dex, with each Pokémon's moves and types as they are in that particular game. After some time away from the mainline Pokémon series, I wanted a companion app that could help me keep up.
 
-**Live:** https://tonedex-web.onrender.com
+**Live:** https://tonedex.app
 
 ## Features
 
@@ -53,7 +53,7 @@ docker compose exec backend bundle exec rails db:prepare
 
 Browsing works with the placeholder values in `.env.example`. Google sign-in needs your own OAuth client ID in `.env.local`.
 
-`VITE_API_URL` tells the SPA where the API lives: `http://localhost:3000` in development (the value in `.env.example`, and the fallback when it's unset) and `https://tonedex-api.onrender.com` in production, where Terraform sets it on the static site. Vite bakes it into the bundle at build time, so changing it means rebuilding the frontend.
+`VITE_API_URL` tells the SPA where the API lives: `http://localhost:3000` in development (the value in `.env.example`, and the fallback when it's unset) and `https://api.tonedex.app` in production, where Terraform sets it on the static site. Vite bakes it into the bundle at build time, so changing it means rebuilding the frontend.
 
 ## Tests
 
@@ -70,15 +70,15 @@ The backend suite has about 190 RSpec examples, the frontend about 100 Vitest te
 The smoke suite (`frontend/e2e-smoke`, 18 tests) checks a live deployment without mocks, sign-in or writes: the API's health and game list, Scarlet's dex and a deep-linked detail page, and that no route triggers a Content Security Policy violation at desktop or phone width. `.github/workflows/smoke.yml` runs it against production every Sunday and on demand. To run it locally:
 
 ```bash
-cd frontend && SMOKE_BASE_URL=https://tonedex-web.onrender.com SMOKE_API_URL=https://tonedex-api.onrender.com npm run test:smoke
+cd frontend && SMOKE_BASE_URL=https://tonedex.app SMOKE_API_URL=https://api.tonedex.app npm run test:smoke
 ```
 
 ## Deployment
 
 Production runs on [Render](https://render.com) in the ohio region, in the ToneDex project's Production environment. Every resource is declared in Terraform under `infra/render` with the `render-oss/render` provider. [infra/render/README.md](infra/render/README.md) is the source of truth for how the stack is built, applied and torn down, and [ADR-008](docs/adr/008-render-via-terraform.md) records why.
 
-- Frontend: https://tonedex-web.onrender.com
-- API: https://tonedex-api.onrender.com
+- Frontend: https://tonedex.app
+- API: https://api.tonedex.app
 
 ```mermaid
 flowchart LR
