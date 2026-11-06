@@ -264,16 +264,6 @@ describe("GamePage URL", () => {
     expect(screen.getByText("Network down")).toBeInTheDocument();
     expect(mockUseGame).toHaveBeenLastCalledWith(0, "regional");
   });
-
-  it("still loads an id URL's dex when the games list fails", () => {
-    setup({
-      route: "/game/1",
-      gamesQuery: { isPending: false, error: new Error("Network down") },
-    });
-    expect(screen.queryByText("Network down")).not.toBeInTheDocument();
-    expect(mockUseGame).toHaveBeenLastCalledWith(1, "regional");
-    expect(cardNames()).toHaveLength(POKEMONS.length);
-  });
 });
 
 describe("GamePage dex view", () => {

@@ -210,8 +210,7 @@ export function GamePage() {
   if (notFound) return <ErrorText>Game not found</ErrorText>;
   if (gamesError) return <ErrorText>{gamesError.message}</ErrorText>;
 
-  // A name segment waits for the games list before its dex can load
-  if (isLoading || (gamesPending && !numericGameId)) {
+  if (isLoading || gamesPending) {
     return (
       <LoadingContainer>
         <RedSpinner size={28} />

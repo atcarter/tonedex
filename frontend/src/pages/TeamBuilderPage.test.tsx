@@ -183,4 +183,11 @@ describe("TeamBuilderPage game lookup", () => {
     expect(screen.getByText("Network down")).toBeInTheDocument();
     expect(screen.queryByText("Team Builder")).not.toBeInTheDocument();
   });
+
+  it("waits for the games list instead of showing an empty team", () => {
+    setup(POKEMONS.slice(0, 2), { gamesQuery: { isPending: true } });
+    expect(screen.getByText("Loading…")).toBeInTheDocument();
+    expect(screen.queryAllByTestId("team-slot")).toHaveLength(0);
+    expect(screen.queryByText("Team Builder")).not.toBeInTheDocument();
+  });
 });

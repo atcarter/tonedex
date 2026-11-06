@@ -24,8 +24,7 @@ export function useRouteGame() {
   const { pathname, search, hash } = useLocation();
 
   const game = games ? findGame(games, segment) : null;
-  // An id segment needs no lookup, so its queries start before the list loads
-  const gameId = game?.id ?? (NUMERIC.test(segment) ? Number(segment) : 0);
+  const gameId = game?.id ?? 0;
 
   useEffect(() => {
     if (game && segment !== game.name) {
@@ -49,6 +48,6 @@ export function useRouteGame() {
     slug,
     isPending,
     notFound: !!games && !game,
-    error: gameId ? null : error,
+    error,
   };
 }

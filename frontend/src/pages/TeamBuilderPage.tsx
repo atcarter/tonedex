@@ -249,6 +249,7 @@ export function TeamBuilderPage() {
     game,
     gameId: numericGameId,
     slug,
+    isPending: gamesPending,
     notFound,
     error: gamesError,
   } = useRouteGame();
@@ -305,6 +306,16 @@ export function TeamBuilderPage() {
 
   if (notFound) return <ErrorText>Game not found</ErrorText>;
   if (gamesError) return <ErrorText>{gamesError.message}</ErrorText>;
+  if (gamesPending) {
+    return (
+      <PageWrapper>
+        <LoadingRow>
+          <CircularProgress size={16} sx={{ color: "primary.main" }} />
+          Loading…
+        </LoadingRow>
+      </PageWrapper>
+    );
+  }
 
   return (
     <PageWrapper>
