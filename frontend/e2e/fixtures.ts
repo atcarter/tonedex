@@ -33,11 +33,13 @@ export const SPRIGATITO_DETAIL = {
   evolution_chain: [
     {
       name: "sprigatito",
+      pokemon_name: "sprigatito",
       evolution_details: [],
       sprite_url: `${API}/sprites/906.png`,
     },
     {
       name: "floragato",
+      pokemon_name: "floragato",
       evolution_details: [{ trigger: "level-up", min_level: 16 }],
       sprite_url: `${API}/sprites/907.png`,
     },

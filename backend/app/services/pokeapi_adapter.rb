@@ -183,7 +183,7 @@ class PokeapiAdapter
     chain_data = @client.evolution_chain(chain_id)
     steps = parse_evolution_chain(chain_data["chain"])
     steps = within_game(steps, game, species_data["name"]) if game
-    with_sprite_urls(steps, sprite_base)
+    with_sprites_and_links(steps, sprite_base)
   end
 
   # Caches the /ability payloads the detail page reads, so the request path stays
@@ -438,11 +438,14 @@ class PokeapiAdapter
     kept.select { |step| root_of.call(step[:name]) == root }
   end
 
-  # Swaps each step's species id for its sprite URL
-  def with_sprite_urls(steps, sprite_base)
+  # Swaps each step's species id for its sprite URL and the /pokemon name it
+  # links to: the default variety (lycanroc-midday), whose id is the species id,
+  # else the species name when no row was imported.
+  def with_sprites_and_links(steps, sprite_base)
+    names = Pokemon.where(pokeapi_id: steps.pluck(:species_id).compact).pluck(:pokeapi_id, :name).to_h
     steps.map do |step|
       id = step.delete(:species_id)
-      step.merge(sprite_url: id && SpriteStore.species_url(id, sprite_base))
+      step.merge(pokemon_name: names.fetch(id, step[:name]), sprite_url: id && SpriteStore.species_url(id, sprite_base))
     end
   end
 

@@ -1073,5 +1073,42 @@ RSpec.describe PokeapiAdapter do
         expect(result.map { |e| e[:sprite_url] }).to eq([nil, nil, nil])
       end
     end
+
+    context "linking stages" do
+      def two_stage_chain(base, base_id, species, species_id)
+        stage = ->(name, id, evolves_to = []) {
+          {"species" => {"name" => name, "url" => "https://pokeapi.co/api/v2/pokemon-species/#{id}/"},
+           "evolution_details" => [], "evolves_to" => evolves_to}
+        }
+        {"chain" => stage.call(base, base_id, [stage.call(species, species_id)])}
+      end
+
+      # Species whose default variety carries a form suffix, with sentinel ids
+      [
+        ["lechonk", 100_915, "oinkologne", 100_916, "oinkologne-male"],
+        ["burmy", 100_412, "wormadam", 100_413, "wormadam-plant"],
+        ["rockruff", 100_744, "lycanroc", 100_745, "lycanroc-midday"]
+      ].each do |base, base_id, species, species_id, variety|
+        it "links #{species} to its default variety, #{variety}" do
+          create(:pokemon, pokeapi_id: base_id, name: base)
+          create(:pokemon, pokeapi_id: species_id, name: variety)
+          allow(client).to receive(:evolution_chain).with("1")
+            .and_return(two_stage_chain(base, base_id, species, species_id))
+
+          result = adapter.evolution_chain_for(pokemon)
+
+          expect(result.map { |e| e.values_at(:name, :pokemon_name) }).to eq([[base, base], [species, variety]])
+        end
+      end
+
+      it "links a stage with no imported row by its species name" do
+        allow(client).to receive(:evolution_chain).with("1")
+          .and_return(two_stage_chain("unimported", 100_801, "unimported-evo", 100_802))
+
+        result = adapter.evolution_chain_for(pokemon)
+
+        expect(result.map { |e| e[:pokemon_name] }).to eq(%w[unimported unimported-evo])
+      end
+    end
   end
 end
