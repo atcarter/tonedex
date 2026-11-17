@@ -33,11 +33,11 @@ RSpec.describe "Pokemon API", type: :request do
       expect(json["evolution_chain"].first["name"]).to eq("charmander")
     end
 
-    it "resolves evolution sprites against the request's base URL" do
+    it "builds the full evolution chain outside a game, with sprites against the request's base URL" do
       get "/api/v1/pokemon/#{pokemon.id}"
 
       expect(adapter).to have_received(:evolution_chain_for)
-        .with(pokemon, sprite_base: request.base_url)
+        .with(pokemon, nil, sprite_base: request.base_url)
     end
 
     it "returns an empty evolution chain when the adapter fails" do
@@ -64,6 +64,16 @@ RSpec.describe "Pokemon API", type: :request do
       get "/api/v1/pokemon/999999"
 
       expect(response).to have_http_status(:not_found)
+    end
+
+    it "returns 404 for a name PokeAPI doesn't know" do
+      allow(adapter).to receive(:find_or_create_pokemon).with("spectest-missingno")
+        .and_raise(PokeapiClient::NotFoundError)
+
+      get "/api/v1/pokemon/spectest-missingno"
+
+      expect(response).to have_http_status(:not_found)
+      expect(response.parsed_body).to eq("error" => "Pokemon not found")
     end
 
     context "with a game_id" do
@@ -101,6 +111,13 @@ RSpec.describe "Pokemon API", type: :request do
         expect(adapter).to have_received(:species_info_for).with(pokemon, game)
       end
 
+      it "builds the evolution chain for the selected game" do
+        get "/api/v1/pokemon/#{pokemon.id}", params: {game_id: game.id}
+
+        expect(adapter).to have_received(:evolution_chain_for)
+          .with(pokemon, game, sprite_base: request.base_url)
+      end
+
       it "includes the game-local pokedex number" do
         GamePokemon.create!(game: game, pokemon: pokemon, pokedex_number: 4)
 
@@ -125,6 +142,63 @@ RSpec.describe "Pokemon API", type: :request do
 
         get "/api/v1/pokemon/#{pokemon.id}", params: {game_id: game.id, dex: "national"}
         expect(response.parsed_body["pokemon"]["pokedex_number"]).to eq(pokemon.pokeapi_id)
+      end
+    end
+  end
+
+  # The real adapter over a PokeapiClient double that, like PokeAPI, has
+  # /pokemon/ only for the default variety's name or id.
+  describe "following evolution-chain links" do
+    let(:client) { instance_double(PokeapiClient) }
+    let(:payloads) { {} }
+
+    def pokemon_payload(id, name)
+      {"id" => id, "name" => name, "types" => [{"slot" => 1, "type" => {"name" => "normal"}}],
+       "past_types" => [], "stats" => [], "sprites" => {}, "abilities" => [], "moves" => []}
+    end
+
+    def stage(name, id, evolves_to = [])
+      {"species" => {"name" => name, "url" => "https://pokeapi.co/api/v2/pokemon-species/#{id}/"},
+       "evolution_details" => [], "evolves_to" => evolves_to}
+    end
+
+    before do
+      allow(PokeapiAdapter).to receive(:new).and_wrap_original { |new| new.call(client: client) }
+      allow(client).to receive(:pokemon) do |name_or_id|
+        payloads.fetch(name_or_id.to_s) { raise PokeapiClient::NotFoundError, "/pokemon/#{name_or_id}" }
+      end
+    end
+
+    # Species whose default variety carries a form suffix, with sentinel ids
+    [
+      ["lechonk", 100_915, "oinkologne", 100_916, "oinkologne-male"],
+      ["burmy", 100_412, "wormadam", 100_413, "wormadam-plant"],
+      ["rockruff", 100_744, "lycanroc", 100_745, "lycanroc-midday"]
+    ].each do |base, base_id, species, species_id, variety|
+      it "opens #{species} from #{base}'s chain at #{variety}, and 404s on the bare species name" do
+        {base_id => base, species_id => variety}.each do |id, name|
+          payloads[id.to_s] = payloads[name] = pokemon_payload(id, name)
+        end
+        chain = {"chain" => stage(base, base_id, [stage(species, species_id)])}
+        {base_id => base, species_id => species}.each do |id, name|
+          allow(client).to receive(:pokemon_species).with(id).and_return(
+            "name" => name, "genera" => [], "flavor_text_entries" => [],
+            "evolution_chain" => {"url" => "https://pokeapi.co/api/v2/evolution-chain/#{base_id}/"}
+          )
+        end
+        allow(client).to receive(:evolution_chain).with(base_id.to_s).and_return(chain)
+        create(:pokemon, pokeapi_id: species_id, name: variety) # seeded with the game
+
+        get "/api/v1/pokemon/#{base}"
+        link = response.parsed_body["evolution_chain"].find { |s| s["name"] == species }["pokemon_name"]
+        expect(link).to eq(variety)
+
+        get "/api/v1/pokemon/#{link}"
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["pokemon"]["name"]).to eq(variety)
+
+        get "/api/v1/pokemon/#{species}"
+        expect(response).to have_http_status(:not_found)
       end
     end
   end

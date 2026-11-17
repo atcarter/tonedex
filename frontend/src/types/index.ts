@@ -77,7 +77,8 @@ export interface MoveDetails {
 export type Move = BasicMove & Partial<Omit<MoveDetails, "name">>;
 
 export interface EvolutionStep {
-  name: string;
+  name: string; // species name
+  pokemon_name: string; // the default variety the stage links to (lycanroc-midday)
   evolves_from?: string | null;
   evolution_details: EvolutionDetail[];
   sprite_url?: string | null;

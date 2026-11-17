@@ -42,13 +42,15 @@ class Api::V1::PokemonController < ApplicationController
 
   def show
     pokemon = find_or_fetch_pokemon
+    return render json: {error: "Pokemon not found"}, status: :not_found unless pokemon
+
     game = params[:game_id] ? Game.find(params[:game_id]) : nil
 
     render json: {
       pokemon: PokemonSerializer.details(pokemon, game: game, dex: params[:dex], sprite_base: request.base_url),
       species: species_info(pokemon, game),
       moves: moves_for_game(pokemon, game),
-      evolution_chain: evolution_chain(pokemon)
+      evolution_chain: evolution_chain(pokemon, game)
     }
   end
 
@@ -60,6 +62,9 @@ class Api::V1::PokemonController < ApplicationController
     else
       adapter.find_or_create_pokemon(params[:id])
     end
+  # A name PokeAPI doesn't know is a 404, not a 500
+  rescue PokeapiClient::NotFoundError
+    nil
   end
 
   def moves_for_game(pokemon, game)
@@ -71,8 +76,8 @@ class Api::V1::PokemonController < ApplicationController
     moves.sort_by { |m| [(m[:learn_method] == "level-up") ? 0 : 1, m[:level_learned] || 999, m[:name]] }
   end
 
-  def evolution_chain(pokemon)
-    adapter.evolution_chain_for(pokemon, sprite_base: request.base_url)
+  def evolution_chain(pokemon, game)
+    adapter.evolution_chain_for(pokemon, game, sprite_base: request.base_url)
   rescue PokeapiClient::ApiError
     []
   end
