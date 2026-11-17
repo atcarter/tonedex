@@ -140,6 +140,8 @@ export type EncounterStatus = "found" | "none" | "unavailable" | "pending";
 export interface EncountersResponse {
   status: EncounterStatus;
   locations: EncounterLocation[];
+  // With "none": the stage it evolves from, when the game has both
+  evolves_from: Pick<EvolutionStep, "name" | "pokemon_name"> | null;
 }
 
 export interface GameResponse {

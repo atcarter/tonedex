@@ -49,11 +49,6 @@ const SPRIGATITO_WITH_ABILITIES = {
 const FLORAGATO_DETAIL = {
   ...SPRIGATITO_DETAIL,
   pokemon: { ...SPRIGATITO_DETAIL.pokemon, ...FLORAGATO },
-  // The shared chain lists both stages as roots; this one links them
-  evolution_chain: [
-    SPRIGATITO_DETAIL.evolution_chain[0],
-    { ...SPRIGATITO_DETAIL.evolution_chain[1], evolves_from: "sprigatito" },
-  ],
 };
 
 const TEAM = [
@@ -95,7 +90,13 @@ async function mockPages(page: Page) {
     r.fulfill(json({ status: "found", locations: LOCATIONS })),
   );
   await page.route(`${API}/api/v1/pokemon/907/encounters*`, (r) =>
-    r.fulfill(json({ status: "none", locations: [] })),
+    r.fulfill(
+      json({
+        status: "none",
+        locations: [],
+        evolves_from: { name: "sprigatito", pokemon_name: "sprigatito" },
+      }),
+    ),
   );
   await page.route(`${API}/api/v1/pokemon/sprigatito*`, (r) =>
     r.fulfill(json(SPRIGATITO_WITH_ABILITIES)),

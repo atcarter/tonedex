@@ -25,11 +25,6 @@ const FLORAGATO_DETAIL = {
     name: "floragato",
     pokedex_number: 2,
   },
-  // The shared chain lists both stages as roots; this one links them
-  evolution_chain: [
-    SPRIGATITO_DETAIL.evolution_chain[0],
-    { ...SPRIGATITO_DETAIL.evolution_chain[1], evolves_from: "sprigatito" },
-  ],
 };
 
 async function mockDetail(page: Page, encounters: unknown) {
@@ -92,7 +87,11 @@ test("says when the game has no location data", async ({ page }) => {
 test("points to the earlier stage when it isn't in the wild", async ({
   page,
 }) => {
-  await mockDetail(page, { status: "none", locations: [] });
+  await mockDetail(page, {
+    status: "none",
+    locations: [],
+    evolves_from: { name: "sprigatito", pokemon_name: "sprigatito" },
+  });
   await page.goto("/game/scarlet/pokemon/floragato");
 
   await expect(

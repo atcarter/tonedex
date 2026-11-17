@@ -1,4 +1,4 @@
-import type { EncounterLocation, EvolutionStep } from "../types";
+import type { EncounterLocation } from "../types";
 import { formatName } from "./formatters";
 
 const METHOD_LABELS: Record<string, string> = {
@@ -124,12 +124,4 @@ export function formatConditions(location: EncounterLocation) {
     ...location.conditions.map(formatCondition),
     ...(varying.length ? [`Varies with ${listJoin(varying)}`] : []),
   ].join(" · ");
-}
-
-// The stage this Pokémon evolves from in the chain, which only holds the game's species
-export function earlierStage(chain: EvolutionStep[], pokemonName: string) {
-  const step = chain.find(
-    (s) => s.pokemon_name === pokemonName || s.name === pokemonName,
-  );
-  return chain.find((s) => s.name === step?.evolves_from) ?? null;
 }

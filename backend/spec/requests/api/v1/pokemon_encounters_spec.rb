@@ -35,7 +35,8 @@ RSpec.describe "Pokemon encounters API", type: :request do
       "status" => "found",
       "locations" => [{"area" => "galar-route-4-area", "method" => "overworld", "dlc" => nil,
                        "min_level" => 14, "max_level" => 16, "chance" => 5, "chance_varies" => false,
-                       "conditions" => [], "varies_with" => []}]
+                       "conditions" => [], "varies_with" => []}],
+      "evolves_from" => nil
     )
   end
 
@@ -44,7 +45,7 @@ RSpec.describe "Pokemon encounters API", type: :request do
 
     get_encounters
 
-    expect(response.parsed_body).to eq("status" => "none", "locations" => [])
+    expect(response.parsed_body).to eq("status" => "none", "locations" => [], "evolves_from" => nil)
   end
 
   it "says unavailable, not none, for a game PokeAPI has no encounters for" do
@@ -53,7 +54,29 @@ RSpec.describe "Pokemon encounters API", type: :request do
 
     get_encounters
 
-    expect(response.parsed_body).to eq("status" => "unavailable", "locations" => [])
+    expect(response.parsed_body).to eq("status" => "unavailable", "locations" => [], "evolves_from" => nil)
+  end
+
+  context "with Lucario in Red, which only a search reaches" do
+    let(:game) { create(:game, name: "red", generation: 1, region: "kanto", encounters_available: true) }
+
+    def stage(name, id, evolves_to = [])
+      {"species" => {"name" => name, "url" => "https://pokeapi.co/api/v2/pokemon-species/#{id}/"},
+       "evolution_details" => [], "evolves_to" => evolves_to}
+    end
+
+    before do
+      ApiCache.store("/pokemon-species/#{pokemon.pokeapi_id}",
+        {"name" => "lucario", "evolution_chain" => {"url" => "https://pokeapi.co/api/v2/evolution-chain/100232/"}})
+      ApiCache.store("/evolution-chain/100232", {"chain" => stage("riolu", 447, [stage("lucario", 448)])})
+      cache_encounters([])
+    end
+
+    it "says it isn't in the wild without pointing to Riolu, which Red doesn't have" do
+      get_encounters
+
+      expect(response.parsed_body).to eq("status" => "none", "locations" => [], "evolves_from" => nil)
+    end
   end
 
   it "reports pending and enqueues one warm-up when the payload is not cached" do

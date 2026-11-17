@@ -2,11 +2,10 @@ import { useId, useState } from "react";
 import styled from "styled-components";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
-import type { EncountersResponse, EvolutionStep, Game } from "../../types";
+import type { EncountersResponse, Game } from "../../types";
 import { useEncounters } from "../../hooks/useEncounters";
 import { formatName } from "../../utils/formatters";
 import {
-  earlierStage,
   formatArea,
   formatChance,
   formatConditions,
@@ -125,7 +124,6 @@ interface EncounterListProps {
   encounters: EncountersResponse | undefined;
   isError: boolean;
   game: Game;
-  earlier: EvolutionStep | null;
   onSelect: (pokemonName: string) => void;
 }
 
@@ -133,7 +131,6 @@ export function EncounterList({
   encounters,
   isError,
   game,
-  earlier,
   onSelect,
 }: EncounterListProps) {
   const [showAll, setShowAll] = useState(false);
@@ -154,7 +151,8 @@ export function EncounterList({
   if (encounters.status === "unavailable")
     return <Message>Location data isn't available for {gameName}.</Message>;
 
-  if (encounters.status === "none")
+  if (encounters.status === "none") {
+    const earlier = encounters.evolves_from;
     return (
       <Message>
         Not found in the wild in {gameName}.
@@ -173,6 +171,7 @@ export function EncounterList({
         )}
       </Message>
     );
+  }
 
   const { locations } = encounters;
   const rows = showAll ? locations : locations.slice(0, COLLAPSED_ROWS);
@@ -216,26 +215,17 @@ export function EncounterList({
 
 interface EncountersProps {
   pokemonId: number;
-  pokemonName: string;
   game: Game;
-  chain: EvolutionStep[];
   onSelect: (pokemonName: string) => void;
 }
 
-export function Encounters({
-  pokemonId,
-  pokemonName,
-  game,
-  chain,
-  onSelect,
-}: EncountersProps) {
+export function Encounters({ pokemonId, game, onSelect }: EncountersProps) {
   const { data, isError } = useEncounters(pokemonId, game.id);
   return (
     <EncounterList
       encounters={data}
       isError={isError}
       game={game}
-      earlier={earlierStage(chain, pokemonName)}
       onSelect={onSelect}
     />
   );

@@ -1,6 +1,5 @@
-import type { EncounterLocation, EvolutionStep } from "../types";
+import type { EncounterLocation } from "../types";
 import {
-  earlierStage,
   formatArea,
   formatChance,
   formatConditions,
@@ -21,13 +20,6 @@ const location = (
   conditions: [],
   varies_with: [],
   ...overrides,
-});
-
-const step = (name: string, evolves_from: string | null = null) => ({
-  name,
-  pokemon_name: name,
-  evolves_from,
-  evolution_details: [],
 });
 
 describe("formatArea", () => {
@@ -99,22 +91,5 @@ describe("formatConditions", () => {
     expect(formatConditions(location({ varies_with: ["coins-500"] }))).toBe(
       "Varies with other conditions",
     );
-  });
-});
-
-describe("earlierStage", () => {
-  const chain: EvolutionStep[] = [
-    step("pichu"),
-    step("pikachu", "pichu"),
-    step("raichu", "pikachu"),
-  ];
-
-  it("is the stage this Pokémon evolves from", () => {
-    expect(earlierStage(chain, "raichu")?.name).toBe("pikachu");
-  });
-
-  it("is null for the first stage or a Pokémon outside the chain", () => {
-    expect(earlierStage(chain, "pichu")).toBeNull();
-    expect(earlierStage([], "pichu")).toBeNull();
   });
 });

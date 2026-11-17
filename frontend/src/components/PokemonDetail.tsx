@@ -476,9 +476,7 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
           <Encounters
             key={details.name}
             pokemonId={details.id}
-            pokemonName={details.name}
             game={game}
-            chain={evolution_chain}
             onSelect={handleEvoClick}
           />
         </SectionPaper>

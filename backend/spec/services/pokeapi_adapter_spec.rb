@@ -1133,6 +1133,10 @@ RSpec.describe PokeapiAdapter do
     describe "#encounters_for" do
       let(:game) { create(:game, name: "sword", encounters_available: true) }
 
+      before { allow(client).to receive(:pokemon_species).and_return(nil) }
+
+      # Slugs checked against PokeAPI: /version/the-isle-of-armor-sword exists, and
+      # /pokemon/133/encounters files Eevee's Crown Tundra rows under the-crown-tundra-sword.
       it "keeps the game's version and its labelled DLC, base game first" do
         stub_encounters([
           area("fields-of-honor-area", "the-isle-of-armor-sword", slot(5, [10, 15])),
@@ -1177,18 +1181,75 @@ RSpec.describe PokeapiAdapter do
           conditions: ["time-night"], varies_with: ["radio-off"])
       end
 
+      # PokeAPI's Geodude on HeartGold's Route 45: a slot that a swarm replaces and one
+      # the radio's Hoenn/Sinnoh Sound replaces. With no swarm and the radio off both
+      # are active (20 + 10); during a swarm with the radio off only the radio's is.
+      it "adds slots that depend on different conditions when both can hold at once" do
+        heartgold = create(:game, name: "heartgold", encounters_available: true)
+        stub_encounters([
+          area("johto-route-45-area", "heartgold",
+            slot(20, [21], conditions: ["swarm-no"]),
+            slot(10, [22], conditions: ["radio-off"]))
+        ])
+
+        location = adapter.encounters_for(pokemon, heartgold)[:locations].sole
+
+        expect(location).to include(chance: 30, chance_varies: true,
+          conditions: [], varies_with: %w[swarm-no radio-off])
+      end
+
       it "is unavailable without reading the cache when PokeAPI has no encounters for the game" do
         game.update!(encounters_available: false)
         allow(client).to receive(:pokemon_encounters)
 
-        expect(adapter.encounters_for(pokemon, game)).to eq(status: "unavailable", locations: [])
+        expect(adapter.encounters_for(pokemon, game)).to eq(status: "unavailable", locations: [], evolves_from: nil)
         expect(client).not_to have_received(:pokemon_encounters)
       end
 
       it "is none when the game has encounters but this Pokémon has none in it" do
         stub_encounters([area("kanto-route-2-area", "red", slot(10, [3, 5]))])
 
-        expect(adapter.encounters_for(pokemon, game)).to eq(status: "none", locations: [])
+        expect(adapter.encounters_for(pokemon, game)).to eq(status: "none", locations: [], evolves_from: nil)
+      end
+
+      context "when it isn't in the wild" do
+        let(:red) { create(:game, name: "red", generation: 1, encounters_available: true) }
+
+        # Real species ids: Red has a stage when its generation introduced it
+        def stage(name, id, evolves_to = [])
+          {"species" => {"name" => name, "url" => "https://pokeapi.co/api/v2/pokemon-species/#{id}/"},
+           "evolution_details" => [], "evolves_to" => evolves_to}
+        end
+
+        let(:pichu_chain) { {"chain" => stage("pichu", 172, [stage("pikachu", 25, [stage("raichu", 26)])])} }
+        let(:riolu_chain) { {"chain" => stage("riolu", 447, [stage("lucario", 448)])} }
+
+        def earlier_in_red(species, chain)
+          stub_encounters([])
+          allow(client).to receive(:pokemon_species).with(pokemon.pokeapi_id, cache_only: true)
+            .and_return("name" => species, "evolution_chain" => {"url" => "https://pokeapi.co/api/v2/evolution-chain/7/"})
+          allow(client).to receive(:evolution_chain).with("7", cache_only: true).and_return(chain)
+          adapter.encounters_for(pokemon, red)
+        end
+
+        it "points to the stage it evolves from when the game has both" do
+          result = earlier_in_red("raichu", pichu_chain)
+
+          expect(result[:status]).to eq("none")
+          expect(result[:evolves_from]).to eq(name: "pikachu", pokemon_name: "pikachu")
+        end
+
+        it "points nowhere when the earlier stage is from a later generation" do
+          expect(earlier_in_red("pikachu", pichu_chain)[:evolves_from]).to be_nil
+        end
+
+        it "points nowhere for a Pokémon the game lacks, though its chain is shown in full" do
+          expect(earlier_in_red("lucario", riolu_chain)[:evolves_from]).to be_nil
+        end
+
+        it "points nowhere while the species or its chain isn't cached" do
+          expect(earlier_in_red("raichu", nil)[:evolves_from]).to be_nil
+        end
       end
 
       it "treats a cached 404 as no encounters" do

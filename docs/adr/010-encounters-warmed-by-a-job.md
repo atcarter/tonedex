@@ -13,11 +13,12 @@ ADR-002 keeps PokeAPI out of the request path, except for search and move detail
 
 ## Decision
 
-- **Request path is cache-only.** `GET /api/v1/pokemon/:id/encounters?game_id=` reads the cached payload with `cache_only: true` and returns `{status, locations}`. Status is `found`, `none` (the game has data and this Pokémon has no rows in it), `unavailable` (PokeAPI has no encounters for the game) or `pending`.
+- **Request path is cache-only.** `GET /api/v1/pokemon/:id/encounters?game_id=` reads the cached payload with `cache_only: true` and returns `{status, locations, evolves_from}`. Status is `found`, `none` (the game has data and this Pokémon has no rows in it), `unavailable` (PokeAPI has no encounters for the game) or `pending`.
 - **Per game, not per Pokémon.** `games.encounters_available` (boolean, null until checked) records whether any of the game's Pokémon has an encounter in the game's versions. `WarmEncountersJob` settles it: it caches the requested Pokémon first, then every Pokémon the game has (regional first, in dex order). The first hit sets `true`. A pass with no hit and no failed fetch sets `false`, but only over a seeded dex: while the game has no regional rows or `SeedGamePokemonJob` holds its lock, a partial list proves nothing. Otherwise it stays null so a later visit retries.
 - **Lazy, behind one lock per game.** A `pending` answer (payload not cached, or no rows while the game is unsettled) enqueues the job through `enqueue_once`, and the SPA polls every 5 seconds until the status changes, as the dex does while seeding.
 - **DLC versions** are listed per game in `PokeapiAdapter::ENCOUNTER_DLC_VERSIONS`, and each row they produce carries its DLC's name. The app models DLC as part of the base game, so they are not separate games.
-- **Rows** are one per area and method, base game first, in PokeAPI's area order. A condition set's chance sums every slot whose conditions it satisfies, and the row shows the best of them (marked "up to" when they differ). Conditions every slot needs are listed; the others are named by kind ("varies with time of day").
+- **Rows** are one per area and method, base game first, in PokeAPI's area order. The chance in a condition state sums every slot whose conditions it satisfies, and the row shows the best of them (marked "up to" when they differ). States take one value per kind of condition (time, swarm, radio…), since slots that depend on different kinds can be active together, and each slot's own set. Conditions every slot needs are listed; the others are named by kind ("varies with time of day").
+- **Earlier stage.** With `none`, `evolves_from` names the stage the Pokémon evolves from when the game has both, so the page can say "Evolve it from …". It is decided here, not from the page's evolution chain, which is shown in full for a species the game lacks. The species and chain are read cache-only too; the detail page has just fetched them.
 
 ## Consequences
 

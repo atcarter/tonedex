@@ -34,13 +34,6 @@ const FIELDS_OF_HONOR: EncounterLocation = {
   varies_with: ["story-progress-hall-of-fame"],
 };
 
-const PICHU = {
-  name: "pichu",
-  pokemon_name: "pichu",
-  evolves_from: null,
-  evolution_details: [],
-};
-
 function renderList(
   encounters: EncountersResponse | undefined,
   props: Partial<ComponentProps<typeof EncounterList>> = {},
@@ -53,7 +46,6 @@ function renderList(
           encounters={encounters}
           isError={false}
           game={SWORD}
-          earlier={null}
           onSelect={onSelect}
           {...props}
         />
@@ -65,7 +57,11 @@ function renderList(
 
 describe("EncounterList", () => {
   it("lists each area with its method, levels, chance, DLC and conditions", () => {
-    renderList({ status: "found", locations: [ROUTE_4, FIELDS_OF_HONOR] });
+    renderList({
+      status: "found",
+      locations: [ROUTE_4, FIELDS_OF_HONOR],
+      evolves_from: null,
+    });
 
     const rows = screen.getAllByRole("listitem");
     expect(rows).toHaveLength(2);
@@ -85,7 +81,7 @@ describe("EncounterList", () => {
       ...ROUTE_4,
       area: `galar-route-${i}-area`,
     }));
-    renderList({ status: "found", locations });
+    renderList({ status: "found", locations, evolves_from: null });
 
     expect(screen.getAllByRole("listitem")).toHaveLength(COLLAPSED_ROWS);
     const toggle = screen.getByRole("button", {
@@ -102,7 +98,7 @@ describe("EncounterList", () => {
   });
 
   it("says the game has no location data rather than that it can't be caught", () => {
-    renderList({ status: "unavailable", locations: [] });
+    renderList({ status: "unavailable", locations: [], evolves_from: null });
 
     expect(
       screen.getByText("Location data isn't available for Sword."),
@@ -113,10 +109,11 @@ describe("EncounterList", () => {
   });
 
   it("points to the earlier stage when it isn't found in the wild", () => {
-    const { onSelect } = renderList(
-      { status: "none", locations: [] },
-      { earlier: PICHU },
-    );
+    const { onSelect } = renderList({
+      status: "none",
+      locations: [],
+      evolves_from: { name: "pichu", pokemon_name: "pichu" },
+    });
 
     expect(
       screen.getByText(/Not found in the wild in Sword\./),
@@ -128,7 +125,7 @@ describe("EncounterList", () => {
   });
 
   it("just says it isn't found in the wild without an earlier stage", () => {
-    renderList({ status: "none", locations: [] });
+    renderList({ status: "none", locations: [], evolves_from: null });
 
     expect(
       screen.getByText("Not found in the wild in Sword."),
@@ -137,7 +134,7 @@ describe("EncounterList", () => {
   });
 
   it("shows a checking state while the data is cached", () => {
-    renderList({ status: "pending", locations: [] });
+    renderList({ status: "pending", locations: [], evolves_from: null });
 
     expect(screen.getByText("Checking where to find it…")).toBeInTheDocument();
   });

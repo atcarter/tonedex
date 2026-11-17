@@ -42,9 +42,7 @@ class PokeapiAdapter
   # DLC areas PokeAPI files under versions of their own; the detail page labels them.
   ENCOUNTER_DLC_VERSIONS = {
     "sword" => {"the-isle-of-armor-sword" => "The Isle of Armor", "the-crown-tundra-sword" => "The Crown Tundra"},
-    "shield" => {"the-isle-of-armor-shield" => "The Isle of Armor", "the-crown-tundra-shield" => "The Crown Tundra"},
-    "scarlet" => {"the-teal-mask-scarlet" => "The Teal Mask", "the-indigo-disk-scarlet" => "The Indigo Disk"},
-    "violet" => {"the-teal-mask-violet" => "The Teal Mask", "the-indigo-disk-violet" => "The Indigo Disk"}
+    "shield" => {"the-isle-of-armor-shield" => "The Isle of Armor", "the-crown-tundra-shield" => "The Crown Tundra"}
   }.freeze
 
   # Transforms PokeAPI payloads; persistence is delegated to PokemonImporter
@@ -233,7 +231,7 @@ class PokeapiAdapter
   # Where to catch it (ADR-010), read cache-only: "pending" until WarmEncountersJob
   # has cached the Pokémon and settled whether PokeAPI has any encounters for the game.
   def encounters_for(pokemon, game)
-    return {status: "unavailable", locations: []} if game.encounters_available == false
+    return {status: "unavailable", locations: [], evolves_from: nil} if game.encounters_available == false
 
     data = encounters_payload(pokemon, cache_only: true)
     locations = data ? encounter_locations(data, encounter_versions(game)) : []
@@ -242,7 +240,7 @@ class PokeapiAdapter
       elsif data && game.encounters_available then "none"
       else "pending"
       end
-    {status: status, locations: locations}
+    {status: status, locations: locations, evolves_from: (status == "none") ? earlier_stage(pokemon, game) : nil}
   end
 
   # Caches the Pokémon's encounters and, while encounters_available is unsettled,
@@ -303,11 +301,14 @@ class PokeapiAdapter
       .map { |(area, dlc, method), rows| encounter_row(area, dlc, method, rows) }
   end
 
-  # Each condition set's chance sums every slot it satisfies; the row shows the best.
+  # The chance in each condition state sums every slot it satisfies; the row shows the best.
+  # States are one value per kind (the slug's first word: time, swarm, radio…), or one slot's own set.
   # conditions apply to every slot, varies_with to only some.
   def encounter_row(area, dlc, method, rows)
     sets = rows.map { |r| r[:conditions] }.uniq
-    chances = sets.map { |set| rows.sum { |r| (r[:conditions] - set).empty? ? r[:chance] : 0 } }
+    kinds = sets.flatten.uniq.group_by { |c| c.split("-").first }.values
+    states = kinds.reduce([[]]) { |acc, values| acc.product(values).map(&:flatten) } | sets
+    chances = states.map { |state| rows.sum { |r| (r[:conditions] - state).empty? ? r[:chance] : 0 } }
     shared = sets.reduce(:&)
     {
       area: area, method: method, dlc: dlc,
@@ -315,6 +316,24 @@ class PokeapiAdapter
       chance: [chances.max, 100].min, chance_varies: chances.uniq.size > 1,
       conditions: shared, varies_with: sets.flatten.uniq - shared
     }
+  end
+
+  # The stage it evolves from, when the game has both it and that stage, read cache-only
+  def earlier_stage(pokemon, game)
+    species = @client.pokemon_species(pokemon.pokeapi_id, cache_only: true)
+    chain_id = species&.dig("evolution_chain", "url")&.split("/")&.last
+    chain = chain_id && @client.evolution_chain(chain_id, cache_only: true)
+    return unless chain
+
+    steps = parse_evolution_chain(chain["chain"])
+    step = steps.find { |s| s[:name] == species["name"] }
+    parent = step && steps.find { |s| s[:name] == step[:evolves_from] }
+    ids = game_species_ids(steps, game)
+    return unless parent && ids&.include?(step[:species_id]) && ids.include?(parent[:species_id])
+
+    with_sprites_and_links([parent], nil).sole.slice(:name, :pokemon_name)
+  rescue PokeapiClient::NotFoundError
+    nil
   end
 
   def species_id_from(url)
@@ -507,15 +526,10 @@ class PokeapiAdapter
   # tree holding the requested species is kept. A species the game lacks keeps
   # its full chain.
   def within_game(steps, game, species_name)
-    if game.national_seeded_at
-      ids = game.pokemons.where(pokeapi_id: steps.pluck(:species_id).compact).pluck(:pokeapi_id).to_set
-      kept = steps.select { |step| ids.include?(step[:species_id]) }
-    elsif game.generation.to_i.positive?
-      kept = steps.select { |step| Generation.introducing(step[:species_id]).to_i <= game.generation }
-    else
-      return steps
-    end
+    ids = game_species_ids(steps, game)
+    return steps unless ids
 
+    kept = steps.select { |step| ids.include?(step[:species_id]) }
     names = kept.to_set { |step| step[:name] }
     return steps unless names.include?(species_name)
 
@@ -529,6 +543,17 @@ class PokeapiAdapter
     root_of = ->(name) { parents[name] ? root_of.call(parents[name]) : name }
     root = root_of.call(species_name)
     kept.select { |step| root_of.call(step[:name]) == root }
+  end
+
+  # The chain's species ids the game has: its seeded national view, else its generation's
+  # species. Nil when neither is known.
+  def game_species_ids(steps, game)
+    ids = steps.pluck(:species_id).compact
+    if game.national_seeded_at
+      game.pokemons.where(pokeapi_id: ids).pluck(:pokeapi_id).to_set
+    elsif game.generation.to_i.positive?
+      ids.select { |id| Generation.introducing(id).to_i <= game.generation }.to_set
+    end
   end
 
   # Swaps each step's species id for its sprite URL and the /pokemon name it
