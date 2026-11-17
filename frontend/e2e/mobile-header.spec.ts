@@ -157,6 +157,88 @@ test.describe("Phone header", () => {
   });
 });
 
+// iPhone 15 Pro Max: 430x932 CSS px, 59px status-bar inset
+test.describe("Phone header under a notch", () => {
+  const INSET_TOP = 59;
+  test.use({ viewport: { width: 430, height: 932 } });
+
+  // Rows above the toolbar painted by something other than the header or strip
+  const nonRedRows = (page: Page) =>
+    page.evaluate(() => {
+      const header = document.querySelector("header")!;
+      // The status-bar strip renders just before the header
+      const strip = header.previousElementSibling!;
+      const toolbarTop = header
+        .querySelector(".MuiToolbar-root")!
+        .getBoundingClientRect().top;
+      const end = Math.max(toolbarTop, strip.getBoundingClientRect().bottom);
+      const rows: string[] = [];
+      for (let y = 0; y < end; y++) {
+        const hit = document.elementFromPoint(200, y);
+        if (hit && !header.contains(hit) && hit !== strip)
+          rows.push(`${y}:${hit.tagName}`);
+      }
+      return rows;
+    });
+
+  const toolbarRect = (page: Page) =>
+    page.locator("header .MuiToolbar-root").evaluate((el) => {
+      const { top, bottom } = el.getBoundingClientRect();
+      return { top, bottom };
+    });
+
+  test.beforeEach(async ({ page, context }) => {
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Emulation.setSafeAreaInsetsOverride", {
+      insets: { top: INSET_TOP },
+    });
+    await mockPublicGameRoutes(page);
+    await page.route(`${API}/api/v1/games/1*`, (r) =>
+      r.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...GAME_PAGE_RESPONSE,
+          pokemons: FORTY_POKEMON,
+          pagination: { ...GAME_PAGE_RESPONSE.pagination, total: 40 },
+        }),
+      }),
+    );
+    await page.goto("/game/scarlet");
+    await expect(page.getByText("Sprigatito 40")).toBeAttached();
+  });
+
+  test("stays red from the screen top to the bar while scrolling down and back", async ({
+    page,
+  }) => {
+    expect((await toolbarRect(page)).top).toBe(INSET_TOP);
+    expect(await nonRedRows(page)).toEqual([]);
+
+    await page.evaluate(() => window.scrollBy(0, 400));
+    await expect
+      .poll(async () => (await toolbarRect(page)).bottom)
+      .toBeLessThanOrEqual(0);
+    expect(await nonRedRows(page)).toEqual([]);
+
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect
+      .poll(async () => (await toolbarRect(page)).top)
+      .toBe(INSET_TOP);
+    expect(await nonRedRows(page)).toEqual([]);
+  });
+
+  test("a top overscroll shows red above the bar, not the page", async ({
+    page,
+  }) => {
+    // Chromium can't rubber-band; shift the bar down as iOS does
+    await page
+      .locator("header")
+      .evaluate((el) => (el.style.translate = "0 40px"));
+    expect(await nonRedRows(page)).toEqual([]);
+    expect((await toolbarRect(page)).top).toBe(INSET_TOP + 40);
+  });
+});
+
 test.describe("Desktop header", () => {
   test.use({
     viewport: { width: 1280, height: 800 },
