@@ -285,8 +285,8 @@ test.describe("Phone width: favorites reorder by touch", () => {
         ids: number[];
       };
       patches.push(body);
-      serverOrder = body.ids.map(
-        (id) => initial.find((f) => f.favorite_id === id)!,
+      serverOrder = body.ids.map((id) =>
+        initial.find((f) => f.favorite_id === id)!,
       );
       return route.fulfill({ status: 204, body: "" });
     });
