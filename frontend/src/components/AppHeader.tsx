@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import styled from "styled-components";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import useScrollTrigger from "@mui/material/useScrollTrigger";
@@ -35,8 +36,41 @@ export function AppHeader() {
   // noSsr: match on first render so phones never flash the desktop header
   const isPhone = useMediaQuery(theme.breakpoints.down("sm"), { noSsr: true });
 
-  return isPhone ? <PhoneHeader /> : <DesktopHeader />;
+  return isPhone ? (
+    <>
+      <StatusBarStrip />
+      <PhoneHeader />
+    </>
+  ) : (
+    <DesktopHeader />
+  );
 }
+
+// Keeps the notch red while the phone bar is slid away
+const StatusBarStrip = styled.div`
+  position: fixed;
+  inset: 0 0 auto;
+  height: env(safe-area-inset-top);
+  background: ${({ theme }) => theme.palette.primary.main};
+  z-index: 1202;
+`;
+
+const PhoneAppBar = styled(AppBar)`
+  && {
+    padding-top: env(safe-area-inset-top);
+    /* Shorthand drops the dark-mode Paper overlay so the bar matches the strip */
+    background: ${({ theme }) => theme.palette.primary.main};
+  }
+
+  /* iOS top overscroll pulls the bar down; show red above it, not the page */
+  &::before {
+    content: "";
+    position: absolute;
+    inset: auto 0 100%;
+    height: 100vh;
+    background: inherit;
+  }
+`;
 
 function Logo() {
   const navigate = useNavigate();
@@ -121,7 +155,7 @@ function PhoneHeader() {
   return (
     // Never slide away mid-search
     <Slide appear={false} direction="down" in={!scrolledDown || searchOpen}>
-      <AppBar position="sticky" sx={{ bgcolor: "primary.main", zIndex: 1201 }}>
+      <PhoneAppBar position="sticky" sx={{ zIndex: 1201 }}>
         <Toolbar sx={{ gap: 1, minHeight: "56px" }}>
           {searchOpen ? (
             <>
@@ -153,7 +187,7 @@ function PhoneHeader() {
             </>
           )}
         </Toolbar>
-      </AppBar>
+      </PhoneAppBar>
     </Slide>
   );
 }
