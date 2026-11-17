@@ -4,6 +4,13 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ---
 
+## 2026-11-17
+
+### Backend
+- **Security:** puma 8.0.2 → 8.0.3 and thruster 0.1.27 → 0.1.28, lockfile only. bundler-audit flagged puma 8.0.2 with seven advisories (GHSA-86xc-wrr9-xmmq, GHSA-jm4r-w4xx-qxw7, GHSA-m5xw-3hrw-qcmf, GHSA-r885-m39c-939g, GHSA-rf6g-xhmp-gm7v, GHSA-x646-wp7c-h9mg, GHSA-xw3h-pgr9-3vg7), fixed in 8.0.3. Trivy flagged the `thrust` binary in thruster 0.1.27 for golang.org/x/net v0.59.0 (CVE-2026-78661, HIGH); 0.1.28 ships v0.62.0 and is built with Go 1.27.4, so `.trivyignore` drops the four Go CVEs it carried for 0.1.27's Go 1.27.1 (CVE-2026-111943, CVE-2026-78667, CVE-2026-78669, CVE-2026-97031). No other gem changes version. (OWASP A06 — Vulnerable and Outdated Components)
+
+---
+
 ## 2026-11-06
 
 ### Infrastructure
