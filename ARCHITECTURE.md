@@ -10,7 +10,7 @@ High-level overview of ToneDex's architecture. For detailed rationale behind spe
 Browser
   │
   ├── React SPA (Vite, port 5173)
-  │     ├── TanStack Query — server state (games, pokémon, moves, favorites, caught, suggestions)
+  │     ├── TanStack Query — server state (games, pokémon, moves, encounters, favorites, caught, suggestions)
   │     ├── AppContext     — auth + game state (selectedGame, token, currentUser)
   │     ├── UiContext      — ephemeral UI state (toast, colorMode)
   │     ├── @react-oauth/google  ──── Google ID token ──▶ POST /api/v1/auth/google
@@ -24,7 +24,7 @@ Browser
         │     ├── FavoritesController   — authenticated CRUD + reorder (JWT)
         │     ├── CaughtPokemonsController — per-game catch tracking (JWT)
         │     ├── GamesController       — game list + paginated Pokémon
-        │     ├── PokemonController     — detail, search, suggestions
+        │     ├── PokemonController     — detail, encounters, search, suggestions
         │     └── MovesController       — move detail
         │
         ├── Auth routes (/auth/*)
@@ -47,6 +47,7 @@ Browser
               ├── SeedNationalDexJob    — fills every game's national view in one pass
               ├── SeedAllPokemonJob     — enqueues SeedGamePokemonJob for every game without a regional dex, through the per-game lock
               ├── WarmAbilitiesJob      — backfills /ability payloads for Pokémon seeded before seeds warmed them
+              ├── WarmEncountersJob     — caches /pokemon/{id}/encounters and settles whether a game has any (first detail visit)
               └── MirrorSpriteJob       — mirrors a new Pokémon's sprites
 
 PostgreSQL
@@ -66,7 +67,7 @@ Server state and UI state are deliberately separated:
 
 | Concern | Owner | Why |
 |---|---|---|
-| Games list, Pokémon data, Moves | TanStack Query | Immutable PokeAPI data — cached with `staleTime: Infinity` |
+| Games list, Pokémon data, Moves, Encounters | TanStack Query | Immutable PokeAPI data — cached with `staleTime: Infinity` (encounters poll while `pending`) |
 | Favorites, Caught | TanStack Query | User-owned — `staleTime: 0` for cross-tab freshness |
 | Search suggestions | TanStack Query | Short-lived — `staleTime` 5 min, previous results kept while typing |
 | selectedGame, token, currentUser | AppContext | Auth + game state — not server data |
@@ -88,6 +89,7 @@ Switching games keeps the current page where it can: the team builder stays on `
 ["game", gameId, dex]         — single game + paginated pokémon (infinite query); dex is "regional" | "national"
 ["pokemon", name, gameId?, dex] — pokémon detail; dex picks the number shown
 ["move", name]                — move detail (fetched lazily when a row expands)
+["encounters", pokemonId, gameId] — where to catch it in a game (polls every 5s while pending)
 ["suggestions", query]        — as-you-type search suggestions (staleTime: 5 min)
 ["favorites"]                 — user's favorites (auth-gated, staleTime: 0)
 ["caught", gameId]            — caught pokémon for a game (auth-gated, staleTime: 0)
@@ -125,6 +127,15 @@ Each game page has two views (ADR-009), chosen by `?dex=national` in the SPA URL
 - **Which stages:** with a game, only the species the game has: those with a `game_pokemons` row for it, regional or national (ADR-009), matched on `pokemons.pokeapi_id` in one query. Until `games.national_seeded_at` is set, the filter falls back to the species introduced in or before `games.generation`, read by `Generation.introducing` from the national-dex number (`LAST_SPECIES_ID`). Neither makes a PokeAPI call. A stage whose parent is dropped becomes the root with no `evolution_details` (Pikachu starts the chain in Red, without Pichu). If that leaves several roots (Hitmonlee and Hitmonchan in Gen 1, without Tyrogue), only the tree holding the requested species is kept. Outside a game, for an unstamped game with no stored generation, or when the game lacks the requested species itself (Turtwig opened from search in Sword, or one of ADR-009's data gaps such as Darkrai in BDSP), the full chain is returned.
 - **Links:** `name` and `evolves_from` are species names, which label the stage and shape the tree. A stage links to `pokemon_name`, its default variety's `/pokemon/` name: the `pokemons` row whose `pokeapi_id` is the species id, read in one query (`lycanroc-midday`, `oinkologne-male`, `wormadam-plant`). PokeAPI has no `/pokemon/lycanroc`, so a stage with no imported row falls back to its species name, which 404s for a form-suffixed default variety until a game holding that variety is seeded. The show action renders 404 `{error: "Pokemon not found"}` for a name PokeAPI doesn't know.
 - **Evolution methods** are PokeAPI's current ones; a method that changed across generations for a species that existed is not adjusted.
+
+## Data Flow: Where to Catch It on the Detail Page
+
+`GET /api/v1/pokemon/:id/encounters?game_id=` (the numeric id, looked up in the database only) returns `{status, locations}`, built by `PokeapiAdapter#encounters_for(pokemon, game)` from the cached `/pokemon/{id}/encounters` payload (ADR-010).
+
+- **Status:** `found` with rows; `none` when the game has encounter data but the Pokémon has no rows in it; `unavailable` when `games.encounters_available` is false (PokeAPI has none for the game: BDSP, Legends: Arceus, Scarlet/Violet, Legends: Z-A); `pending` when the payload isn't cached or the game is still unsettled (null).
+- **Cache-only:** a `pending` answer enqueues `WarmEncountersJob` once per game (`enqueue_once`). It caches the requested Pokémon, then every Pokémon the game has while the flag is null, setting it true at the first hit and false after a clean pass with none. A failed fetch, or a dex that is unseeded or still seeding (`SeedGamePokemonJob.locked?`), leaves it null. The SPA's `useEncounters` polls every 5s while pending. Empty payloads are cached as `[]` (`ApiCache` accepts an empty array).
+- **Which rows:** encounters in the game's version plus its DLC versions (`ENCOUNTER_DLC_VERSIONS`: Isle of Armor and Crown Tundra for Sword/Shield, Teal Mask and Indigo Disk for Scarlet/Violet), each DLC row labelled. One row per area and method, base game first, in PokeAPI's order, with the level range across its slots. A condition set's chance sums every slot whose conditions it satisfies, the row shows the best (`chance_varies` when they differ), `conditions` holds those every slot needs and `varies_with` the rest.
+- **SPA:** `EncounterList` shows six rows and a "Show all" toggle (`aria-expanded`). Area names drop `-area` and the game's own region prefix. With `none`, the earlier stage in the game's evolution chain (the page's own `evolution_chain`) is offered as "Evolve it from …".
 
 ---
 
@@ -221,3 +232,4 @@ The api, worker, database and Key Value all run in region ohio; the database and
 | 007 | TanStack Query for server state management |
 | 008 | Render via Terraform for production hosting |
 | 009 | A per-game national view built from learnsets and every version-group dex |
+| 010 | Encounter locations read cache-only, warmed by a job and settled per game |

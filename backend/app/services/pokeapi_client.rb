@@ -32,6 +32,10 @@ class PokeapiClient
     fetch("/pokemon/#{name_or_id}")
   end
 
+  def pokemon_encounters(id, cache_only: false)
+    fetch("/pokemon/#{id}/encounters", cache_only: cache_only)
+  end
+
   def pokemon_species(name_or_id)
     fetch("/pokemon-species/#{name_or_id}")
   end

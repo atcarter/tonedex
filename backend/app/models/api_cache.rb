@@ -7,7 +7,8 @@
 #   ApiCache.where("endpoint LIKE '/pokemon/%'").delete_all
 class ApiCache < ApplicationRecord
   validates :endpoint, presence: true, uniqueness: true
-  validates :response_data, presence: true
+  # Not presence: an empty array is a real answer (a Pokémon with no encounters)
+  validate { errors.add(:response_data, :blank) if response_data.nil? }
 
   def self.fetch(endpoint)
     find_by(endpoint: endpoint)&.response_data

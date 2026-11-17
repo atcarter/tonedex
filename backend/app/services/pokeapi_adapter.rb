@@ -39,6 +39,14 @@ class PokeapiAdapter
   # Outside a game (or with its version uncached), abilities use the newest game's text.
   CURRENT_ABILITY_TEXT_GROUP = "legends-za"
 
+  # DLC areas PokeAPI files under versions of their own; the detail page labels them.
+  ENCOUNTER_DLC_VERSIONS = {
+    "sword" => {"the-isle-of-armor-sword" => "The Isle of Armor", "the-crown-tundra-sword" => "The Crown Tundra"},
+    "shield" => {"the-isle-of-armor-shield" => "The Isle of Armor", "the-crown-tundra-shield" => "The Crown Tundra"},
+    "scarlet" => {"the-teal-mask-scarlet" => "The Teal Mask", "the-indigo-disk-scarlet" => "The Indigo Disk"},
+    "violet" => {"the-teal-mask-violet" => "The Teal Mask", "the-indigo-disk-violet" => "The Indigo Disk"}
+  }.freeze
+
   # Transforms PokeAPI payloads; persistence is delegated to PokemonImporter
   # so this class never touches ActiveRecord directly (SRP).
   def initialize(client: PokeapiClient.new, importer: PokemonImporter.new)
@@ -222,7 +230,92 @@ class PokeapiAdapter
     }
   end
 
+  # Where to catch it (ADR-010), read cache-only: "pending" until WarmEncountersJob
+  # has cached the Pokémon and settled whether PokeAPI has any encounters for the game.
+  def encounters_for(pokemon, game)
+    return {status: "unavailable", locations: []} if game.encounters_available == false
+
+    data = encounters_payload(pokemon, cache_only: true)
+    locations = data ? encounter_locations(data, encounter_versions(game)) : []
+    status =
+      if locations.any? then "found"
+      elsif data && game.encounters_available then "none"
+      else "pending"
+      end
+    {status: status, locations: locations}
+  end
+
+  # Caches the Pokémon's encounters and, while encounters_available is unsettled,
+  # every Pokémon the game has: one hit makes it true, a clean miss on a seeded dex false.
+  def warm_encounters(game, pokemon = nil, seeded: true)
+    unsettled = game.encounters_available.nil?
+    pokemons = [pokemon].compact
+    pokemons += game.pokemons.order("game_pokemons.regional DESC, game_pokemons.pokedex_number").to_a if unsettled
+    versions = encounter_versions(game)
+    failed = false
+
+    pokemons.uniq.each do |p|
+      data = encounters_payload(p)
+      next unless unsettled && encounter_locations(data, versions).any?
+
+      @importer.mark_encounters_available(game, true)
+      unsettled = false
+    rescue PokeapiClient::ApiError => e
+      failed = true
+      Rails.logger.warn("[PokeapiAdapter] No encounters for #{p.name}: #{e.message}")
+    end
+
+    @importer.mark_encounters_available(game, false) if unsettled && seeded && !failed
+  end
+
   private
+
+  # A 404 means no encounters
+  def encounters_payload(pokemon, cache_only: false)
+    @client.pokemon_encounters(pokemon.pokeapi_id, cache_only: cache_only)
+  rescue PokeapiClient::NotFoundError
+    []
+  end
+
+  # The game's version, then its DLC versions, each mapped to its DLC label
+  def encounter_versions(game)
+    {game.name => nil}.merge(ENCOUNTER_DLC_VERSIONS.fetch(game.name, {}))
+  end
+
+  # One row per area and method, base game first, in PokeAPI's (area) order
+  def encounter_locations(data, versions)
+    details = data.flat_map do |entry|
+      area = entry.dig("location_area", "name")
+      entry["version_details"].flat_map do |vd|
+        version = vd.dig("version", "name")
+        next [] unless versions.key?(version)
+
+        vd["encounter_details"].map do |d|
+          {area: area, dlc: versions[version], method: d.dig("method", "name"),
+           min_level: d["min_level"], max_level: d["max_level"], chance: d["chance"],
+           conditions: d["condition_values"].map { |c| c["name"] }}
+        end
+      end
+    end
+
+    details.sort_by.with_index { |d, i| [d[:dlc] ? 1 : 0, i] }
+      .group_by { |d| d.values_at(:area, :dlc, :method) }
+      .map { |(area, dlc, method), rows| encounter_row(area, dlc, method, rows) }
+  end
+
+  # Each condition set's chance sums every slot it satisfies; the row shows the best.
+  # conditions apply to every slot, varies_with to only some.
+  def encounter_row(area, dlc, method, rows)
+    sets = rows.map { |r| r[:conditions] }.uniq
+    chances = sets.map { |set| rows.sum { |r| (r[:conditions] - set).empty? ? r[:chance] : 0 } }
+    shared = sets.reduce(:&)
+    {
+      area: area, method: method, dlc: dlc,
+      min_level: rows.pluck(:min_level).min, max_level: rows.pluck(:max_level).max,
+      chance: [chances.max, 100].min, chance_varies: chances.uniq.size > 1,
+      conditions: shared, varies_with: sets.flatten.uniq - shared
+    }
+  end
 
   def species_id_from(url)
     url&.split("/")&.compact&.last&.to_i

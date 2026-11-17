@@ -30,6 +30,7 @@ Rails.application.routes.draw do
           get :search
           get :suggestions
         end
+        member { get :encounters }
       end
       resources :moves, only: [:show]
     end
