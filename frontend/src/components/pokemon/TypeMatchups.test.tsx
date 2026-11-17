@@ -73,12 +73,18 @@ describe("TypeMatchups", () => {
     ).toBeInTheDocument();
   });
 
-  it("has no unavailable note in a Gen 2 game, which has no abilities", () => {
-    renderMatchups({ types: GENGAR, abilities: [], generation: 2 });
+  it.each([
+    ["an empty list", []],
+    ["missing", null],
+  ])(
+    "has no unavailable note in a Gen 2 game with abilities %s",
+    (_label, abilities) => {
+      renderMatchups({ types: GENGAR, abilities, generation: 2 });
 
-    expect(listed("2 times damage from")).toContain("ground");
-    expect(screen.queryByText(/Ability data unavailable/)).toBeNull();
-  });
+      expect(listed("2 times damage from")).toContain("ground");
+      expect(screen.queryByText(/Ability data unavailable/)).toBeNull();
+    },
+  );
 
   it("tags Bronzong's Ground immunity with Levitate", () => {
     renderMatchups({
