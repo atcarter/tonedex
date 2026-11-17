@@ -42,6 +42,8 @@ class Api::V1::PokemonController < ApplicationController
 
   def show
     pokemon = find_or_fetch_pokemon
+    return render json: {error: "Pokemon not found"}, status: :not_found unless pokemon
+
     game = params[:game_id] ? Game.find(params[:game_id]) : nil
 
     render json: {
@@ -60,6 +62,9 @@ class Api::V1::PokemonController < ApplicationController
     else
       adapter.find_or_create_pokemon(params[:id])
     end
+  # A name PokeAPI doesn't know is a 404, not a 500
+  rescue PokeapiClient::NotFoundError
+    nil
   end
 
   def moves_for_game(pokemon, game)

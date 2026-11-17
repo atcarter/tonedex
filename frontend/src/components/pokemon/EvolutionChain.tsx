@@ -192,13 +192,13 @@ export function EvolutionChain({
   onSelect,
 }: EvolutionChainProps) {
   const stage = (step: EvolutionStep) => {
-    const isCurrent = step.name === currentName;
+    const isCurrent = step.pokemon_name === currentName;
     return (
       <Pokemon
         data-testid="evolution-stage"
         $isCurrent={isCurrent}
         $clickable={!isCurrent}
-        onClick={() => onSelect(step.name)}
+        onClick={() => onSelect(step.pokemon_name)}
       >
         <StageSprite
           key={step.sprite_url ?? ""}

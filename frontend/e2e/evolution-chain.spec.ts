@@ -12,6 +12,7 @@ const step = (
   evolution_details: unknown[] = [],
 ) => ({
   name,
+  pokemon_name: name,
   evolves_from,
   evolution_details,
   sprite_url: `${API}/sprites/${name}.png` as string | null,
@@ -325,6 +326,28 @@ test.describe("Evolution chain at desktop width", () => {
     }
     await expect(stages.nth(1)).toHaveText("Floragato");
     await expect(stages.nth(2)).toHaveText("Meowscarada");
+  });
+
+  test("a stage opens its default variety, and is current there", async ({
+    page,
+  }) => {
+    const chain = [
+      step("rockruff"),
+      {
+        ...step("lycanroc", "rockruff", lv(25)),
+        pokemon_name: "lycanroc-midday",
+      },
+    ];
+    await mockChain(page, "lycanroc-midday", chain);
+    const stages = await openChain(page, "rockruff", chain);
+
+    await stages.nth(1).click();
+
+    await expect(page).toHaveURL(/\/game\/scarlet\/pokemon\/lycanroc-midday$/);
+    await expect(stages.nth(1).getByText("Lycanroc")).toHaveCSS(
+      "font-weight",
+      "700",
+    );
   });
 
   test("a three-stage chain stays on one row", async ({ page }) => {
