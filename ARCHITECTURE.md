@@ -120,6 +120,13 @@ Each game page has two views (ADR-009), chosen by `?dex=national` in the SPA URL
 - **Cache-only:** the request reads `/ability/*` and `/version/*` with `cache_only: true`, so a miss returns `description: null` and never calls PokeAPI (ADR-002). `SeedGamePokemonJob` and `SeedNationalDexJob` warm each imported Pokémon's current and past abilities. Pokémon seeded before that are backfilled by `rails pokedex:warm_abilities`, which enqueues `WarmAbilitiesJob`; it is idempotent and only fetches what is still missing (at most 314 abilities, about 6 MB of `api_caches`).
 - **SPA:** each ability chip is a button with `aria-expanded`; tapping one opens a full-width panel under the chip row with the description, the "In battle:" line and the Hidden label. The data comes with the page, so there is no extra request.
 
+## Type Matchups on the Detail Page
+
+The detail page's Type Matchups section is computed in the SPA from the response's `types` and `species.abilities` (ADR-011), so it makes no extra request.
+
+- **Chart:** `constants/typeChart.ts` takes an optional generation and applies Gen 1's and Gen 2–5's differences (Steel resists Ghost and Dark before Gen 6, Ghost can't hit Psychic in Gen 1), leaving out types the generation lacks. `utils/typeDefense.ts` groups the multipliers into tiers, most damage first, without 1×. The team builder's `memberDefense` calls it without a generation, so its overview stays on the modern chart. Both pages render tiers with `DefenseTierList`.
+- **Abilities:** `utils/matchupAbilities.ts` maps the abilities that change incoming type damage (Levitate, Flash Fire, the Absorbs, Thick Fat, Filter, Wonder Guard and others) to their effect, with the generation an effect starts when it is later than the ability (Lightning Rod and Storm Drain grant immunity from Gen 5). `abilityDefense` folds in the first listed ability in the table, regular slots before hidden. If the Pokémon has other abilities, every type it moved is tagged "with <Ability>", and a tagged type that drops to 1× is listed in a 1× row. Gen 1–2 games have no abilities, so their chart is types-only.
+
 ## Data Flow: Evolution Chain on the Detail Page
 
 `GET /api/v1/pokemon/:id?game_id=` returns `evolution_chain`, a depth-first list of `{name, pokemon_name, evolves_from, evolution_details, sprite_url}` built by `PokeapiAdapter#evolution_chain_for(pokemon, game)` from the cached `/pokemon-species/{id}` and `/evolution-chain/{id}` payloads.
@@ -233,3 +240,4 @@ The api, worker, database and Key Value all run in region ohio; the database and
 | 008 | Render via Terraform for production hosting |
 | 009 | A per-game national view built from learnsets and every version-group dex |
 | 010 | Encounter locations read cache-only, warmed by a job and settled per game |
+| 011 | Type matchups computed in the SPA, per generation, with one ability folded in |
