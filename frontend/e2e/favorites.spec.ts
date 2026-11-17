@@ -110,8 +110,8 @@ test.describe("Favorites — mouse drag reorder", () => {
         ids: number[];
       };
       patches.push(body);
-      serverOrder = body.ids.map(
-        (id) => FAVORITES.find((f) => f.favorite_id === id)!,
+      serverOrder = body.ids.map((id) =>
+        FAVORITES.find((f) => f.favorite_id === id)!,
       );
       return route.fulfill({ status: 204, body: "" });
     });
