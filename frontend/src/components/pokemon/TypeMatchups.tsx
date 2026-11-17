@@ -1,5 +1,6 @@
 import styled from "styled-components";
 import type { AbilityInfo } from "../../types";
+import { isPreAbilityGeneration } from "../../utils/abilities";
 import { abilityDefense } from "../../utils/matchupAbilities";
 import { formatName } from "../../utils/formatters";
 import { DefenseTierList } from "../DefenseTierList";
@@ -16,8 +17,8 @@ const Footnote = styled.p`
 
 interface TypeMatchupsProps {
   types: string[];
-  // The game's ability list, in slot order
-  abilities: AbilityInfo[];
+  // The game's ability list, in slot order; null when it couldn't be loaded
+  abilities: AbilityInfo[] | null;
   // The selected game's generation; null uses the modern chart
   generation: number | null;
 }
@@ -29,9 +30,11 @@ export function TypeMatchups({
 }: TypeMatchupsProps) {
   const { tiers, ability, tagged } = abilityDefense(
     types,
-    abilities,
+    abilities ?? [],
     generation,
   );
+  const abilitiesUnavailable =
+    abilities === null && !isPreAbilityGeneration(generation);
   const tags = Object.fromEntries(
     tagged.map((type) => [type, `with ${formatName(ability!)}`]),
   );
@@ -42,6 +45,11 @@ export function TypeMatchups({
         <DefenseTierList tiers={tiers} tags={tags} />
       </Chart>
       <Footnote>Types not listed do normal 1× damage.</Footnote>
+      {abilitiesUnavailable && (
+        <Footnote>
+          Ability data unavailable, so matchups use types only.
+        </Footnote>
+      )}
     </>
   );
 }

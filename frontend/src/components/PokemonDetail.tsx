@@ -461,7 +461,7 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
         <SectionTitle>Type Matchups</SectionTitle>
         <TypeMatchups
           types={details.types}
-          abilities={species?.abilities ?? []}
+          abilities={species?.abilities ?? null}
           generation={game?.generation ?? null}
         />
       </SectionPaper>
