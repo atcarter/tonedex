@@ -34,17 +34,20 @@ const TierTypes = styled.ul`
   padding: 0;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 4px;
 `;
 
-const TaggedEntry = styled.li`
-  display: inline-flex;
+// Every entry is a flex box, so a tagged chip sits level with plain ones
+const Entry = styled.li`
+  display: flex;
   align-items: center;
   gap: 4px;
 `;
 
 const Tag = styled.span`
   font-size: 0.7rem;
+  line-height: 20px;
   font-weight: 600;
   color: ${({ theme }) => theme.palette.text.secondary};
 `;
@@ -92,17 +95,17 @@ export function DefenseTierList({ tiers, tags = {} }: DefenseTierListProps) {
           {tier.symbol}
         </TierLabel>
         <TierTypes aria-label={tier.label}>
-          {types.map((type) =>
-            tags[type] ? (
-              <TaggedEntry key={type}>
-                <TypeBadge type={type} size="small" /> <Tag>{tags[type]}</Tag>
-              </TaggedEntry>
-            ) : (
-              <li key={type}>
-                <TypeBadge type={type} size="small" />
-              </li>
-            ),
-          )}
+          {types.map((type) => (
+            <Entry key={type}>
+              <TypeBadge type={type} size="small" />
+              {tags[type] && (
+                <>
+                  {" "}
+                  <Tag>{tags[type]}</Tag>
+                </>
+              )}
+            </Entry>
+          ))}
         </TierTypes>
       </TierRow>
     );

@@ -84,6 +84,27 @@ for (const viewport of VIEWPORTS) {
       expect(pageOverflow).toBe(false);
     });
 
+    test("aligns a tagged chip with its untagged neighbour", async ({
+      page,
+    }) => {
+      await page.goto(`/game/${GAME.name}/pokemon/bronzong`);
+
+      const immune = page
+        .getByTestId("type-matchups")
+        .getByRole("list", { name: "Immune to" });
+      const chips = immune.locator(".MuiChip-root");
+      await expect(chips).toHaveCount(2);
+      const poison = (await chips.nth(0).boundingBox())!;
+      const ground = (await chips.nth(1).boundingBox())!;
+      const tag = (await immune.getByText("with Levitate").boundingBox())!;
+
+      expect(Math.abs(ground.y - poison.y)).toBeLessThanOrEqual(0.5);
+      expect(ground.height).toBeCloseTo(poison.height, 1);
+      const middle = (box: { y: number; height: number }) =>
+        box.y + box.height / 2;
+      expect(Math.abs(middle(tag) - middle(ground))).toBeLessThanOrEqual(1);
+    });
+
     for (const colorScheme of ["light", "dark"] as const) {
       test(`passes axe in ${colorScheme} mode`, async ({ page }) => {
         await page.emulateMedia({ colorScheme });
