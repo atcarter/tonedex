@@ -135,9 +135,9 @@ const EmptyText = styled.span`
   color: ${({ theme }) => theme.palette.text.secondary};
 `;
 
-// Wide rows scroll here, not the page
+// Wide rows stay inside, without a scroller that would claim the page's swipe
 const MoveList = styled.div`
-  overflow-x: auto;
+  overflow-x: clip;
 `;
 
 // ── MoveDetail sub-component ─────────────────────────────────────────────────

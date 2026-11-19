@@ -13,12 +13,20 @@ Moving from one Pokémon to the next meant going Back to the list and opening th
 
 **The API supplies the neighbors.** `GET /api/v1/pokemon/:id?game_id=&dex=` returns `neighbors: {previous, next}` in the list row shape. `DexView` is the one definition of a view's members and order, read by both the list endpoint and this lookup, with `pokeapi_id` breaking a tied number. The lookup reads the database only (ADR-002).
 
-**One move behind every input.** `go()` in `PokemonPager` is the only navigation; the buttons and the arrow keys call it.
+**One move behind every input.** `go()` in `PokemonPager` is the only navigation; the buttons, the arrow keys and the swipe call it.
 
 - It replaces the history entry, so Back returns to the list in one step however many Pokémon were passed. Evolution links stay ordinary pushes.
 - It sets `state.neighbor` to the direction. `App.tsx`, which scrolls a new page to the top and moves focus to `<main>`, leaves focus where it is for such a move, so a keyboard user can press Next again.
 - The controls are two `<button>`s marked `aria-disabled` at an end rather than `disabled`, and they stay mounted while the next Pokémon loads, so the pressed button keeps focus. A hidden live region names the Pokémon moved to.
 - The arrow keys ignore auto-repeat, modifier keys (Alt+Left is the browser's Back) and targets that use arrows themselves (fields, menus, listboxes, sliders, tabs, dialogs).
+
+**A sideways swipe on touch screens.** The page follows the finger, then the new Pokémon slides in from that side. `useSwipeNavigation` uses Pointer Events, with window listeners through `followPointer` (shared with the favorites drag), and declares which pans are its own with `touch-action` on the gesture element, as the favorites drag handle does:
+
+- The surface is `touch-action: pan-y pinch-zoom`, so vertical scrolling, pull-to-refresh and zoom stay the browser's: the browser cancels the pointer the moment it scrolls, and the swipe stops. Nothing new is set on `html` or `body`.
+- A browser lets the nearest scroll container claim a pan, whether or not it overflows. Nothing inside the surface may be `overflow-x: auto` or `scroll` unless it should scroll instead of the page swiping (then mark it `data-swipe-ignore`); `MoveList` is `overflow-x: clip` for that reason. `e2e/pokemon-pager.spec.ts` checks it.
+- Touches starting within 32px of a screen edge are left to the system Back and Forward swipes. A mouse doesn't swipe (it selects text), nor does a second finger, a zoomed page, or a drag within 1.5× of vertical.
+- A move commits past 30% of the width (at most 140px) or on a flick of 40px at 0.3 px/ms. At an end the content moves a quarter of the finger's travel and springs back.
+- The drag sets `transform` on a wrapper through a ref, with no React state per move. The enter animation is Web Animations on the same wrapper, so `PokemonDetail` isn't remounted and keeps its state, as with evolution links. With `prefers-reduced-motion: reduce` there is no transform and no animation; the swipe still commits.
 
 **Neighbors are prefetched.** 250ms after a page settles, both neighbors' details are prefetched with `pokemonQueryOptions`, the key the page itself reads, and their sprites warmed, so a move renders from cache. Encounters are not prefetched: a miss can enqueue a warm-up job for a page nobody opened.
 
@@ -43,3 +51,11 @@ Moving from one Pokémon to the next meant going Back to the list and opening th
 **Push each move:** thirty moves would cost thirty Backs to reach the list.
 
 **Router links for the controls:** a link that unmounts while the next page loads drops focus on the first press.
+
+**One long vertical page, scrolling into the next Pokémon:** the next one would sit below 40 to 100 move rows, and the URL, Back, the caught toggle and the header would each need a rule for which Pokémon is current.
+
+**A native `scroll-snap` pager holding previous, current and next:** each pane would need its own vertical scroller, which breaks the hide-on-scroll header and pull-to-refresh, or all three would share the tallest height. It also mounts three detail trees.
+
+**React Router view transitions:** `BrowserRouter` passes `navigate` options straight to `history.replace`, which ignores `viewTransition`, and wraps the update in `startTransition`, so the new page can't be rendered synchronously for the animation either.
+
+**Trackpad or wheel scrolling sideways:** on macOS that gesture is the browser's Back and Forward.

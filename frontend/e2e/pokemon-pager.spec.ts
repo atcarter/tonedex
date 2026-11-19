@@ -4,6 +4,8 @@ import {
   SPRIGATITO,
   SPRIGATITO_DETAIL,
   mockPublicGameRoutes,
+  touchDrag,
+  type Point,
 } from "./fixtures";
 
 // Previous and next on the detail page, through the URL's dex view.
@@ -28,11 +30,19 @@ const DEX = [
   },
 ];
 
+// Enough moves to make the page several screens tall
+const MOVES = Array.from({ length: 40 }, (_, i) => ({
+  name: `move-${i + 1}`,
+  level_learned: i + 1,
+  learn_method: "level-up",
+}));
+
 function detailFor(name: string) {
   const i = DEX.findIndex((p) => p.name === name);
   return {
     ...SPRIGATITO_DETAIL,
     pokemon: { ...SPRIGATITO_DETAIL.pokemon, ...DEX[i] },
+    moves: MOVES,
     neighbors: { previous: DEX[i - 1] ?? null, next: DEX[i + 1] ?? null },
   };
 }
@@ -74,6 +84,7 @@ async function mockPager(page: Page) {
   return requests;
 }
 
+const formatted = (name: string) => name[0].toUpperCase() + name.slice(1);
 const heading = (page: Page, name: string) =>
   page.getByRole("heading", { name, exact: true });
 const historyLength = (page: Page) => page.evaluate(() => history.length);
@@ -268,5 +279,278 @@ test.describe("Previous and next (phone)", () => {
       ).toBeLessThan(4);
       expect(box.x + box.width).toBeLessThanOrEqual(375);
     }
+  });
+});
+
+test.describe("Swipe (phone)", () => {
+  test.use({
+    viewport: { width: 375, height: 812 },
+    isMobile: true,
+    hasTouch: true,
+  });
+
+  const MID_Y = 400;
+  const left = (from = 300, y = MID_Y): [Point, Point] => [
+    { x: from, y },
+    { x: from - 200, y },
+  ];
+  const right = (from = 75, y = MID_Y): [Point, Point] => [
+    { x: from, y },
+    { x: from + 200, y },
+  ];
+  const content = (page: Page) => page.getByTestId("pager-content");
+  const transform = (page: Page) =>
+    content(page).evaluate((el) => el.style.transform);
+
+  async function swipe(page: Page, [from, to]: [Point, Point]) {
+    const drag = await touchDrag(page, from, to);
+    await drag.release();
+  }
+
+  async function open(page: Page, name: string) {
+    const requests = await mockPager(page);
+    await page.goto(`/game/scarlet/pokemon/${name}`);
+    await expect(heading(page, formatted(name))).toBeVisible();
+    // Neighbors prefetched, so a swipe renders at once
+    await expect.poll(() => requests.length).toBeGreaterThanOrEqual(2);
+    return requests;
+  }
+
+  test("left goes next and right goes previous, replacing the entry", async ({
+    page,
+  }) => {
+    await mockPager(page);
+    await page.goto("/game/scarlet");
+    await page.getByText("Floragato", { exact: true }).click();
+    await expect(heading(page, "Floragato")).toBeVisible();
+    const length = await historyLength(page);
+
+    await swipe(page, left());
+    await expect(heading(page, "Meowscarada")).toBeVisible();
+    await swipe(page, right());
+    await expect(heading(page, "Floragato")).toBeVisible();
+    await swipe(page, right());
+    await expect(heading(page, "Sprigatito")).toBeVisible();
+    expect(await historyLength(page)).toBe(length);
+
+    await page.goBack();
+    await expect(page).toHaveURL("/game/scarlet");
+  });
+
+  test("at an end the page lags the finger, then springs back", async ({
+    page,
+  }) => {
+    await open(page, "sprigatito");
+
+    const drag = await touchDrag(page, ...right());
+    expect(await transform(page)).toBe("translate3d(50px, 0px, 0px)");
+    await drag.release();
+    await expect.poll(() => transform(page)).toBe("");
+    await expect(page).toHaveURL("/game/scarlet/pokemon/sprigatito");
+  });
+
+  test("the last Pokémon has no next", async ({ page }) => {
+    await open(page, "meowscarada");
+
+    await swipe(page, left());
+    await page.waitForTimeout(300);
+    await expect(page).toHaveURL("/game/scarlet/pokemon/meowscarada");
+  });
+
+  test("a vertical or 45° drag scrolls and never moves sideways", async ({
+    page,
+  }) => {
+    await open(page, "floragato");
+
+    await swipe(page, [
+      { x: 200, y: 650 },
+      { x: 200, y: 250 },
+    ]);
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(100);
+    expect(await transform(page)).toBe("");
+
+    await swipe(page, [
+      { x: 300, y: 650 },
+      { x: 100, y: 450 },
+    ]);
+    await page.waitForTimeout(300);
+    await expect(page).toHaveURL("/game/scarlet/pokemon/floragato");
+  });
+
+  test("a swipe from within 32px of either edge is the browser's", async ({
+    page,
+  }) => {
+    await open(page, "floragato");
+
+    await swipe(page, right(8));
+    await swipe(page, left(367));
+    await page.waitForTimeout(300);
+    await expect(page).toHaveURL("/game/scarlet/pokemon/floragato");
+
+    await swipe(page, right(40));
+    await expect(heading(page, "Sprigatito")).toBeVisible();
+  });
+
+  test("a swipe inside a sideways scroller scrolls it instead", async ({
+    page,
+  }) => {
+    await open(page, "floragato");
+    await content(page).evaluate((el) => {
+      const scroller = document.createElement("div");
+      scroller.id = "wide";
+      scroller.style.cssText =
+        "overflow-x: auto; position: fixed; top: 300px; left: 40px; width: 295px; height: 200px";
+      const wide = document.createElement("div");
+      wide.style.cssText = "width: 900px; height: 200px";
+      scroller.append(wide);
+      el.append(scroller);
+    });
+
+    await swipe(page, left());
+    await expect
+      .poll(() => page.locator("#wide").evaluate((el) => el.scrollLeft))
+      .toBeGreaterThan(100);
+    await expect(page).toHaveURL("/game/scarlet/pokemon/floragato");
+  });
+
+  test("mid-drag the page doesn't widen", async ({ page }) => {
+    await open(page, "floragato");
+
+    const drag = await touchDrag(page, ...left());
+    expect(await transform(page)).toContain("translate3d(-");
+    const width = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      x: window.scrollX,
+    }));
+    expect(width).toEqual({ scroll: 375, x: 0 });
+    await drag.release();
+  });
+
+  test("a short slow drag springs back", async ({ page }) => {
+    await open(page, "floragato");
+
+    await touchDrag(
+      page,
+      { x: 250, y: MID_Y },
+      { x: 190, y: MID_Y },
+      {
+        steps: 10,
+        delay: 60,
+      },
+    ).then((drag) => drag.release());
+    await expect.poll(() => transform(page)).toBe("");
+    await expect(page).toHaveURL("/game/scarlet/pokemon/floragato");
+  });
+
+  test("a swipe from deep in the page lands at the top with the header shown", async ({
+    page,
+  }) => {
+    await open(page, "floragato");
+    await page.evaluate(() => window.scrollTo(0, 1500));
+    await expect
+      .poll(() =>
+        page
+          .locator("header")
+          .first()
+          .boundingBox()
+          .then((b) => b!.y),
+      )
+      .toBeLessThan(-10);
+
+    await swipe(page, left());
+    await expect(heading(page, "Meowscarada")).toBeVisible();
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    await expect
+      .poll(() =>
+        page
+          .locator("header")
+          .first()
+          .boundingBox()
+          .then((b) => b!.y),
+      )
+      .toBe(0);
+  });
+
+  test("a swipe that starts on the moves list moves sideways", async ({
+    page,
+  }) => {
+    await open(page, "floragato");
+    const row = page.getByTestId("move-table").getByRole("button").nth(3);
+    await row.scrollIntoViewIfNeeded();
+    const box = (await row.boundingBox())!;
+
+    await swipe(page, left(300, box.y + box.height / 2));
+    await expect(heading(page, "Meowscarada")).toBeVisible();
+  });
+
+  test("with reduced motion it moves without any transform or animation", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await open(page, "floragato");
+
+    const drag = await touchDrag(page, ...left());
+    expect(await transform(page)).toBe("");
+    await drag.release();
+    await expect(heading(page, "Meowscarada")).toBeVisible();
+    expect(
+      await content(page).evaluate((el) => el.getAnimations().length),
+    ).toBe(0);
+  });
+
+  test("the detail isn't remounted, and the new Pokémon slides in", async ({
+    page,
+  }) => {
+    await open(page, "floragato");
+    await content(page).evaluate((el) => {
+      (window as unknown as { detailRoot: Element }).detailRoot =
+        el.firstElementChild!;
+    });
+
+    await swipe(page, left());
+    await expect(heading(page, "Meowscarada")).toBeVisible();
+    expect(
+      await content(page).evaluate(
+        (el) =>
+          el.firstElementChild ===
+          (window as unknown as { detailRoot: Element }).detailRoot,
+      ),
+    ).toBe(true);
+  });
+
+  test("nothing inside the page scrolls sideways unless marked to", async ({
+    page,
+  }) => {
+    await open(page, "floragato");
+    await expect(page.getByTestId("move-table")).toBeVisible();
+
+    const scrollers = await content(page).evaluate((root) =>
+      [root, ...root.querySelectorAll("*")]
+        .filter((el) => !el.closest("[data-swipe-ignore]"))
+        .filter((el) =>
+          ["auto", "scroll"].includes(getComputedStyle(el).overflowX),
+        )
+        .map((el) => el.outerHTML.slice(0, 80)),
+    );
+    expect(scrollers).toEqual([]);
+  });
+});
+
+test.describe("Swipe (desktop)", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("a mouse drag doesn't move sideways", async ({ page }) => {
+    await mockPager(page);
+    await page.goto("/game/scarlet/pokemon/floragato");
+    await expect(heading(page, "Floragato")).toBeVisible();
+
+    await page.mouse.move(800, 400);
+    await page.mouse.down();
+    await page.mouse.move(400, 400, { steps: 10 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    await expect(page).toHaveURL("/game/scarlet/pokemon/floragato");
   });
 });

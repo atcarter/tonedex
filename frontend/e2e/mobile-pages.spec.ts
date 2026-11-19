@@ -124,7 +124,7 @@ test.describe("Phone width: pages fit the viewport", () => {
         overflowX: getComputedStyle(el).overflowX,
       }),
     );
-    expect(overflowX).toBe("auto");
+    expect(overflowX).toBe("clip");
     expect(scrollWidth).toBeGreaterThanOrEqual(clientWidth);
     expect(await pageScrollWidth(page)).toBe(PHONE_WIDTH);
 
