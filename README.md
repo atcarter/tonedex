@@ -111,7 +111,7 @@ flowchart LR
 - **tonedex-db** is PostgreSQL 15. **tonedex-redis** is a Key Value instance on the free plan with the `noeviction` policy, so Sidekiq jobs are never evicted. Neither accepts external connections.
 - **tonedex-backend** is the env group the api and worker share: `DATABASE_URL`, `REDIS_URL`, the secrets, `CORS_ORIGINS` and `ALLOWED_HOSTS`.
 
-Render deploys a commit on `main` only after its GitHub checks pass (`ci.yml` and `terraform.yml`), so a failing commit never reaches production. The first production seed copied the development `api_caches` table into the production database, so seeding made no PokeAPI calls.
+Render deploys a commit on `main` only after its GitHub checks pass (`ci.yml`, `terraform.yml` and `security.yml`), so a failing commit never reaches production. The first production seed copied the development `api_caches` table into the production database, so seeding made no PokeAPI calls.
 
 ## Security
 
@@ -121,7 +121,8 @@ Render deploys a commit on `main` only after its GitHub checks pass (`ci.yml` an
 - **Rate limiting:** Rack::Attack throttles the API, auth and search routes per IP.
 - **Static-site headers:** `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and an enforcing Content Security Policy that blocks anything it doesn't allow. [infra/render/README.md](infra/render/README.md#content-security-policy) explains each source.
 - **Private data stores:** Postgres and Key Value accept connections only from Render's private network.
-- **Scanning:** CI runs Brakeman on the Rails code, bundler-audit on the gems, gitleaks on the git history and Trivy on the production image and infrastructure config for every pull request and push to `main`. GitHub secret scanning is on for the repository, and Dependabot opens weekly update pull requests for the gems, npm packages, GitHub Actions and the backend's Ruby base image.
+- **Scanning:** CI runs Brakeman on the Rails code, bundler-audit on the gems, gitleaks on the git history and Trivy on the production image and infrastructure config for every pull request and push to `main`, and the gitleaks and Trivy scans are required checks on `main`. CodeQL scans the Ruby, TypeScript and workflow code. Workflow actions are pinned to commit SHAs. GitHub secret scanning is on for the repository, and Dependabot opens weekly update pull requests for the gems, npm packages, GitHub Actions and the backend's Ruby base image. It waits a week before proposing a new npm, gem or Actions release; security updates are exempt.
+- **Reporting:** see [SECURITY.md](SECURITY.md) for how to report a vulnerability privately.
 
 ## Disclaimer
 

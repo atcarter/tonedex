@@ -106,7 +106,7 @@ All env vars come from `.env.local` at the **project root**, loaded by Docker Co
 
 ## Conventions
 
-- **Commits** go straight to `main` with a conventional prefix (`feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `ci`), a subject that says what changed, bullets for the why, and a `Co-Authored-By:` trailer for agent-assisted work. CI must be green: standardrb, RSpec, Brakeman, bundler-audit, tsc, ESLint, Prettier, Vitest, the build and Playwright.
+- **Commits** go straight to `main` with a conventional prefix (`feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `ci`), a subject that says what changed, bullets for the why, and a `Co-Authored-By:` trailer for agent-assisted work. CI must be green: standardrb, RSpec, Brakeman, bundler-audit, gitleaks, Trivy, tsc, ESLint, Prettier, Vitest, the build and Playwright.
 - **Styling**: styled-components over MUI `sx`; both consume the shared theme (`ThemedApp.tsx`, `styled.d.ts`). Brand colors (type badges, stat bars, the AppBar red) stay fixed across color modes; everything else uses palette tokens.
 - **Change size**: keep diffs surgical: touch only what the task needs, with no drive-by refactors, renames or reformatting.
 - **Make the change easy, then make the easy change.** When a change is awkward to make cleanly, land a refactor that changes no behavior first, in its own commit, then make the change on top of it.
