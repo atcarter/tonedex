@@ -17,7 +17,7 @@ import { useCaughtPokemons } from "../hooks/useCaughtPokemons";
 import { useCaughtMutations } from "../hooks/useCaughtMutations";
 import { TypeBadge } from "./TypeBadge";
 import { MythicalTag } from "./MythicalTag";
-import { formatName } from "../utils/formatters";
+import { formatDexNumber, formatName } from "../utils/formatters";
 
 interface PokemonCardProps {
   pokemon: Pokemon;
@@ -286,9 +286,7 @@ export function PokemonCard({
       )}
 
       {pokemon.pokedex_number && (
-        <PokedexNum>
-          #{String(pokemon.pokedex_number).padStart(3, "0")}
-        </PokedexNum>
+        <PokedexNum>{formatDexNumber(pokemon.pokedex_number)}</PokedexNum>
       )}
       {spriteFailed ? (
         <SpriteFallback title={pokemon.name}>

@@ -1,5 +1,6 @@
 import {
   formatName,
+  formatDexNumber,
   formatStatName,
   formatEvolutionDetails,
 } from "./formatters";
@@ -19,6 +20,17 @@ describe("formatName", () => {
 
   it("returns an empty string unchanged", () => {
     expect(formatName("")).toBe("");
+  });
+});
+
+describe("formatDexNumber", () => {
+  it("pads to three digits", () => {
+    expect(formatDexNumber(1)).toBe("#001");
+    expect(formatDexNumber(1025)).toBe("#1025");
+  });
+
+  it("keeps zero, Victini's number in Black and White", () => {
+    expect(formatDexNumber(0)).toBe("#000");
   });
 });
 
