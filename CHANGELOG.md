@@ -15,7 +15,7 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 ### CI/Security
 - **Security:** every `uses:` in `.github/workflows/` is pinned to the full commit SHA of the release it ran before, with the version in a trailing comment so Dependabot updates both. GitHub-owned actions are pinned too. No action changes version.
 - **Security:** `ci.yml` declares `permissions: contents: read`, like the other three workflows. The repository default is already read-only, so nothing changes unless that default does.
-- **Security:** Dependabot waits 7 days (`cooldown`) before proposing a new npm, gem or GitHub Actions release, so a malicious release that's pulled within days never reaches an auto-merged PR. The Docker base image has no cooldown block, and cooldown never delays security updates.
+- **Security:** Dependabot waits 7 days (`cooldown`) before proposing a new npm, gem or GitHub Actions release, so a malicious release that's pulled within days never reaches an auto-merged PR. The Docker base image's cooldown is set to 0 days, overriding Dependabot's implicit 3-day default, because its tags are rebuilt for Debian security fixes that don't arrive as security updates. Cooldown never delays security updates.
 - **New:** `SECURITY.md` covers scope, private vulnerability reporting, supported versions and what to expect.
 - The repository settings changed the same day: `gitleaks`, `trivy-image` and `trivy-config` became required checks on `main`, CodeQL default setup was turned on, and private vulnerability reporting was enabled.
 
