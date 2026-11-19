@@ -5,6 +5,7 @@ import {
   mockAuthenticatedRoutes,
   mockPublicGameRoutes,
   seedAuthState,
+  touchDrag,
 } from "./fixtures";
 
 // 375px with touch: no page scrolls sideways; favorites reorder by tap and drag.
@@ -89,30 +90,8 @@ async function pageScrollWidth(page: Page) {
   return page.evaluate(() => document.documentElement.scrollWidth);
 }
 
-type Point = { x: number; y: number };
-
 function centre(box: { x: number; y: number; width: number; height: number }) {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-}
-
-// Real touch input (Playwright's touchscreen only taps); release() lifts the finger
-async function touchDrag(page: Page, from: Point, to: Point) {
-  const cdp = await page.context().newCDPSession(page);
-  const touch = (type: string, p?: Point) =>
-    cdp.send("Input.dispatchTouchEvent", {
-      type,
-      touchPoints: p ? [{ ...p, id: 1 }] : [],
-    });
-  await touch("touchStart", from);
-  const steps = 12;
-  for (let i = 1; i <= steps; i++) {
-    await touch("touchMove", {
-      x: from.x + ((to.x - from.x) * i) / steps,
-      y: from.y + ((to.y - from.y) * i) / steps,
-    });
-    await page.waitForTimeout(16);
-  }
-  return { release: () => touch("touchEnd") };
 }
 
 test.describe("Phone width: pages fit the viewport", () => {
