@@ -108,5 +108,9 @@ All env vars come from `.env.local` at the **project root**, loaded by Docker Co
 
 - **Commits** go straight to `main` with a conventional prefix (`feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `ci`), a subject that says what changed, bullets for the why, and a `Co-Authored-By:` trailer for agent-assisted work. CI must be green: standardrb, RSpec, Brakeman, bundler-audit, tsc, ESLint, Prettier, Vitest, the build and Playwright.
 - **Styling**: styled-components over MUI `sx`; both consume the shared theme (`ThemedApp.tsx`, `styled.d.ts`). Brand colors (type badges, stat bars, the AppBar red) stay fixed across color modes; everything else uses palette tokens.
+- **Change size**: keep diffs surgical: touch only what the task needs, with no drive-by refactors, renames or reformatting.
+- **Make the change easy, then make the easy change.** When a change is awkward to make cleanly, land a refactor that changes no behavior first, in its own commit, then make the change on top of it.
+- **The second time sets the pattern.** Before adding something, look for an existing hook, component, service or ADR that already does it, and follow it rather than starting a parallel one. When something special is needed a second time, extract the shared helper, component or hook (or record an ADR) instead of copying the first one-off.
+- **Comments** are one short line where possible and say why, never restating the code.
 - **Docs**: a change to architecture, auth, data flow or a significant decision gets a dated entry at the top of `CHANGELOG.md` and a new or updated ADR in `docs/adr/` (sequential numbers; a superseded ADR gets a status note, not a rewrite). Keep ARCHITECTURE.md matching the code.
 - **No planning in the repo.** Backlog items, roadmap notes and runbooks live outside it; don't add them to docs, the CHANGELOG or commit messages.
