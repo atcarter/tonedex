@@ -56,7 +56,7 @@ export function AppHeader() {
 const OverscrollFill = styled.div`
   /* Chromium paints overscroll only from a sticky box the fill overlaps */
   position: sticky;
-  top: 0;
+  top: -1px;
   height: 1px;
   margin-bottom: -1px;
 

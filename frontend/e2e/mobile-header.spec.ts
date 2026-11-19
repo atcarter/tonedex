@@ -137,6 +137,16 @@ test.describe("Phone header", () => {
     await expect
       .poll(async () => (await headerRect(page)).bottom)
       .toBeLessThanOrEqual(0);
+    // No inset here, so nothing may leave a red row at the screen top
+    const fillColumns = await page.evaluate(() => {
+      const strip = document.querySelector("header")!.previousElementSibling!;
+      const fill = strip.previousElementSibling!;
+      const columns: number[] = [];
+      for (let x = 0; x < innerWidth; x++)
+        if (document.elementFromPoint(x, 0) === fill) columns.push(x);
+      return columns;
+    });
+    expect(fillColumns).toEqual([]);
 
     await page.evaluate(() => window.scrollBy(0, -100));
     await expect.poll(async () => (await headerRect(page)).top).toBe(0);
