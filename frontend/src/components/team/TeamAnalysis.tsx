@@ -1,11 +1,11 @@
 import styled from "styled-components";
 import Paper from "@mui/material/Paper";
-import type { Theme } from "@mui/material/styles";
 import type { Pokemon } from "../../types";
 import { memberDefense, offensiveCoverage } from "../../utils/teamAnalysis";
-import type { DefenseMultiplier } from "../../utils/teamAnalysis";
 import { formatName } from "../../utils/formatters";
 import { TypeBadge } from "../TypeBadge";
+import { DefenseTierList } from "../DefenseTierList";
+import { readable } from "../tierColors";
 
 const SectionPaper = styled(Paper)`
   padding: 20px 24px !important;
@@ -16,14 +16,6 @@ const SectionPaper = styled(Paper)`
     padding: 16px !important;
   }
 `;
-
-type TierColor = "error" | "success" | "info";
-
-// The mode's stronger shade keeps text above 4.5:1 on the paper
-const readable = (theme: Theme, color: TierColor) =>
-  theme.palette.mode === "dark"
-    ? theme.palette[color].light
-    : theme.palette[color].dark;
 
 const SectionTitle = styled.div`
   font-size: 0.78rem;
@@ -124,45 +116,6 @@ const MemberTypes = styled.div`
   gap: 4px;
 `;
 
-const TierRow = styled.div`
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
-  align-items: start;
-  gap: 8px;
-
-  & + & {
-    margin-top: 6px;
-  }
-`;
-
-const TierLabel = styled.span<{ $color: TierColor }>`
-  font-size: 0.85rem;
-  font-weight: 800;
-  line-height: 20px;
-  color: ${({ theme, $color }) => readable(theme, $color)};
-`;
-
-const TierTypes = styled.ul`
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-`;
-
-// Visible symbol plus spoken text, so screen readers don't read bare symbols
-const TIERS: Record<
-  DefenseMultiplier,
-  { symbol: string; label: string; color: TierColor }
-> = {
-  4: { symbol: "4×", label: "4 times damage from", color: "error" },
-  2: { symbol: "2×", label: "2 times damage from", color: "error" },
-  0.5: { symbol: "½×", label: "Half damage from", color: "success" },
-  0.25: { symbol: "¼×", label: "Quarter damage from", color: "success" },
-  0: { symbol: "0×", label: "Immune to", color: "info" },
-};
-
 function MemberDefense({ member }: { member: Pokemon }) {
   const tiers = memberDefense(member);
   return (
@@ -186,23 +139,7 @@ function MemberDefense({ member }: { member: Pokemon }) {
           </MemberTypes>
         </MemberTitle>
       </MemberHeader>
-      {tiers.map(({ multiplier, types }) => {
-        const tier = TIERS[multiplier];
-        return (
-          <TierRow key={multiplier}>
-            <TierLabel $color={tier.color} aria-hidden="true">
-              {tier.symbol}
-            </TierLabel>
-            <TierTypes aria-label={tier.label}>
-              {types.map((type) => (
-                <li key={type}>
-                  <TypeBadge type={type} size="small" />
-                </li>
-              ))}
-            </TierTypes>
-          </TierRow>
-        );
-      })}
+      <DefenseTierList tiers={tiers} />
     </MemberEntry>
   );
 }

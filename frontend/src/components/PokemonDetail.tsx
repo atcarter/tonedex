@@ -22,6 +22,7 @@ import { EvolutionChain } from "./pokemon/EvolutionChain";
 import { MoveTable } from "./pokemon/MoveTable";
 import { AbilityList } from "./pokemon/AbilityList";
 import { Encounters } from "./pokemon/EncounterList";
+import { TypeMatchups } from "./pokemon/TypeMatchups";
 import { AboutItem, AboutLabel } from "./pokemon/aboutStyles";
 import { TypeBadge } from "./TypeBadge";
 import { formatName } from "../utils/formatters";
@@ -455,6 +456,15 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
           </AboutGrid>
         </SectionPaper>
       )}
+
+      <SectionPaper elevation={1}>
+        <SectionTitle>Type Matchups</SectionTitle>
+        <TypeMatchups
+          types={details.types}
+          abilities={species?.abilities ?? null}
+          generation={game?.generation ?? null}
+        />
+      </SectionPaper>
 
       <SectionPaper elevation={1}>
         <SectionTitle>Evolution Chain</SectionTitle>

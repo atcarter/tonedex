@@ -1,25 +1,11 @@
 import { ALL_TYPES, effectivenessAgainst } from "../constants/typeChart";
+import { defenseTiers } from "./typeDefense";
+import type { DefenseTier } from "./typeDefense";
 import type { Pokemon } from "../types";
 
-// Defensive tiers in display order; 1× is left out.
-export const DEFENSE_TIERS = [4, 2, 0.5, 0.25, 0] as const;
-export type DefenseMultiplier = (typeof DEFENSE_TIERS)[number];
-
-// The attacking types that hit a member for one multiplier.
-export interface DefenseTier {
-  multiplier: DefenseMultiplier;
-  types: string[]; // chart order
-}
-
-// One member's non-neutral matchups, empty tiers omitted.
+// One member's non-neutral matchups on the modern chart.
 export function memberDefense(member: Pokemon): DefenseTier[] {
-  return DEFENSE_TIERS.map((multiplier) => ({
-    multiplier,
-    types: ALL_TYPES.filter(
-      (attackType) =>
-        effectivenessAgainst(attackType, member.types) === multiplier,
-    ),
-  })).filter((tier) => tier.types.length > 0);
+  return defenseTiers(member.types);
 }
 
 // Which defending types the team can hit super-effectively with STAB

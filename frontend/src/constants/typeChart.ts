@@ -1,10 +1,6 @@
 // Gen 6+ type effectiveness chart: TYPE_CHART[attacker][defender] gives the
-// damage multiplier; matchups not listed are neutral (1×).
-//
-// Simplification: this is the modern chart for every game. Older generations
-// differ slightly (no Fairy before Gen VI, no Dark/Steel before Gen II) —
-// member types are already generation-adjusted by the API, but the matchup
-// table itself is not.
+// damage multiplier; matchups not listed are neutral (1×). Pass a generation
+// to the functions below for an older game's chart; the team builder doesn't.
 export const TYPE_CHART: Record<string, Record<string, number>> = {
   normal: { rock: 0.5, ghost: 0, steel: 0.5 },
   fire: {
@@ -134,14 +130,61 @@ export const TYPE_CHART: Record<string, Record<string, number>> = {
 
 export const ALL_TYPES = Object.keys(TYPE_CHART);
 
+type Change = [attacker: string, defender: string, multiplier: number];
+
+// Gen 2–5: Steel also resisted Ghost and Dark.
+const GEN_2_TO_5: Change[] = [
+  ["ghost", "steel", 0.5],
+  ["dark", "steel", 0.5],
+];
+
+// Gen 1 on top of those
+const GEN_1: Change[] = [
+  ["bug", "poison", 2],
+  ["poison", "bug", 2],
+  ["ghost", "psychic", 0],
+  ["ice", "fire", 1],
+];
+
+function withChanges(changes: Change[]) {
+  const chart = Object.fromEntries(
+    Object.entries(TYPE_CHART).map(([type, row]) => [type, { ...row }]),
+  );
+  for (const [attacker, defender, multiplier] of changes) {
+    chart[attacker][defender] = multiplier;
+  }
+  return chart;
+}
+
+const GEN_2_TO_5_CHART = withChanges(GEN_2_TO_5);
+const GEN_1_CHART = withChanges([...GEN_2_TO_5, ...GEN_1]);
+
+// null, or a generation outside 1–5, means the modern chart
+const isOlder = (generation?: number | null): generation is number =>
+  generation != null && generation >= 1 && generation < 6;
+
+function chartFor(generation?: number | null) {
+  if (!isOlder(generation)) return TYPE_CHART;
+  return generation === 1 ? GEN_1_CHART : GEN_2_TO_5_CHART;
+}
+
+// The types that exist in a generation: Dark and Steel from Gen 2, Fairy from Gen 6.
+export function typesInGeneration(generation?: number | null): string[] {
+  if (!isOlder(generation)) return ALL_TYPES;
+  const missing = generation === 1 ? ["dark", "steel", "fairy"] : ["fairy"];
+  return ALL_TYPES.filter((type) => !missing.includes(type));
+}
+
 // Combined multiplier for one attacking type against a (mono or dual) typing.
 export function effectivenessAgainst(
   attackType: string,
   defendTypes: string[],
+  generation?: number | null,
 ): number {
+  const chart = chartFor(generation);
   return defendTypes.reduce(
     (multiplier, defendType) =>
-      multiplier * (TYPE_CHART[attackType]?.[defendType] ?? 1),
+      multiplier * (chart[attackType]?.[defendType] ?? 1),
     1,
   );
 }
