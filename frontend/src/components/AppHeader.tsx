@@ -36,15 +36,38 @@ export function AppHeader() {
   // noSsr: match on first render so phones never flash the desktop header
   const isPhone = useMediaQuery(theme.breakpoints.down("sm"), { noSsr: true });
 
-  return isPhone ? (
+  return (
     <>
-      <StatusBarStrip />
-      <PhoneHeader />
+      <OverscrollFill />
+      {isPhone ? (
+        <>
+          <StatusBarStrip />
+          <PhoneHeader />
+        </>
+      ) : (
+        <DesktopHeader />
+      )}
     </>
-  ) : (
-    <DesktopHeader />
   );
 }
+
+// Top overscroll (iOS rubber-band, trackpad bounce) shows red above the header.
+// Not on the sliding bar: Safari skips painting the slide if the bar overflows.
+const OverscrollFill = styled.div`
+  /* Chromium paints overscroll only from a sticky box the fill overlaps */
+  position: sticky;
+  top: -1px;
+  height: 1px;
+  margin-bottom: -1px;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: auto 0 0;
+    height: 100vh;
+    background: ${({ theme }) => theme.palette.primary.main};
+  }
+`;
 
 // Keeps the notch red while the phone bar is slid away
 const StatusBarStrip = styled.div`
@@ -55,20 +78,16 @@ const StatusBarStrip = styled.div`
   z-index: 1202;
 `;
 
-const PhoneAppBar = styled(AppBar)`
+// Shorthand drops the dark-mode Paper overlay so the bar matches the fill and strip
+const BrandAppBar = styled(AppBar)`
   && {
-    padding-top: env(safe-area-inset-top);
-    /* Shorthand drops the dark-mode Paper overlay so the bar matches the strip */
     background: ${({ theme }) => theme.palette.primary.main};
   }
+`;
 
-  /* iOS top overscroll pulls the bar down; show red above it, not the page */
-  &::before {
-    content: "";
-    position: absolute;
-    inset: auto 0 100%;
-    height: 100vh;
-    background: inherit;
+const PhoneAppBar = styled(BrandAppBar)`
+  && {
+    padding-top: env(safe-area-inset-top);
   }
 `;
 
@@ -105,7 +124,7 @@ function DesktopHeader() {
   const { colorMode, toggleColorMode } = useUi();
 
   return (
-    <AppBar position="sticky" sx={{ bgcolor: "primary.main", zIndex: 1201 }}>
+    <BrandAppBar position="sticky" sx={{ zIndex: 1201 }}>
       <Toolbar sx={{ gap: 2, flexWrap: "wrap", minHeight: "64px" }}>
         <Logo />
         <Box sx={{ flexShrink: 0 }}>
@@ -134,7 +153,7 @@ function DesktopHeader() {
           <AuthButton />
         </Box>
       </Toolbar>
-    </AppBar>
+    </BrandAppBar>
   );
 }
 

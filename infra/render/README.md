@@ -143,7 +143,7 @@ default-src 'self'; script-src 'self' https://accounts.google.com; frame-src htt
 Why each non-`'self'` source is there:
 
 - **`https://accounts.google.com`** in `script-src`, `frame-src`, `connect-src` and `style-src`: Google Identity Services loads its script, sign-in iframe, token requests and stylesheet from there.
-- **`'unsafe-inline'` in `style-src`**: styled-components and MUI inject `<style>` tags at runtime.
+- **`'unsafe-inline'` in `style-src`**: styled-components and MUI inject `<style>` tags at runtime, and `index.html` has an inline `<style>` for the page color before the app mounts. Scripts get no such exception, so its color-mode script is the same-origin `public/color-mode.js`.
 - **`https://raw.githubusercontent.com`** in `img-src`: the sprite fallback for anything not mirrored under `backend/public/sprites/`.
 - **`https://*.googleusercontent.com`** in `img-src`: serves the signed-in user's avatar.
 - **The api URL** in `img-src`: the API serves the mirrored sprites from `backend/public/sprites`.

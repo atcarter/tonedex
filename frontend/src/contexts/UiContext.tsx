@@ -19,6 +19,7 @@ export const UiContext = createContext<UiContextValue | null>(null);
 
 const COLOR_MODE_KEY = "pokedex_color_mode";
 
+// public/color-mode.js repeats this key and fallback for the pre-mount page color
 function loadColorMode(): ColorMode {
   const stored = localStorage.getItem(COLOR_MODE_KEY);
   if (stored === "dark" || stored === "light") return stored;

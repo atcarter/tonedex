@@ -137,9 +137,30 @@ test.describe("Phone header", () => {
     await expect
       .poll(async () => (await headerRect(page)).bottom)
       .toBeLessThanOrEqual(0);
+    // No inset here, so nothing may leave a red row at the screen top
+    const fillColumns = await page.evaluate(() => {
+      const strip = document.querySelector("header")!.previousElementSibling!;
+      const fill = strip.previousElementSibling!;
+      const columns: number[] = [];
+      for (let x = 0; x < innerWidth; x++)
+        if (document.elementFromPoint(x, 0) === fill) columns.push(x);
+      return columns;
+    });
+    expect(fillColumns).toEqual([]);
 
     await page.evaluate(() => window.scrollBy(0, -100));
     await expect.poll(async () => (await headerRect(page)).top).toBe(0);
+  });
+
+  test("the sliding bar paints nothing outside its box", async ({ page }) => {
+    // Safari skips painting the slide when the bar carries an overflowing pseudo
+    await page.goto("/game/scarlet");
+    const pseudos = await page
+      .locator("header")
+      .evaluate((el) =>
+        ["::before", "::after"].map((p) => getComputedStyle(el, p).content),
+      );
+    expect(pseudos).toEqual(["none", "none"]);
   });
 
   test("signed out, Google's sign-in renders only inside the account menu", async ({
@@ -167,9 +188,9 @@ for (const colorScheme of ["light", "dark"] as const) {
     const nonRedRows = (page: Page) =>
       page.evaluate(() => {
         const header = document.querySelector("header")!;
-        // The status-bar strip renders just before the header
+        // The status-bar strip renders just before the header, the fill before it
         const strip = header.previousElementSibling!;
-        const headerTop = header.getBoundingClientRect().top;
+        const fill = strip.previousElementSibling!;
         const toolbarTop = header
           .querySelector(".MuiToolbar-root")!
           .getBoundingClientRect().top;
@@ -177,13 +198,15 @@ for (const colorScheme of ["light", "dark"] as const) {
         const rows: string[] = [];
         for (let y = 0; y < end; y++) {
           const hit = document.elementFromPoint(200, y);
-          // Above the header's box, a header hit is its ::before
+          // A fill hit is its ::before
           const style =
             hit === strip
               ? getComputedStyle(strip)
-              : hit && header.contains(hit)
-                ? getComputedStyle(header, y < headerTop ? "::before" : null)
-                : null;
+              : hit === fill
+                ? getComputedStyle(fill, "::before")
+                : hit && header.contains(hit)
+                  ? getComputedStyle(header)
+                  : null;
           const paint = style
             ? `${style.backgroundColor} ${style.backgroundImage}`
             : hit?.tagName;
@@ -241,11 +264,12 @@ for (const colorScheme of ["light", "dark"] as const) {
     test("a top overscroll shows red above the bar, not the page", async ({
       page,
     }) => {
-      // Chromium can't rubber-band; pull the bar below the strip as iOS does
+      // Chromium on Linux can't rubber-band; pull the page down as iOS does
       const PULL = 100;
-      await page
-        .locator("header")
-        .evaluate((el, pull) => (el.style.translate = `0 ${pull}px`), PULL);
+      await page.evaluate(
+        (pull) => (document.body.style.translate = `0 ${pull}px`),
+        PULL,
+      );
       expect(await nonRedRows(page)).toEqual([]);
       expect((await toolbarRect(page)).top).toBe(INSET_TOP + PULL);
     });
@@ -269,5 +293,33 @@ test.describe("Desktop header", () => {
     await expect(search).toBeVisible();
     const toolbar = await page.locator("header .MuiToolbar-root").boundingBox();
     expect(toolbar?.height).toBe(64);
+  });
+
+  test("a top overscroll shows red above the bar, not the page", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await mockPublicGameRoutes(page);
+    await page.goto("/game/scarlet");
+    await expect(page.getByLabel("search pokemon")).toBeVisible();
+
+    // Chromium on Linux can't bounce; pull the page down as a trackpad does
+    await page.evaluate(() => (document.body.style.translate = "0 100px"));
+    const paints = await page.evaluate(() => {
+      const header = document.querySelector("header")!;
+      const fill = header.previousElementSibling!;
+      const seen = new Set<string>();
+      for (let y = 0; y < header.getBoundingClientRect().bottom; y++) {
+        const hit = document.elementFromPoint(640, y)!;
+        const style =
+          hit === fill
+            ? getComputedStyle(fill, "::before")
+            : getComputedStyle(header.contains(hit) ? header : hit);
+        seen.add(`${style.backgroundColor} ${style.backgroundImage}`);
+      }
+      return [...seen];
+    });
+    // Solid primary.main above and through the bar, in dark mode too
+    expect(paints).toEqual(["rgb(204, 0, 0) none"]);
   });
 });
