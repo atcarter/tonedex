@@ -82,6 +82,10 @@ The URL is the source of truth for the selected game (ADR-005). The game segment
 
 Switching games keeps the current page where it can: the team builder stays on `/game/<new>/team`, and a detail page stays on that Pokémon when the detail endpoint returns a `pokedex_number` for it in the new game (fetched under the detail page's own query key, so it renders from cache); otherwise the switch goes to the new game's dex. The `?dex=` view carries over.
 
+### Navigation
+
+`App.tsx` acts on every path change. A push or replace starts the new page at the top; Back and Forward (`POP`) keep the offset the browser restores. Search-only changes (`?dex=`, `?loaded=`) don't scroll. Focus then moves to `<main>`, except on the first load.
+
 ### Query Key Conventions
 
 ```

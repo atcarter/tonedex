@@ -1,6 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import styled from "styled-components";
-import { Routes, Route, useLocation } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  useLocation,
+  useNavigationType,
+} from "react-router-dom";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
 import { useUi } from "./hooks/useUi";
@@ -47,8 +52,18 @@ const EmptyState = styled.div`
 function App() {
   const { toast, clearToast } = useUi();
   const { pathname } = useLocation();
+  const navigationType = useNavigationType();
   const mainRef = useRef<HTMLElement>(null);
   const isFirstRender = useRef(true);
+  const scrolledFor = useRef(pathname);
+
+  // A new page starts at the top; Back and Forward keep the offset the browser
+  // restores. Keyed on the path, so ?dex= and ?loaded= changes don't scroll.
+  useLayoutEffect(() => {
+    if (scrolledFor.current === pathname) return;
+    scrolledFor.current = pathname;
+    if (navigationType !== "POP") window.scrollTo(0, 0);
+  }, [pathname, navigationType]);
 
   // Move focus to the main region on navigation so keyboard and screen-reader
   // users land on the new content instead of a now-removed element. Skipped on
