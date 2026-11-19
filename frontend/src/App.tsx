@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import styled from "styled-components";
 import {
   Routes,
@@ -51,30 +51,25 @@ const EmptyState = styled.div`
 
 function App() {
   const { toast, clearToast } = useUi();
-  const { pathname } = useLocation();
+  const { pathname, state } = useLocation();
   const navigationType = useNavigationType();
   const mainRef = useRef<HTMLElement>(null);
-  const isFirstRender = useRef(true);
-  const scrolledFor = useRef(pathname);
+  const handledPath = useRef(pathname);
 
-  // A new page starts at the top; Back and Forward keep the offset the browser
-  // restores. Keyed on the path, so ?dex= and ?loaded= changes don't scroll.
+  // Runs once per new path, skipping the initial load (the browser's defaults
+  // are right there), so ?dex= and ?loaded= changes neither scroll nor refocus.
   useLayoutEffect(() => {
-    if (scrolledFor.current === pathname) return;
-    scrolledFor.current = pathname;
-    if (navigationType !== "POP") window.scrollTo(0, 0);
-  }, [pathname, navigationType]);
-
-  // Move focus to the main region on navigation so keyboard and screen-reader
-  // users land on the new content instead of a now-removed element. Skipped on
-  // initial load (the browser's default focus is correct there).
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
+    if (handledPath.current === pathname) return;
+    handledPath.current = pathname;
+    const pop = navigationType === "POP";
+    // A new page starts at the top; Back and Forward keep the restored offset
+    if (!pop) window.scrollTo(0, 0);
+    // Previous and Next keep focus on the control that was pressed
+    if (!pop && (state as { neighbor?: string } | null)?.neighbor) return;
+    // Keyboard and screen-reader users land on the new content instead of a
+    // now-removed element
     mainRef.current?.focus({ preventScroll: true });
-  }, [pathname]);
+  }, [pathname, navigationType, state]);
 
   return (
     <Layout>

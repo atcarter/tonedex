@@ -84,14 +84,14 @@ Switching games keeps the current page where it can: the team builder stays on `
 
 ### Navigation
 
-`App.tsx` acts on every path change. A push or replace starts the new page at the top; Back and Forward (`POP`) keep the offset the browser restores. Search-only changes (`?dex=`, `?loaded=`) don't scroll. Focus then moves to `<main>`, except on the first load.
+`App.tsx` acts on every path change. A push or replace starts the new page at the top; Back and Forward (`POP`) keep the offset the browser restores. Search-only changes (`?dex=`, `?loaded=`) don't scroll. Focus then moves to `<main>`, except on the first load and after a previous/next move (`state.neighbor`), which keeps focus on the pressed control.
 
 ### Query Key Conventions
 
 ```
 ["games"]                     — games list
 ["game", gameId, dex]         — single game + paginated pokémon (infinite query); dex is "regional" | "national"
-["pokemon", name, gameId?, dex] — pokémon detail; dex picks the number shown
+["pokemon", name, gameId?, dex] — pokémon detail; dex picks the number shown and the neighbors; prefetched for both neighbors
 ["move", name]                — move detail (fetched lazily when a row expands)
 ["encounters", pokemonId, gameId] — where to catch it in a game (polls every 5s while pending)
 ["suggestions", query]        — as-you-type search suggestions (staleTime: 5 min)
@@ -153,6 +153,9 @@ The detail page's Type Matchups section is computed in the SPA from the response
 A detail page can move to the Pokémon before or after it (ADR-012).
 
 - **Dex view:** `GET /api/v1/pokemon/:id?game_id=&dex=` returns `neighbors: {previous, next}` in the list row shape. `DexView` (`app/models/dex_view.rb`) is the one definition of a game's regional or national view, its members and their order, read by both `GamesController#show` and this lookup, so "next" is the next card in the list. Each is `null` at an end; both are `null` without `game_id`, outside the view, and in an unstamped national view. It reads the database only.
+- **One move:** `PokemonPager` (rendered by `PokemonDetailPage` once the games list has loaded) gets the neighbors from `useNeighbors` and moves with `go()`, which the Previous/Next buttons (`NeighborNav`) and the left/right arrow keys call. It navigates with `replace` and `state.neighbor`, so Back returns to the list in one step, and `App.tsx` keeps focus on the pressed button. The buttons are `aria-disabled` at an end and stay mounted while the next Pokémon loads; a live region names the Pokémon moved to. Phones show the number only.
+- **Prefetch:** 250ms after a page settles, both neighbors' details are prefetched under the page's own query key (`pokemonQueryOptions`) and their sprites warmed. Encounters aren't prefetched.
+- **Where it shows:** on a game route whose response names a neighbor. No wrap-around; a list type filter isn't followed; a response without `neighbors` shows no controls.
 
 ---
 
@@ -251,3 +254,4 @@ The api, worker, database and Key Value all run in region ohio; the database and
 | 009 | A per-game national view built from learnsets and every version-group dex |
 | 010 | Encounter locations read cache-only, warmed by a job and settled per game |
 | 011 | Type matchups computed in the SPA, per generation, with one ability folded in |
+| 012 | Previous and next on the detail page: neighbors from the API, one replacing move |
