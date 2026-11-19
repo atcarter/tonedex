@@ -32,8 +32,12 @@ class PokeapiClient
     fetch("/pokemon/#{name_or_id}")
   end
 
-  def pokemon_species(name_or_id)
-    fetch("/pokemon-species/#{name_or_id}")
+  def pokemon_encounters(id, cache_only: false)
+    fetch("/pokemon/#{id}/encounters", cache_only: cache_only)
+  end
+
+  def pokemon_species(name_or_id, cache_only: false)
+    fetch("/pokemon-species/#{name_or_id}", cache_only: cache_only)
   end
 
   def move(name_or_id)
@@ -52,8 +56,8 @@ class PokeapiClient
     fetch("/pokedex/#{name_or_id}")
   end
 
-  def evolution_chain(id)
-    fetch("/evolution-chain/#{id}")
+  def evolution_chain(id, cache_only: false)
+    fetch("/evolution-chain/#{id}", cache_only: cache_only)
   end
 
   def evolution_trigger(name_or_id)

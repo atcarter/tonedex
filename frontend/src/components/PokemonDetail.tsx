@@ -21,6 +21,7 @@ import { StatBars } from "./pokemon/StatBars";
 import { EvolutionChain } from "./pokemon/EvolutionChain";
 import { MoveTable } from "./pokemon/MoveTable";
 import { AbilityList } from "./pokemon/AbilityList";
+import { Encounters } from "./pokemon/EncounterList";
 import { AboutItem, AboutLabel } from "./pokemon/aboutStyles";
 import { TypeBadge } from "./TypeBadge";
 import { formatName } from "../utils/formatters";
@@ -468,6 +469,18 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
         <SectionTitle>Base Stats</SectionTitle>
         <StatBars baseStats={details.base_stats} />
       </SectionPaper>
+
+      {game && (
+        <SectionPaper elevation={1}>
+          <SectionTitle>Where to Catch It</SectionTitle>
+          <Encounters
+            key={details.name}
+            pokemonId={details.id}
+            game={game}
+            onSelect={handleEvoClick}
+          />
+        </SectionPaper>
+      )}
 
       {game && (
         <SectionPaper elevation={1}>

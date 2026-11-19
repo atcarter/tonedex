@@ -75,6 +75,15 @@ RSpec.describe PokeapiClient do
     end
   end
 
+  describe "#pokemon_encounters" do
+    it "reads the Pokémon's encounters endpoint, cache-only on request" do
+      allow(cache).to receive(:fetch).with("/pokemon/25/encounters").and_return([])
+
+      expect(HTTParty).not_to receive(:get)
+      expect(client.pokemon_encounters(25, cache_only: true)).to eq([])
+    end
+  end
+
   describe "retry behaviour" do
     it "retries transient network errors and succeeds" do
       ok = response_double(code: 200, body: {"name" => "pikachu"})

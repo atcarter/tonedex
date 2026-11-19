@@ -66,6 +66,10 @@ class PokemonImporter
     game.update_columns(national_seeded_at: at)
   end
 
+  def mark_encounters_available(game, available)
+    game.update_columns(encounters_available: available)
+  end
+
   private
 
   def find_or_create_link(pokemon, game, **attributes)

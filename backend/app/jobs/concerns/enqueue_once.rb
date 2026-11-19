@@ -12,6 +12,10 @@ module EnqueueOnce
       perform_later(*args, **kwargs) if acquired
     end
 
+    def locked?(*args, **kwargs)
+      Sidekiq.redis { |redis| redis.exists(lock_key(*args, **kwargs)) }.to_i.positive?
+    end
+
     def release_lock(*args, **kwargs)
       Sidekiq.redis { |redis| redis.del(lock_key(*args, **kwargs)) }
     end

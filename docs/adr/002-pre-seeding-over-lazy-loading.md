@@ -14,6 +14,9 @@
 > **Status note (2026-11-05, abilities):** the detail page's ability text is read with `PokeapiClient`'s `cache_only:` option, which
 > returns nil on a miss instead of fetching, so it is not a third runtime path. The seed jobs warm `/ability/*`, and
 > `rails pokedex:warm_abilities` backfills games seeded earlier.
+>
+> **Status note (2026-11-17, encounters):** the detail page's encounter locations are read cache-only too. A miss enqueues
+> `WarmEncountersJob` (one Redis lock per game) and the SPA polls, as for a game's first visit (ADR-010).
 
 ## Context
 

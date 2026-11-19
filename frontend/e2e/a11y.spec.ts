@@ -71,8 +71,33 @@ function json(body: unknown) {
   };
 }
 
+// Enough rows for the "Show all" toggle
+const LOCATIONS = Array.from({ length: 8 }, (_, i) => ({
+  area: `paldea-route-${i + 1}-area`,
+  method: "walk",
+  dlc: i % 2 ? "The Teal Mask" : null,
+  min_level: 5,
+  max_level: 8,
+  chance: 30,
+  chance_varies: i % 3 === 0,
+  conditions: ["time-night"],
+  varies_with: ["weather-raining"],
+}));
+
 async function mockPages(page: Page) {
   await mockPublicGameRoutes(page);
+  await page.route(`${API}/api/v1/pokemon/906/encounters*`, (r) =>
+    r.fulfill(json({ status: "found", locations: LOCATIONS })),
+  );
+  await page.route(`${API}/api/v1/pokemon/907/encounters*`, (r) =>
+    r.fulfill(
+      json({
+        status: "none",
+        locations: [],
+        evolves_from: { name: "sprigatito", pokemon_name: "sprigatito" },
+      }),
+    ),
+  );
   await page.route(`${API}/api/v1/pokemon/sprigatito*`, (r) =>
     r.fulfill(json(SPRIGATITO_WITH_ABILITIES)),
   );
@@ -97,6 +122,19 @@ const ROUTES: Route[] = [
       await page.getByRole("button", { name: "Overgrow" }).click();
       await expect(
         page.getByRole("region", { name: "Overgrow ability" }),
+      ).toBeVisible();
+      await page.getByRole("button", { name: "Show all 8 locations" }).click();
+      await expect(
+        page.getByTestId("encounter-list").getByRole("listitem"),
+      ).toHaveCount(8);
+    },
+  },
+  {
+    name: "detail (not in the wild)",
+    path: "/game/scarlet/pokemon/floragato",
+    ready: async (page) => {
+      await expect(
+        page.getByRole("button", { name: "Sprigatito", exact: true }),
       ).toBeVisible();
     },
   },

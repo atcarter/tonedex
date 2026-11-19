@@ -54,6 +54,16 @@ class Api::V1::PokemonController < ApplicationController
     }
   end
 
+  # Where to catch it in a game (ADR-010). Cache-only: a miss is warmed by a job and reported as pending.
+  def encounters
+    pokemon = Pokemon.find(params[:id])
+    game = Game.find(params.require(:game_id))
+    result = adapter.encounters_for(pokemon, game)
+    WarmEncountersJob.enqueue_once(game.id, pokemon.id) if result[:status] == "pending"
+
+    render json: result
+  end
+
   private
 
   def find_or_fetch_pokemon

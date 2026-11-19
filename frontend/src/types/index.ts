@@ -121,6 +121,29 @@ export interface PokemonResponse {
   evolution_chain: EvolutionStep[];
 }
 
+// One area and method in the selected game; chance is the best across its conditions
+export interface EncounterLocation {
+  area: string; // PokeAPI location-area name
+  method: string;
+  dlc: string | null; // e.g. "The Isle of Armor"
+  min_level: number;
+  max_level: number;
+  chance: number;
+  chance_varies: boolean;
+  conditions: string[]; // apply to every slot
+  varies_with: string[]; // apply to only some slots
+}
+
+// unavailable: PokeAPI has no encounters for the game; pending: still being cached
+export type EncounterStatus = "found" | "none" | "unavailable" | "pending";
+
+export interface EncountersResponse {
+  status: EncounterStatus;
+  locations: EncounterLocation[];
+  // With "none": the stage it evolves from, when the game has both
+  evolves_from: Pick<EvolutionStep, "name" | "pokemon_name"> | null;
+}
+
 export interface GameResponse {
   game: Game;
   pokemons: Pokemon[];

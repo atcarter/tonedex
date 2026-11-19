@@ -90,6 +90,10 @@ export async function mockPublicGameRoutes(page: Page) {
     r.fulfill({ status: 200, contentType: "image/png", body: SPRITE_PNG }),
   );
   await page.route(`${API}/api/v1/games`, (r) => json(r, [GAME]));
+  // PokeAPI has no encounters for Scarlet; specs override this per Pokémon
+  await page.route(`${API}/api/v1/pokemon/*/encounters*`, (r) =>
+    json(r, { status: "unavailable", locations: [] }),
+  );
   // The first page request is ?limit=40 with no offset (offset=0 is falsy in api.ts)
   await page.route(`${API}/api/v1/games/1*`, (r) =>
     json(r, GAME_PAGE_RESPONSE),

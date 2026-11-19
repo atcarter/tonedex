@@ -1,6 +1,7 @@
 import type {
   CaughtEntry,
   DexView,
+  EncountersResponse,
   Game,
   GameResponse,
   MoveDetails,
@@ -142,6 +143,15 @@ export async function getPokemon(
   const queryString = params.toString();
   return fetchJson<PokemonResponse>(
     `/api/v1/pokemon/${nameOrId}${queryString ? `?${queryString}` : ""}`,
+  );
+}
+
+export async function getEncounters(
+  pokemonId: number,
+  gameId: number,
+): Promise<EncountersResponse> {
+  return fetchJson<EncountersResponse>(
+    `/api/v1/pokemon/${pokemonId}/encounters?game_id=${gameId}`,
   );
 }
 

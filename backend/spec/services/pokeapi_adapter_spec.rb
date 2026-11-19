@@ -1111,4 +1111,232 @@ RSpec.describe PokeapiAdapter do
       end
     end
   end
+
+  describe "encounters" do
+    def area(name, version, *slots)
+      {"location_area" => {"name" => name},
+       "version_details" => [{"version" => {"name" => version}, "max_chance" => 100, "encounter_details" => slots}]}
+    end
+
+    def slot(chance, levels, method: "walk", conditions: [])
+      {"chance" => chance, "min_level" => levels.min, "max_level" => levels.max,
+       "method" => {"name" => method}, "condition_values" => conditions.map { |c| {"name" => c} }}
+    end
+
+    let(:pokemon) { create(:pokemon) }
+
+    def stub_encounters(payload, cache_only: true, for_pokemon: pokemon)
+      allow(client).to receive(:pokemon_encounters)
+        .with(for_pokemon.pokeapi_id, cache_only: cache_only).and_return(payload)
+    end
+
+    describe "#encounters_for" do
+      let(:game) { create(:game, name: "sword", encounters_available: true) }
+
+      before { allow(client).to receive(:pokemon_species).and_return(nil) }
+
+      # Slugs checked against PokeAPI: /version/the-isle-of-armor-sword exists, and
+      # /pokemon/133/encounters files Eevee's Crown Tundra rows under the-crown-tundra-sword.
+      it "keeps the game's version and its labelled DLC, base game first" do
+        stub_encounters([
+          area("fields-of-honor-area", "the-isle-of-armor-sword", slot(5, [10, 15])),
+          area("galar-route-4-area", "sword", slot(5, [14, 16], method: "overworld")),
+          area("galar-route-5-area", "shield", slot(10, [15, 18])),
+          area("kanto-route-2-area", "red", slot(10, [3, 5]))
+        ])
+
+        result = adapter.encounters_for(pokemon, game)
+
+        expect(result[:status]).to eq("found")
+        expect(result[:locations].map { |l| l.values_at(:area, :dlc, :method) }).to eq([
+          ["galar-route-4-area", nil, "overworld"],
+          ["fields-of-honor-area", "The Isle of Armor", "walk"]
+        ])
+      end
+
+      it "combines an area's slots per method into one level range and chance" do
+        stub_encounters([
+          area("galar-route-4-area", "sword", slot(20, [2]), slot(10, [4]), slot(5, [3], method: "surf"))
+        ])
+
+        expect(adapter.encounters_for(pokemon, game)[:locations]).to eq([
+          {area: "galar-route-4-area", method: "walk", dlc: nil, min_level: 2, max_level: 4,
+           chance: 30, chance_varies: false, conditions: [], varies_with: []},
+          {area: "galar-route-4-area", method: "surf", dlc: nil, min_level: 3, max_level: 3,
+           chance: 5, chance_varies: false, conditions: [], varies_with: []}
+        ])
+      end
+
+      it "counts every slot a condition set satisfies and splits shared from varying conditions" do
+        stub_encounters([
+          area("galar-route-4-area", "sword",
+            slot(20, [2], conditions: ["time-night"]),
+            slot(25, [3], conditions: ["time-night"]),
+            slot(40, [3], conditions: ["time-night", "radio-off"]))
+        ])
+
+        location = adapter.encounters_for(pokemon, game)[:locations].sole
+
+        expect(location).to include(chance: 85, chance_varies: true,
+          conditions: ["time-night"], varies_with: ["radio-off"])
+      end
+
+      # PokeAPI's Geodude on HeartGold's Route 45: a slot that a swarm replaces and one
+      # the radio's Hoenn/Sinnoh Sound replaces. With no swarm and the radio off both
+      # are active (20 + 10); during a swarm with the radio off only the radio's is.
+      it "adds slots that depend on different conditions when both can hold at once" do
+        heartgold = create(:game, name: "heartgold", encounters_available: true)
+        stub_encounters([
+          area("johto-route-45-area", "heartgold",
+            slot(20, [21], conditions: ["swarm-no"]),
+            slot(10, [22], conditions: ["radio-off"]))
+        ])
+
+        location = adapter.encounters_for(pokemon, heartgold)[:locations].sole
+
+        expect(location).to include(chance: 30, chance_varies: true,
+          conditions: [], varies_with: %w[swarm-no radio-off])
+      end
+
+      it "is unavailable without reading the cache when PokeAPI has no encounters for the game" do
+        game.update!(encounters_available: false)
+        allow(client).to receive(:pokemon_encounters)
+
+        expect(adapter.encounters_for(pokemon, game)).to eq(status: "unavailable", locations: [], evolves_from: nil)
+        expect(client).not_to have_received(:pokemon_encounters)
+      end
+
+      it "is none when the game has encounters but this Pokémon has none in it" do
+        stub_encounters([area("kanto-route-2-area", "red", slot(10, [3, 5]))])
+
+        expect(adapter.encounters_for(pokemon, game)).to eq(status: "none", locations: [], evolves_from: nil)
+      end
+
+      context "when it isn't in the wild" do
+        let(:red) { create(:game, name: "red", generation: 1, encounters_available: true) }
+
+        # Real species ids: Red has a stage when its generation introduced it
+        def stage(name, id, evolves_to = [])
+          {"species" => {"name" => name, "url" => "https://pokeapi.co/api/v2/pokemon-species/#{id}/"},
+           "evolution_details" => [], "evolves_to" => evolves_to}
+        end
+
+        let(:pichu_chain) { {"chain" => stage("pichu", 172, [stage("pikachu", 25, [stage("raichu", 26)])])} }
+        let(:riolu_chain) { {"chain" => stage("riolu", 447, [stage("lucario", 448)])} }
+
+        def earlier_in_red(species, chain)
+          stub_encounters([])
+          allow(client).to receive(:pokemon_species).with(pokemon.pokeapi_id, cache_only: true)
+            .and_return("name" => species, "evolution_chain" => {"url" => "https://pokeapi.co/api/v2/evolution-chain/7/"})
+          allow(client).to receive(:evolution_chain).with("7", cache_only: true).and_return(chain)
+          adapter.encounters_for(pokemon, red)
+        end
+
+        it "points to the stage it evolves from when the game has both" do
+          result = earlier_in_red("raichu", pichu_chain)
+
+          expect(result[:status]).to eq("none")
+          expect(result[:evolves_from]).to eq(name: "pikachu", pokemon_name: "pikachu")
+        end
+
+        it "points nowhere when the earlier stage is from a later generation" do
+          expect(earlier_in_red("pikachu", pichu_chain)[:evolves_from]).to be_nil
+        end
+
+        it "points nowhere for a Pokémon the game lacks, though its chain is shown in full" do
+          expect(earlier_in_red("lucario", riolu_chain)[:evolves_from]).to be_nil
+        end
+
+        it "points nowhere while the species or its chain isn't cached" do
+          expect(earlier_in_red("raichu", nil)[:evolves_from]).to be_nil
+        end
+      end
+
+      it "treats a cached 404 as no encounters" do
+        allow(client).to receive(:pokemon_encounters).and_raise(PokeapiClient::NotFoundError)
+
+        expect(adapter.encounters_for(pokemon, game)[:status]).to eq("none")
+      end
+
+      it "is pending on a cache miss" do
+        stub_encounters(nil)
+
+        expect(adapter.encounters_for(pokemon, game)[:status]).to eq("pending")
+      end
+
+      it "is pending, not none, until the game's encounters are settled" do
+        game.update!(encounters_available: nil)
+        stub_encounters([])
+
+        expect(adapter.encounters_for(pokemon, game)[:status]).to eq("pending")
+      end
+
+      it "is found before the game is settled when this Pokémon has encounters in it" do
+        game.update!(encounters_available: nil)
+        stub_encounters([area("galar-route-4-area", "sword", slot(5, [14]))])
+
+        expect(adapter.encounters_for(pokemon, game)[:status]).to eq("found")
+      end
+    end
+
+    describe "#warm_encounters" do
+      let(:game) { create(:game, name: "sword") }
+      let(:first) { create(:pokemon) }
+      let(:second) { create(:pokemon) }
+
+      before do
+        GamePokemon.create!(game: game, pokemon: second, pokedex_number: 2)
+        GamePokemon.create!(game: game, pokemon: first, pokedex_number: 1)
+      end
+
+      it "settles the game as having encounters at the first hit and still warms the rest" do
+        stub_encounters([area("galar-route-4-area", "sword", slot(5, [14]))], cache_only: false, for_pokemon: first)
+        stub_encounters([], cache_only: false, for_pokemon: second)
+
+        adapter.warm_encounters(game)
+
+        expect(game.reload.encounters_available).to be(true)
+        expect(client).to have_received(:pokemon_encounters).with(second.pokeapi_id, cache_only: false)
+      end
+
+      it "settles the game as having none when no Pokémon has encounters in its versions" do
+        stub_encounters([area("kanto-route-2-area", "red", slot(10, [3]))], cache_only: false, for_pokemon: first)
+        allow(client).to receive(:pokemon_encounters).with(second.pokeapi_id, cache_only: false)
+          .and_raise(PokeapiClient::NotFoundError)
+
+        adapter.warm_encounters(game)
+
+        expect(game.reload.encounters_available).to be(false)
+      end
+
+      it "leaves the game unsettled while its dex is still seeding" do
+        stub_encounters([], cache_only: false, for_pokemon: first)
+        stub_encounters([], cache_only: false, for_pokemon: second)
+
+        adapter.warm_encounters(game, seeded: false)
+
+        expect(game.reload.encounters_available).to be_nil
+      end
+
+      it "leaves the game unsettled when a fetch fails" do
+        stub_encounters([], cache_only: false, for_pokemon: first)
+        allow(client).to receive(:pokemon_encounters).with(second.pokeapi_id, cache_only: false)
+          .and_raise(PokeapiClient::ApiError)
+
+        adapter.warm_encounters(game)
+
+        expect(game.reload.encounters_available).to be_nil
+      end
+
+      it "warms only the requested Pokémon, in the game or not, once the game is settled" do
+        game.update!(encounters_available: true)
+        stub_encounters([], cache_only: false)
+
+        adapter.warm_encounters(game, pokemon)
+
+        expect(client).to have_received(:pokemon_encounters).once
+        expect(game.reload.encounters_available).to be(true)
+      end
+    end
+  end
 end
