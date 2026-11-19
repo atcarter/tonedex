@@ -3,7 +3,9 @@ import {
   GAME,
   SPRIGATITO,
   SPRIGATITO_DETAIL,
+  mockAuthenticatedRoutes,
   mockPublicGameRoutes,
+  seedAuthState,
   touchDrag,
   type Point,
 } from "./fixtures";
@@ -552,5 +554,89 @@ test.describe("Swipe (desktop)", () => {
     await page.mouse.up();
     await page.waitForTimeout(300);
     await expect(page).toHaveURL("/game/scarlet/pokemon/floragato");
+  });
+});
+
+test.describe("Previous and next from Favorites and Compare", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  // Favorites in the user's order, not the dex's
+  const FAVORITES = [DEX[2], DEX[0], DEX[1]].map((p, i) => ({
+    ...p,
+    pokedex_number: undefined,
+    favorite_id: i + 1,
+  }));
+
+  test("opened from Favorites, it steps through the favorites list", async ({
+    page,
+  }) => {
+    await mockPager(page);
+    await seedAuthState(page);
+    await mockAuthenticatedRoutes(page);
+    await page.route(`${API}/api/v1/favorites`, (r) =>
+      r.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(FAVORITES),
+      }),
+    );
+    await page.goto("/favorites");
+    await page.getByText("Sprigatito", { exact: true }).click();
+    await expect(heading(page, "Sprigatito")).toBeVisible();
+    await expect(page).toHaveURL("/pokemon/sprigatito");
+
+    await expect(previousButton(page)).toHaveAccessibleName(
+      "Previous Pokémon: Meowscarada",
+    );
+    await nextButton(page).click();
+    await expect(heading(page, "Floragato")).toBeVisible();
+    await expect(page).toHaveURL("/pokemon/floragato");
+    await expect(nextButton(page)).toHaveAccessibleName("No next Pokémon");
+
+    // A reload keeps the list it came from
+    await page.reload();
+    await expect(heading(page, "Floragato")).toBeVisible();
+    // The favorites list refetches after the reload
+    await expect(previousButton(page)).toHaveAccessibleName(
+      "Previous Pokémon: Sprigatito",
+    );
+    await page.keyboard.press("ArrowLeft");
+    await expect(heading(page, "Sprigatito")).toBeVisible();
+
+    await page.goBack();
+    await expect(page).toHaveURL("/favorites");
+  });
+
+  test("opened from Compare, it swaps between the two", async ({ page }) => {
+    await mockPager(page);
+    await page.goto("/compare?left=sprigatito&right=meowscarada");
+    await page.getByRole("link", { name: "Sprigatito" }).click();
+    await expect(heading(page, "Sprigatito")).toBeVisible();
+
+    await expect(previousButton(page)).toHaveAccessibleName(
+      "No previous Pokémon",
+    );
+    await nextButton(page).click();
+    await expect(heading(page, "Meowscarada")).toBeVisible();
+    await expect(page).toHaveURL("/pokemon/meowscarada");
+    await expect(nextButton(page)).toHaveAccessibleName("No next Pokémon");
+    await previousButton(page).click();
+    await expect(heading(page, "Sprigatito")).toBeVisible();
+
+    await page.goBack();
+    await expect(page).toHaveURL("/compare?left=sprigatito&right=meowscarada");
+  });
+
+  test("an evolution link leaves the list behind", async ({ page }) => {
+    await mockPager(page);
+    await page.goto("/compare?left=sprigatito&right=meowscarada");
+    await page.getByRole("link", { name: "Sprigatito" }).click();
+    await page
+      .getByTestId("evolution-stage")
+      .filter({ hasText: "Floragato" })
+      .click();
+    await expect(heading(page, "Floragato")).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "Previous and next Pokémon" }),
+    ).toHaveCount(0);
   });
 });

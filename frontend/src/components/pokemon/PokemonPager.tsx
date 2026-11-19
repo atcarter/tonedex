@@ -71,14 +71,21 @@ export function PokemonPager({ pokemonName, game }: PokemonPagerProps) {
   const movedTo = (state as { neighbor?: Neighbor } | null)?.neighbor;
   const navigationType = useNavigationType();
   const [dex] = useDexView();
-  const { neighbors, loading, pathFor } = useNeighbors(pokemonName, game, dex);
+  const { neighbors, loading, pathFor, origin } = useNeighbors(
+    pokemonName,
+    game,
+    dex,
+  );
 
   // The one move behind the buttons, the keys and the swipe
   const go = (to: Neighbor) => {
     const entry = neighbors?.[to];
     if (!entry) return false;
     // Replace, so Back returns to the list in one step
-    navigate(pathFor(entry.name), { replace: true, state: { neighbor: to } });
+    navigate(pathFor(entry.name), {
+      replace: true,
+      state: { origin, neighbor: to },
+    });
     return true;
   };
   const latestGo = useRef(go);

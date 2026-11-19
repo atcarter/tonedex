@@ -30,7 +30,9 @@ Moving from one Pokémon to the next meant going Back to the list and opening th
 
 **Neighbors are prefetched.** 250ms after a page settles, both neighbors' details are prefetched with `pokemonQueryOptions`, the key the page itself reads, and their sprites warmed, so a move renders from cache. Encounters are not prefetched: a miss can enqueue a warm-up job for a page nobody opened.
 
-**Scope:** controls show only on a game route whose response names a neighbor. There is no wrap-around from the last Pokémon to the first. A type filter on the list is component state, not in the URL, so "next" follows the whole view. A response without `neighbors` (an API older than the SPA) shows no controls.
+**Favorites and Compare move through their own list.** A detail page opened from Favorites steps through the favorites list in its saved order; one opened from Compare swaps between the two compared Pokémon. It is the same `go()` with a different neighbor source: the opening link puts `state.origin` (`{from: "favorites"}` or `{from: "compare", pair}`) in history state, every move carries it, and `useNeighbors` derives the neighbors from that list (the `useFavorites` cache, or the pair) instead of the API's. Moves stay on `/pokemon/<name>`. History state survives a reload but not a copied link, which then opens without previous/next, like a search hit. An evolution link pushes without the origin, so it leaves the list.
+
+**Scope:** without an origin, controls show only on a game route whose response names a neighbor, so a search hit the game doesn't have and alternate forms have none. There is no wrap-around from the last Pokémon to the first. A type filter on the list is component state, not in the URL, so "next" follows the whole view. A response without `neighbors` (an API older than the SPA) shows no controls.
 
 ## Consequences
 
@@ -59,3 +61,7 @@ Moving from one Pokémon to the next meant going Back to the list and opening th
 **React Router view transitions:** `BrowserRouter` passes `navigate` options straight to `history.replace`, which ignores `viewTransition`, and wraps the update in `startTransition`, so the new page can't be rendered synchronously for the animation either.
 
 **Trackpad or wheel scrolling sideways:** on macOS that gesture is the browser's Back and Forward.
+
+**The Favorites or Compare list in the URL (`?from=favorites`, the pair as a parameter):** a shared link would name a list that belongs to someone else's account or session. The URL keeps naming only the Pokémon (ADR-005), and the origin is navigation context.
+
+**Fall back to national-number order outside a dex view:** gives a search hit or an alternate form a "next" no list on screen shows.
