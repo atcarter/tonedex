@@ -15,8 +15,7 @@ import type { Game } from "../types";
 import { useAppContext } from "../hooks/useAppContext";
 import { useGames } from "../hooks/useGames";
 import { findGame } from "../hooks/useRouteGame";
-import { getPokemon } from "../services/api";
-import { pokemonQueryKey } from "../hooks/usePokemon";
+import { pokemonQueryOptions } from "../hooks/usePokemon";
 import { parseDexView, dexSearch } from "../hooks/useDexView";
 
 const StyledFormControl = styled(FormControl)`
@@ -108,11 +107,9 @@ export function GameSelector() {
 
     try {
       // Same query as usePokemon, so the detail page renders from cache.
-      const data = await queryClient.fetchQuery({
-        queryKey: pokemonQueryKey(name, game.id, dex),
-        queryFn: () => getPokemon(name, game.id, dex),
-        staleTime: Infinity,
-      });
+      const data = await queryClient.fetchQuery(
+        pokemonQueryOptions(name, game.id, dex),
+      );
       go(
         data.pokemon.pokedex_number != null
           ? `/game/${game.name}/pokemon/${name}${search}`
