@@ -4,6 +4,16 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 
 ---
 
+## 2026-11-19
+
+### Frontend
+- **Fix:** the phone app bar slides away and back smoothly in Safari again. Since 2026-11-17 it popped out and in with no animation (seen in the iOS 26.5 Simulator), because the bar carried a one-viewport-tall `::before` above itself, and Safari doesn't paint the slide of a bar that overflows its box. The red above the header now comes from a separate sticky `OverscrollFill` that `AppHeader` renders first. A top overscroll still reveals red, not the page background, with no gap between the status bar and the bar. The fill is 1px tall because Chromium won't paint its overflow from an empty box.
+- **Fix:** on desktop, a trackpad bounce at the top no longer shows a dark band above the header. The overscroll fill covers it, and the desktop bar is solid `primary.main` in dark mode too, through a shared `BrandAppBar` (it had MUI's lighter Paper overlay).
+- **Fix:** reloading in dark mode, as pull-to-refresh does, no longer flashes a white page before the app mounts. `index.html` sets the body to `background.default` for the system color scheme, and `CssBaseline`'s stored color mode takes over once mounted.
+- Tests: `e2e/mobile-header.spec.ts` checks that the sliding bar has no `::before` or `::after`, and simulates the bounce by pulling the whole page down, now on desktop too. `e2e/page-color.spec.ts` checks the page color while the app's entry module is held back, and that the stored mode wins after mount.
+
+---
+
 ## 2026-11-17
 
 ### Backend
