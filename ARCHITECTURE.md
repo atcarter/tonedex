@@ -148,6 +148,12 @@ The detail page's Type Matchups section is computed in the SPA from the response
 - **Which rows:** encounters in the game's version plus its DLC versions (`ENCOUNTER_DLC_VERSIONS`: Isle of Armor and Crown Tundra for Sword/Shield), each DLC row labelled. One row per area and method, base game first, in PokeAPI's order, with the level range across its slots. The chance in a condition state sums every slot whose conditions it satisfies. States are one observed value per kind (a value's first word: `time`, `swarm`, `radio`…), so a no-swarm slot and a radio-off slot add up, plus each slot's own set. The row shows the best (`chance_varies` when they differ, capped at 100), `conditions` holds those every slot needs and `varies_with` the rest.
 - **SPA:** `EncounterList` shows six rows and a "Show all" toggle (`aria-expanded`). Area names drop `-area` and the game's own region prefix. With `none`, `evolves_from` (`{name, pokemon_name}`, else null) is offered as "Evolve it from …". The backend sets it only when the game has both the Pokémon and the stage it evolves from (the membership `within_game` uses), reading the species and chain cache-only, so Lucario in Red, whose chain is shown in full, points nowhere.
 
+## Data Flow: Previous and Next on the Detail Page
+
+A detail page can move to the Pokémon before or after it (ADR-012).
+
+- **Dex view:** `GET /api/v1/pokemon/:id?game_id=&dex=` returns `neighbors: {previous, next}` in the list row shape. `DexView` (`app/models/dex_view.rb`) is the one definition of a game's regional or national view, its members and their order, read by both `GamesController#show` and this lookup, so "next" is the next card in the list. Each is `null` at an end; both are `null` without `game_id`, outside the view, and in an unstamped national view. It reads the database only.
+
 ---
 
 ## PokeAPI Caching

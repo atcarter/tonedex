@@ -16,4 +16,20 @@ class DexView
   def number
     @national ? Pokemon.arel_table[:pokeapi_id] : GamePokemon.arel_table[:pokedex_number]
   end
+
+  # The entries either side in list order, each with dex_number; both nil outside the view
+  def neighbors(pokemon)
+    current = pokemons.where(id: pokemon.id).pick(number)
+    return {previous: nil, next: nil} if current.nil?
+
+    rows = pokemons.select("pokemons.*", number.as("dex_number"))
+    # pokeapi_id breaks ties: nothing makes a regional number unique
+    tiebreak = Pokemon.arel_table[:pokeapi_id]
+    before = number.lt(current).or(number.eq(current).and(tiebreak.lt(pokemon.pokeapi_id)))
+    after = number.gt(current).or(number.eq(current).and(tiebreak.gt(pokemon.pokeapi_id)))
+    {
+      previous: rows.where(before).order(number.desc, tiebreak.desc).first,
+      next: rows.where(after).order(number.asc, tiebreak.asc).first
+    }
+  end
 end
