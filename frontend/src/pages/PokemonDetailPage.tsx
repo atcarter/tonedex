@@ -1,33 +1,10 @@
 import styled from "styled-components";
-import { useParams, useNavigate } from "react-router-dom";
-import Button from "@mui/material/Button";
+import { useParams } from "react-router-dom";
 import CircularProgress from "@mui/material/CircularProgress";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { PokemonDetail } from "../components/PokemonDetail";
-import { ErrorBoundary } from "../components/ErrorBoundary";
+import { PokemonPager } from "../components/pokemon/PokemonPager";
 import { useAppContext } from "../hooks/useAppContext";
 import { useGames } from "../hooks/useGames";
 import { useRouteGame } from "../hooks/useRouteGame";
-
-const PageWrapper = styled.div`
-  /* A centred flex item shrinks to its content; fill up to the max instead */
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 24px;
-
-  ${({ theme }) => theme.breakpoints.down("sm")} {
-    padding: 16px max(16px, env(safe-area-inset-right))
-      max(16px, env(safe-area-inset-bottom))
-      max(16px, env(safe-area-inset-left));
-  }
-`;
-
-const BackButton = styled(Button)`
-  margin-bottom: 16px !important;
-  color: ${({ theme }) => theme.palette.primary.main} !important;
-  font-weight: 600 !important;
-` as typeof Button;
 
 const LoadingContainer = styled.div`
   display: flex;
@@ -41,7 +18,6 @@ export function PokemonDetailPage() {
     pokemonName: string;
     gameId: string;
   }>();
-  const navigate = useNavigate();
   const { selectedGame } = useAppContext();
   const { data: games, isLoading: gamesLoading } = useGames();
   const { game: routeGame } = useRouteGame();
@@ -69,14 +45,5 @@ export function PokemonDetailPage() {
       gameList[0] ??
       null);
 
-  return (
-    <PageWrapper>
-      <BackButton startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
-        Back
-      </BackButton>
-      <ErrorBoundary>
-        <PokemonDetail pokemonName={pokemonName} game={game} />
-      </ErrorBoundary>
-    </PageWrapper>
-  );
+  return <PokemonPager pokemonName={pokemonName} game={game} />;
 }
