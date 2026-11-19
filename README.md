@@ -111,7 +111,7 @@ flowchart LR
 - **tonedex-db** is PostgreSQL 15. **tonedex-redis** is a Key Value instance on the free plan with the `noeviction` policy, so Sidekiq jobs are never evicted. Neither accepts external connections.
 - **tonedex-backend** is the env group the api and worker share: `DATABASE_URL`, `REDIS_URL`, the secrets, `CORS_ORIGINS` and `ALLOWED_HOSTS`.
 
-Render deploys a commit on `main` only after its GitHub checks pass (`ci.yml` and `terraform.yml`), so a failing commit never reaches production. The first production seed copied the development `api_caches` table into the production database, so seeding made no PokeAPI calls.
+Render deploys a commit on `main` only after its GitHub checks pass (`ci.yml`, `terraform.yml` and `security.yml`), so a failing commit never reaches production. The first production seed copied the development `api_caches` table into the production database, so seeding made no PokeAPI calls.
 
 ## Security
 
