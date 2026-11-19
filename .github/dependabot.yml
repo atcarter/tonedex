@@ -1,6 +1,7 @@
 version: 2
 
 # minor-and-patch takes every non-major update; named groups take only majors.
+# Cooldown never delays Dependabot security updates, only version updates.
 
 updates:
   # Ruby gems (backend)
@@ -9,6 +10,8 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
@@ -37,6 +40,8 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
@@ -79,6 +84,8 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "ci"

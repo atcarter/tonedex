@@ -12,6 +12,13 @@ Changes are listed newest first. Each entry notes the affected layer and the pri
 - **Fix:** reloading, as pull-to-refresh does, no longer flashes the other color mode's page before the app mounts. A blocking same-origin `public/color-mode.js` (the static site's CSP allows no inline script) reads the stored `pokedex_color_mode`, falling back to the system scheme as `UiContext` does, and `index.html` sets the body to that mode's `background.default`. `CssBaseline` takes over once mounted, so toggling the mode still repaints the page.
 - Tests: `e2e/mobile-header.spec.ts` checks that the sliding bar has no `::before` or `::after`, and simulates the bounce by pulling the whole page down, now on desktop too. `e2e/page-color.spec.ts` checks the page color while the app's entry module is held back, for the system scheme and for a stored mode that differs from it, and that the stored mode and the toggle win after mount. A phone with no safe-area inset shows no red row at the screen top once the bar has slid away.
 
+### CI/Security
+- **Security:** every `uses:` in `.github/workflows/` is pinned to the full commit SHA of the release it ran before, with the version in a trailing comment so Dependabot updates both. GitHub-owned actions are pinned too. No action changes version.
+- **Security:** `ci.yml` declares `permissions: contents: read`, like the other three workflows. The repository default is already read-only, so nothing changes unless that default does.
+- **Security:** Dependabot waits 7 days (`cooldown`) before proposing a new npm, gem or GitHub Actions release, so a malicious release that's pulled within days never reaches an auto-merged PR. The Docker base image has no cooldown block, and cooldown never delays security updates.
+- **New:** `SECURITY.md` covers scope, private vulnerability reporting, supported versions and what to expect.
+- The repository settings changed the same day: `gitleaks`, `trivy-image` and `trivy-config` became required checks on `main`, CodeQL default setup was turned on, and private vulnerability reporting was enabled.
+
 ---
 
 ## 2026-11-17
