@@ -12,6 +12,7 @@ import { useFavorites } from "../hooks/useFavorites";
 import { useFavoriteMutations } from "../hooks/useFavoriteMutations";
 import { moveItem, usePointerReorder } from "../hooks/usePointerReorder";
 import { PokemonCard } from "../components/PokemonCard";
+import { LiveRegion } from "../components/LiveRegion";
 import { formatName } from "../utils/formatters";
 import type { Pokemon } from "../types";
 
@@ -118,16 +119,6 @@ const MoveControls = styled.div`
       min-height: 44px;
     }
   }
-`;
-
-// Visually hidden, announced to screen readers on reorder
-const LiveRegion = styled.div`
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
 `;
 
 const EmptyState = styled.div`
