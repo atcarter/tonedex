@@ -108,11 +108,13 @@ export function PokemonPager({ pokemonName, game }: PokemonPagerProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const hasNeighbor = !!(neighbors?.previous || neighbors?.next);
+
   // State, not a ref: the surface mounts after the parent's loading branch
   const [surface, setSurface] = useState<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   useSwipeNavigation(surface, contentRef, {
-    enabled: !!neighbors,
+    enabled: hasNeighbor,
     canGo: (to) => !!neighbors?.[to],
     onGo: (to) => latestGo.current(to),
   });
@@ -153,7 +155,7 @@ export function PokemonPager({ pokemonName, game }: PokemonPagerProps) {
     return () => window.clearTimeout(id);
   }, [neighbors, game?.id, dex, queryClient]);
 
-  const showNav = loading || !!(neighbors?.previous || neighbors?.next);
+  const showNav = loading || hasNeighbor;
 
   return (
     <PageWrapper ref={setSurface}>

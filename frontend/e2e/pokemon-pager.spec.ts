@@ -345,7 +345,9 @@ test.describe("Swipe (phone)", () => {
     await open(page, "sprigatito");
 
     const drag = await touchDrag(page, ...right());
-    expect(await transform(page)).toBe("translate3d(50px, 0px, 0px)");
+    await expect
+      .poll(() => transform(page))
+      .toBe("translate3d(50px, 0px, 0px)");
     await drag.release();
     await expect.poll(() => transform(page)).toBe("");
     await expect(page).toHaveURL("/game/scarlet/pokemon/sprigatito");
@@ -357,6 +359,32 @@ test.describe("Swipe (phone)", () => {
     await swipe(page, left());
     await page.waitForTimeout(300);
     await expect(page).toHaveURL("/game/scarlet/pokemon/meowscarada");
+  });
+
+  test("with no previous or next there are no controls and the page doesn't follow the finger", async ({
+    page,
+  }) => {
+    await mockPager(page);
+    await page.route(`${API}/api/v1/pokemon/floragato*`, (r) =>
+      r.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...detailFor("floragato"),
+          neighbors: { previous: null, next: null },
+        }),
+      }),
+    );
+    await page.goto("/game/scarlet/pokemon/floragato");
+    await expect(heading(page, "Floragato")).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "Previous and next Pokémon" }),
+    ).toHaveCount(0);
+
+    const drag = await touchDrag(page, ...left());
+    expect(await transform(page)).toBe("");
+    await drag.release();
+    await page.waitForTimeout(300);
+    await expect(page).toHaveURL("/game/scarlet/pokemon/floragato");
   });
 
   test("a vertical or 45° drag scrolls and never moves sideways", async ({
