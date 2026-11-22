@@ -6,13 +6,13 @@ import type { Pokemon } from "../types";
 
 // staleTime: 0 — user-owned data should be fresh on every mount
 // (multiple tabs/devices may have modified favorites)
-export function useFavorites() {
+export function useFavorites(enabled = true) {
   const { token } = useAppContext();
 
   return useQuery<Pokemon[]>({
     queryKey: ["favorites"],
     queryFn: () => getFavorites(token!),
-    enabled: !!token,
+    enabled: enabled && !!token,
     staleTime: 0,
   });
 }

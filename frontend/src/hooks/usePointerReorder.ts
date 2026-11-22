@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { followPointer } from "./followPointer";
 
 // Drag-to-reorder with Pointer Events: one path for mouse, touch and pen.
 // A mouse drags from anywhere on an item; touch and pen drag only from a
@@ -84,9 +85,7 @@ export function usePointerReorder<T>(
       s.frame = requestAnimationFrame(autoScroll);
     };
 
-    const ours = (ev: PointerEvent) => ev.pointerId === e.pointerId;
     const move = (ev: PointerEvent) => {
-      if (!ours(ev)) return;
       // A mouse released where pointerup never reached us (menu, focus loss)
       if (ev.pointerType === "mouse" && ev.buttons === 0) return end(false);
       s.x = ev.clientX;
@@ -99,17 +98,12 @@ export function usePointerReorder<T>(
       }
       retarget();
     };
-    const up = (ev: PointerEvent) => ours(ev) && end(true);
-    const cancel = (ev: PointerEvent) => ours(ev) && end(false);
     const abort = () => end(false);
     const menu = () => e.pointerType === "mouse" && end(false);
 
-    // Window listeners, so events still arrive while React moves the item
     const end = (commit: boolean) => {
       cancelAnimationFrame(s.frame);
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      window.removeEventListener("pointercancel", cancel);
+      unfollow();
       window.removeEventListener("blur", abort);
       window.removeEventListener("contextmenu", menu);
       if (endSession.current === end) endSession.current = null;
@@ -124,9 +118,11 @@ export function usePointerReorder<T>(
       }
     };
 
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-    window.addEventListener("pointercancel", cancel);
+    const unfollow = followPointer(e.pointerId, {
+      move,
+      up: () => end(true),
+      cancel: () => end(false),
+    });
     window.addEventListener("blur", abort);
     window.addEventListener("contextmenu", menu);
     endSession.current = end;

@@ -82,12 +82,16 @@ The URL is the source of truth for the selected game (ADR-005). The game segment
 
 Switching games keeps the current page where it can: the team builder stays on `/game/<new>/team`, and a detail page stays on that Pokémon when the detail endpoint returns a `pokedex_number` for it in the new game (fetched under the detail page's own query key, so it renders from cache); otherwise the switch goes to the new game's dex. The `?dex=` view carries over.
 
+### Navigation
+
+`App.tsx` acts on every path change. A push or replace starts the new page at the top; Back and Forward (`POP`) keep the offset the browser restores. Search-only changes (`?dex=`, `?loaded=`) don't scroll. Focus then moves to `<main>`, except on the first load and after a previous/next move (`state.neighbor`), which keeps focus on the pressed control.
+
 ### Query Key Conventions
 
 ```
 ["games"]                     — games list
 ["game", gameId, dex]         — single game + paginated pokémon (infinite query); dex is "regional" | "national"
-["pokemon", name, gameId?, dex] — pokémon detail; dex picks the number shown
+["pokemon", name, gameId?, dex] — pokémon detail; dex picks the number shown and the neighbors; prefetched for both neighbors
 ["move", name]                — move detail (fetched lazily when a row expands)
 ["encounters", pokemonId, gameId] — where to catch it in a game (polls every 5s while pending)
 ["suggestions", query]        — as-you-type search suggestions (staleTime: 5 min)
@@ -143,6 +147,17 @@ The detail page's Type Matchups section is computed in the SPA from the response
 - **Cache-only:** a `pending` answer enqueues `WarmEncountersJob` once per game (`enqueue_once`). It caches the requested Pokémon, then every Pokémon the game has while the flag is null, setting it true at the first hit and false after a clean pass with none. A failed fetch, or a dex that is unseeded or still seeding (`SeedGamePokemonJob.locked?`), leaves it null. The SPA's `useEncounters` polls every 5s while pending. Empty payloads are cached as `[]` (`ApiCache` accepts an empty array).
 - **Which rows:** encounters in the game's version plus its DLC versions (`ENCOUNTER_DLC_VERSIONS`: Isle of Armor and Crown Tundra for Sword/Shield), each DLC row labelled. One row per area and method, base game first, in PokeAPI's order, with the level range across its slots. The chance in a condition state sums every slot whose conditions it satisfies. States are one observed value per kind (a value's first word: `time`, `swarm`, `radio`…), so a no-swarm slot and a radio-off slot add up, plus each slot's own set. The row shows the best (`chance_varies` when they differ, capped at 100), `conditions` holds those every slot needs and `varies_with` the rest.
 - **SPA:** `EncounterList` shows six rows and a "Show all" toggle (`aria-expanded`). Area names drop `-area` and the game's own region prefix. With `none`, `evolves_from` (`{name, pokemon_name}`, else null) is offered as "Evolve it from …". The backend sets it only when the game has both the Pokémon and the stage it evolves from (the membership `within_game` uses), reading the species and chain cache-only, so Lucario in Red, whose chain is shown in full, points nowhere.
+
+## Data Flow: Previous and Next on the Detail Page
+
+A detail page can move to the Pokémon before or after it (ADR-012).
+
+- **Dex view:** `GET /api/v1/pokemon/:id?game_id=&dex=` returns `neighbors: {previous, next}` in the list row shape. `DexView` (`app/models/dex_view.rb`) is the one definition of a game's regional or national view, its members and their order, read by both `GamesController#show` and this lookup, so "next" is the next card in the list. Each is `null` at an end; both are `null` without `game_id`, outside the view, and in an unstamped national view. It reads the database only.
+- **One move:** `PokemonPager` (rendered by `PokemonDetailPage` once the games list has loaded) gets the neighbors from `useNeighbors` and moves with `go()`, which the Previous/Next buttons (`NeighborNav`) and the left/right arrow keys call. It navigates with `replace` and `state.neighbor`, so Back returns to the list in one step, and `App.tsx` keeps focus on the pressed button. The buttons are `aria-disabled` at an end and stay mounted while the next Pokémon loads; a live region names the Pokémon moved to. Phones show the number only.
+- **Swipe:** on touch screens `useSwipeNavigation` calls the same `go()`: the page (`PokemonPager`'s wrapper, `touch-action: pan-y pinch-zoom`, `overflow-x: clip`) follows the finger and the new Pokémon slides in with Web Animations, so `PokemonDetail` isn't remounted. Vertical pans, pull-to-refresh, zoom and touches within 32px of a screen edge stay the browser's, and a mouse doesn't swipe. Nothing inside the page may be `overflow-x: auto` or `scroll` unless marked `data-swipe-ignore`, since a scroll container claims the pan; `MoveList` is `overflow-x: clip`. Reduced motion drops the transform and the animation.
+- **Prefetch:** 250ms after a page settles, both neighbors' details are prefetched under the page's own query key (`pokemonQueryOptions`) and their sprites warmed. Encounters aren't prefetched.
+- **From Favorites or Compare:** the opening link (a favorites card, a compared Pokémon's name) puts `state.origin` in history state and every move carries it. `useNeighbors` then takes the neighbors from that list, the `useFavorites` cache in its saved order or the compared pair, and moves stay on `/pokemon/<name>`. An evolution link drops the origin.
+- **Where it shows:** with an origin, when the list holds the Pokémon; otherwise on a game route whose response names a neighbor. A search hit outside the game and alternate forms get none. No wrap-around; a list type filter isn't followed; a response without `neighbors` shows no controls.
 
 ---
 
@@ -241,3 +256,4 @@ The api, worker, database and Key Value all run in region ohio; the database and
 | 009 | A per-game national view built from learnsets and every version-group dex |
 | 010 | Encounter locations read cache-only, warmed by a job and settled per game |
 | 011 | Type matchups computed in the SPA, per generation, with one ability folded in |
+| 012 | Previous and next on the detail page: neighbors from the API, one replacing move |

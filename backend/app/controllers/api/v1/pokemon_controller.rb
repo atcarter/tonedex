@@ -50,7 +50,8 @@ class Api::V1::PokemonController < ApplicationController
       pokemon: PokemonSerializer.details(pokemon, game: game, dex: params[:dex], sprite_base: request.base_url),
       species: species_info(pokemon, game),
       moves: moves_for_game(pokemon, game),
-      evolution_chain: evolution_chain(pokemon, game)
+      evolution_chain: evolution_chain(pokemon, game),
+      neighbors: neighbors(pokemon, game)
     }
   end
 
@@ -96,6 +97,15 @@ class Api::V1::PokemonController < ApplicationController
     adapter.species_info_for(pokemon, game)
   rescue PokeapiClient::ApiError
     nil
+  end
+
+  # Previous and next in the game's ?dex= view, as list rows
+  def neighbors(pokemon, game)
+    return {previous: nil, next: nil} unless game
+
+    DexView.new(game, params[:dex]).neighbors(pokemon).transform_values do |entry|
+      entry && PokemonSerializer.game_entry(entry, game, entry.dex_number, sprite_base: request.base_url)
+    end
   end
 
   def adapter

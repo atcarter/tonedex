@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import styled from "styled-components";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import Paper from "@mui/material/Paper";
 import TextField from "@mui/material/TextField";
 import IconButton from "@mui/material/IconButton";
@@ -8,6 +8,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import CloseIcon from "@mui/icons-material/Close";
 import type { Pokemon, PokemonDetail } from "../types";
 import { usePokemon } from "../hooks/usePokemon";
+import type { PagerOrigin } from "../hooks/useNeighbors";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useSuggestions } from "../hooks/useSuggestions";
 import { StatBars } from "../components/pokemon/StatBars";
@@ -149,6 +150,16 @@ const Name = styled.h2`
   overflow-wrap: anywhere;
 `;
 
+// Opens the detail page, whose previous/next swaps between the two
+const NameLink = styled(Link)`
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
 const Types = styled.div`
   display: flex;
   gap: 5px;
@@ -262,12 +273,14 @@ function CompareColumn({
   label,
   name,
   otherStats,
+  origin,
   onPick,
   onClear,
 }: {
   label: string;
   name: string;
   otherStats?: Stats;
+  origin: PagerOrigin;
   onPick: (name: string) => void;
   onClear: () => void;
 }) {
@@ -297,7 +310,9 @@ function CompareColumn({
             </SpriteCircle>
             <div>
               <Name>
-                {formatName(details.name)}
+                <NameLink to={`/pokemon/${name}`} state={{ origin }}>
+                  {formatName(details.name)}
+                </NameLink>
                 <IconButton
                   size="small"
                   aria-label={`clear ${details.name}`}
@@ -340,6 +355,11 @@ export function ComparePage() {
     });
   };
 
+  const origin: PagerOrigin = {
+    from: "compare",
+    pair: [left, right].filter(Boolean),
+  };
+
   // Fetch both here so each column can highlight its winning stats
   const leftQuery = usePokemon(left);
   const rightQuery = usePokemon(right);
@@ -352,6 +372,7 @@ export function ComparePage() {
           label="First Pokémon..."
           name={left}
           otherStats={right ? rightQuery.data?.pokemon.base_stats : undefined}
+          origin={origin}
           onPick={(name) => setSide("left", name)}
           onClear={() => setSide("left", null)}
         />
@@ -359,6 +380,7 @@ export function ComparePage() {
           label="Second Pokémon..."
           name={right}
           otherStats={left ? leftQuery.data?.pokemon.base_stats : undefined}
+          origin={origin}
           onPick={(name) => setSide("right", name)}
           onClear={() => setSide("right", null)}
         />

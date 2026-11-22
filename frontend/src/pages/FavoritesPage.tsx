@@ -12,6 +12,8 @@ import { useFavorites } from "../hooks/useFavorites";
 import { useFavoriteMutations } from "../hooks/useFavoriteMutations";
 import { moveItem, usePointerReorder } from "../hooks/usePointerReorder";
 import { PokemonCard } from "../components/PokemonCard";
+import type { PagerOrigin } from "../hooks/useNeighbors";
+import { LiveRegion } from "../components/LiveRegion";
 import { formatName } from "../utils/formatters";
 import type { Pokemon } from "../types";
 
@@ -120,16 +122,6 @@ const MoveControls = styled.div`
   }
 `;
 
-// Visually hidden, announced to screen readers on reorder
-const LiveRegion = styled.div`
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-`;
-
 const EmptyState = styled.div`
   display: flex;
   flex-direction: column;
@@ -166,6 +158,9 @@ const DragHint = styled.p`
 
 // Stable fallback so the sync check below doesn't see a new [] every render
 const NO_FAVORITES: Pokemon[] = [];
+
+// The detail page's previous/next steps through this list
+const FROM_FAVORITES: PagerOrigin = { from: "favorites" };
 
 export function FavoritesPage() {
   const { currentUser, signIn } = useAppContext();
@@ -256,7 +251,11 @@ export function FavoritesPage() {
             $dragging={dragIndex === index}
             {...itemProps(index)}
           >
-            <PokemonCard pokemon={pokemon} showFavoriteButton />
+            <PokemonCard
+              pokemon={pokemon}
+              showFavoriteButton
+              origin={FROM_FAVORITES}
+            />
             <MoveControls>
               <IconButton
                 size="small"

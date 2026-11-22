@@ -13,13 +13,14 @@ class Api::V1::GamesController < ApplicationController
     SeedGamePokemonJob.enqueue_once(game.id) unless game.game_pokemons.regional.exists?
     SeedNationalDexJob.enqueue_once if national && game.national_seeded_at.nil?
 
-    pokemons = national ? national_pokemons(game) : game.pokemons.merge(GamePokemon.regional)
-    number = national ? "pokemons.pokeapi_id" : "game_pokemons.pokedex_number"
+    view = DexView.new(game, params[:dex])
+    pokemons = view.pokemons
+    number = view.number
 
     limit = (params[:limit] || 40).to_i
     offset = (params[:offset] || 0).to_i
     total = pokemons.count
-    page = pokemons.select("pokemons.*", "#{number} AS dex_number").order(number).offset(offset).limit(limit)
+    page = pokemons.select("pokemons.*", number.as("dex_number")).order(number).offset(offset).limit(limit)
     # Whole-view data is only worth computing for the first page —
     # the frontend reads it from page one exclusively.
     whole = offset.zero? ? whole_view(pokemons, number, game) : {available_types: [], pokemon_ids: [], dex_numbers: []}
@@ -39,11 +40,6 @@ class Api::V1::GamesController < ApplicationController
   end
 
   private
-
-  # Empty until the national pass finishes, so the list never grows under the reader
-  def national_pokemons(game)
-    game.national_seeded_at ? game.pokemons : Pokemon.none
-  end
 
   # pokemon_ids and dex_numbers span the whole view in list order: the caught
   # counter and the dex-section jumps need them before every page has loaded.

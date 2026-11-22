@@ -114,11 +114,19 @@ export interface SpeciesInfo {
   abilities: AbilityInfo[];
 }
 
+// The entries either side in the game's dex view; null at an end
+export interface PokemonNeighbors {
+  previous: Pokemon | null;
+  next: Pokemon | null;
+}
+
 export interface PokemonResponse {
   pokemon: PokemonDetail;
   species?: SpeciesInfo | null;
   moves: BasicMove[];
   evolution_chain: EvolutionStep[];
+  // Optional: the SPA and the API deploy separately
+  neighbors?: PokemonNeighbors;
 }
 
 // One area and method in the selected game; chance is the best across its conditions

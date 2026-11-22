@@ -9,6 +9,7 @@ import PanoramaFishEyeIcon from "@mui/icons-material/PanoramaFishEye";
 import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 import { useNavigate } from "react-router-dom";
 import type { DexView, Pokemon } from "../types";
+import type { PagerOrigin } from "../hooks/useNeighbors";
 import { useAppContext } from "../hooks/useAppContext";
 import { dexSearch } from "../hooks/useDexView";
 import { useFavorites } from "../hooks/useFavorites";
@@ -17,7 +18,7 @@ import { useCaughtPokemons } from "../hooks/useCaughtPokemons";
 import { useCaughtMutations } from "../hooks/useCaughtMutations";
 import { TypeBadge } from "./TypeBadge";
 import { MythicalTag } from "./MythicalTag";
-import { formatName } from "../utils/formatters";
+import { formatDexNumber, formatName } from "../utils/formatters";
 
 interface PokemonCardProps {
   pokemon: Pokemon;
@@ -27,6 +28,8 @@ interface PokemonCardProps {
   // The game page's view, carried onto the detail link
   dex?: DexView;
   showFavoriteButton?: boolean;
+  // The list the detail page's previous/next moves through, when not the dex
+  origin?: PagerOrigin;
 }
 
 const Card = styled.div<{ $caught: boolean }>`
@@ -172,6 +175,7 @@ export function PokemonCard({
   gameSlug,
   dex = "regional",
   showFavoriteButton = true,
+  origin,
 }: PokemonCardProps) {
   const navigate = useNavigate();
   const { currentUser } = useAppContext();
@@ -191,6 +195,7 @@ export function PokemonCard({
       gameSlug
         ? `/game/${gameSlug}/pokemon/${pokemon.name}${dexSearch(dex)}`
         : `/pokemon/${pokemon.name}`,
+      { state: origin && { origin } },
     );
   };
 
@@ -286,9 +291,7 @@ export function PokemonCard({
       )}
 
       {pokemon.pokedex_number && (
-        <PokedexNum>
-          #{String(pokemon.pokedex_number).padStart(3, "0")}
-        </PokedexNum>
+        <PokedexNum>{formatDexNumber(pokemon.pokedex_number)}</PokedexNum>
       )}
       {spriteFailed ? (
         <SpriteFallback title={pokemon.name}>

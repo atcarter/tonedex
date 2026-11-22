@@ -141,3 +141,29 @@ export async function seedAuthState(page: Page) {
     );
   });
 }
+
+export type Point = { x: number; y: number };
+
+// Real touch input (Playwright's touchscreen only taps); release() lifts the finger
+export async function touchDrag(
+  page: Page,
+  from: Point,
+  to: Point,
+  { steps = 12, delay = 16 }: { steps?: number; delay?: number } = {},
+) {
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (type: string, p?: Point) =>
+    cdp.send("Input.dispatchTouchEvent", {
+      type,
+      touchPoints: p ? [{ ...p, id: 1 }] : [],
+    });
+  await touch("touchStart", from);
+  for (let i = 1; i <= steps; i++) {
+    await touch("touchMove", {
+      x: from.x + ((to.x - from.x) * i) / steps,
+      y: from.y + ((to.y - from.y) * i) / steps,
+    });
+    await page.waitForTimeout(delay);
+  }
+  return { release: () => touch("touchEnd") };
+}

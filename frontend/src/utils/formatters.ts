@@ -5,6 +5,11 @@ export function formatName(name: string): string {
     .join(" ");
 }
 
+// Three digits wide, as the games print them
+export function formatDexNumber(n: number): string {
+  return `#${String(n).padStart(3, "0")}`;
+}
+
 export function formatStatName(stat: string): string {
   const statNames: Record<string, string> = {
     hp: "HP",

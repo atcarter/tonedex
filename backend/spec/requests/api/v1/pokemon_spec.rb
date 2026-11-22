@@ -143,6 +143,49 @@ RSpec.describe "Pokemon API", type: :request do
         get "/api/v1/pokemon/#{pokemon.id}", params: {game_id: game.id, dex: "national"}
         expect(response.parsed_body["pokemon"]["pokedex_number"]).to eq(pokemon.pokeapi_id)
       end
+
+      describe "neighbors" do
+        let!(:previous) do
+          create(:pokemon, types: %w[normal fairy],
+            past_types: [{"generation" => "generation-v", "types" => ["normal"]}]).tap do |p|
+            GamePokemon.create!(game: game, pokemon: p, pokedex_number: 3)
+          end
+        end
+
+        before { GamePokemon.create!(game: game, pokemon: pokemon, pokedex_number: 4) }
+
+        it "returns the entries either side as list rows for the game" do
+          allow(SpriteStore).to receive(:mirrored?).and_return(true)
+
+          get "/api/v1/pokemon/#{pokemon.id}", params: {game_id: game.id}
+
+          neighbors = response.parsed_body["neighbors"]
+          expect(neighbors["next"]).to be_nil
+          expect(neighbors["previous"]).to include(
+            "id" => previous.id, "name" => previous.name, "types" => ["normal"],
+            "mythical" => false, "pokedex_number" => 3
+          )
+          expect(neighbors["previous"]["sprite_url"]).to match(%r{\Ahttp://localhost/sprites/\d+\.png\z})
+        end
+
+        it "follows the ?dex= view" do
+          get "/api/v1/pokemon/#{pokemon.id}", params: {game_id: game.id, dex: "national"}
+
+          expect(response.parsed_body["neighbors"]).to eq("previous" => nil, "next" => nil)
+        end
+
+        it "has none for a Pokémon the game lacks" do
+          get "/api/v1/pokemon/#{create(:pokemon).id}", params: {game_id: game.id}
+
+          expect(response.parsed_body["neighbors"]).to eq("previous" => nil, "next" => nil)
+        end
+      end
+    end
+
+    it "has no neighbors without a game" do
+      get "/api/v1/pokemon/#{pokemon.id}"
+
+      expect(response.parsed_body["neighbors"]).to eq("previous" => nil, "next" => nil)
     end
   end
 

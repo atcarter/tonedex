@@ -46,9 +46,11 @@ const SPRIGATITO_WITH_ABILITIES = {
   },
 };
 
+// With previous/next controls, one of them at an end
 const FLORAGATO_DETAIL = {
   ...SPRIGATITO_DETAIL,
   pokemon: { ...SPRIGATITO_DETAIL.pokemon, ...FLORAGATO },
+  neighbors: { previous: SPRIGATITO, next: null },
 };
 
 const TEAM = [
@@ -135,6 +137,9 @@ const ROUTES: Route[] = [
     ready: async (page) => {
       await expect(
         page.getByRole("button", { name: "Sprigatito", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Previous Pokémon: #001 Sprigatito" }),
       ).toBeVisible();
     },
   },

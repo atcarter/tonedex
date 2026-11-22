@@ -25,7 +25,7 @@ import { Encounters } from "./pokemon/EncounterList";
 import { TypeMatchups } from "./pokemon/TypeMatchups";
 import { AboutItem, AboutLabel } from "./pokemon/aboutStyles";
 import { TypeBadge } from "./TypeBadge";
-import { formatName } from "../utils/formatters";
+import { formatDexNumber, formatName } from "../utils/formatters";
 import { isPreAbilityGeneration } from "../utils/abilities";
 
 interface PokemonDetailProps {
@@ -384,9 +384,7 @@ export function PokemonDetail({ pokemonName, game }: PokemonDetailProps) {
         </SpriteWrapper>
 
         <HeaderInfo>
-          {dexNumber && (
-            <DexNumber>#{String(dexNumber).padStart(3, "0")}</DexNumber>
-          )}
+          {dexNumber && <DexNumber>{formatDexNumber(dexNumber)}</DexNumber>}
           <PokemonName>{formatName(details.name)}</PokemonName>
           {species?.genus && <Genus>{species.genus}</Genus>}
           {details.mythical && <HeaderTag />}
