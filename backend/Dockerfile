@@ -2,7 +2,7 @@
 # check=error=true
 
 # Literal tag: Dependabot can't read ARG. Bump backend/.ruby-version with it.
-FROM docker.io/library/ruby:4.0.9-slim AS base
+FROM docker.io/library/ruby:4.0.10-slim AS base
 
 WORKDIR /rails
 
